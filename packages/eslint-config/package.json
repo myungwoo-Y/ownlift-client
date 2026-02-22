@@ -1,0 +1,29 @@
+{
+  "name": "@ownlift/eslint-config",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "base.js",
+  "exports": {
+    ".": "./base.js",
+    "./next": "./next.js",
+    "./react-native": "./react-native.js"
+  },
+  "dependencies": {
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-simple-import-sort": "^12.1.1",
+    "eslint-plugin-sonarjs": "^3.0.2",
+    "typescript-eslint": "^8.24.1"
+  },
+  "peerDependencies": {
+    "eslint": ">=9.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.1.6",
+    "eslint-plugin-react-native": "^5.0.0"
+  }
+}

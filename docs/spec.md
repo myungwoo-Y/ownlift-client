@@ -615,3 +615,277 @@ CREATE INDEX IF NOT EXISTS idx_pr_events_dirty
   ON pr_events(dirty)
   WHERE dirty = 1;
 ```
+
+---
+
+## 11) 기술 스택 (MVP Mobile 중심 + Server 분리 레포 + OpenAPI 연동)
+
+### 11.1 결정 원칙(Decision Principles)
+
+- **오프라인-퍼스트**: 로컬 DB 중심으로 모델링하고, 서버 연동은 나중에 붙이기 쉬운 형태로 설계한다.
+- **도메인 로직 분리**: 5/3/1 엔진(라운딩/퍼센트/PR 계산)은 플랫폼 독립(`packages/core`)으로 고정한다.
+- **계약 기반 통신**: 앱 ↔ 서버는 **OpenAPI spec**을 단일 계약으로 사용한다.
+- **포트폴리오 품질**: strict TS + 핵심 불변성(처방 스냅샷) 회귀 테스트를 “필수”로 둔다.
+
+---
+
+### 11.2 Mobile (Expo RN / TypeScript) — MVP
+
+**Runtime**
+- Expo + React Native
+- TypeScript (strict)
+
+**Routing / Navigation**
+- expo-router
+
+**Local Persistence (Offline-first)**
+- expo-sqlite
+- Query builder: **Kysely 권장**
+  - SQL-first라서 migration/디버깅이 쉽고, 타입 안전한 쿼리를 유지할 수 있다.
+
+**Schema / Validation**
+- zod (입력값 검증 + shared 타입 생성)
+
+**State**
+- zustand (UI 상태, 세션 진행 상태 등)
+- (선택) TanStack Query: 서버 붙는 Phase 2에서 캐시/동기화 패턴을 그대로 가져가기 좋다.
+
+**UI**
+- (옵션 A) **NativeWind(Tailwind for RN)**  
+  - DX가 뛰어나지만, 스타일 난립 방지를 위해 **UI primitives 레이어(Button/Text/Stack/Card 등)에서만 className 사용**을 권장한다.
+  - 동적 className 조합을 최소화하고, spacing/typography scale을 tokens로 고정한다.
+- (옵션 B) 자체 primitives + StyleSheet 기반 (가장 단순/명확)
+
+**Device**
+- react-native-safe-area-context
+- react-native-gesture-handler
+- react-native-reanimated
+
+**Utilities**
+- date-fns (날짜/시간)
+- uuid or nanoid (id)
+- (필요 시) decimal.js (라운딩/퍼센트 계산의 부동소수 오차 회피)
+
+---
+
+### 11.3 Monorepo / Shared Packages (Mobile/Web 공용)
+
+**Monorepo**
+- Turborepo + pnpm
+
+**packages/core**
+- 프로그램 엔진(5/3/1), 라운딩/퍼센트/PR 계산
+- 플랫폼 API 금지(RN/DOM 접근 금지)
+- vitest 기반 unit test 필수
+
+**packages/schemas**
+- zod 스키마 모음 (settings, session, prescription, set_log 등)
+- core / mobile / web / api에서 공유 가능하도록 설계
+
+**packages/db**
+- migrations(DDL) + migration runner + repos
+- sync-ready 메타 컬럼(dirty/revision/deleted_at/updated_at) 규칙을 공통 유틸로 제공
+
+---
+
+### 11.4 Server (별도 레포, Spring + Kotlin) — Phase 2
+
+> 서버는 **모노레포에 포함하지 않는다.** 별도 Git 레포에서 관리한다.
+
+**Framework**
+- Spring Boot + Kotlin
+
+**Database**
+- Postgres
+
+**API Contract**
+- OpenAPI 3.x
+- 앱/웹은 OpenAPI 기반으로 클라이언트/타입을 생성하여 통신한다.
+
+**Auth / Sync**
+- 초기: 이메일 OTP/매직링크 또는 OAuth
+- Sync는 record 단위 up/down으로 시작하고, conflict policy는 LWW + “완료 세션 수정 제한 정책”을 적용한다.
+
+---
+
+### 11.5 Web Console (Phase 2, 선택)
+
+- Next.js (App Router) + TypeScript
+- Tailwind + shadcn/ui
+- TanStack Query
+- Recharts (report/analytics)
+
+---
+
+### 11.6 품질/도구
+
+**Testing**
+- packages/core: vitest unit test (필수)
+- mobile UI: @testing-library/react-native (핵심 플로우 위주)
+- db: 새 설치에서 001 적용 테스트 + prescription 불변성 회귀 테스트
+
+**Lint/Format**
+- ESLint + Prettier
+
+**Typecheck**
+- tsc --noEmit
+
+**CI**
+- turbo run lint test typecheck
+
+---
+## 12) 엔지니어링 표준 (필수: AI 코딩 준수 규칙)
+
+> 본 프로젝트는 AI 코딩을 적극 활용한다.  
+> 아래 규칙은 **권장**이 아니라 **필수**이며, CI에서 위반 시 빌드 실패로 처리한다.  
+> AI는 기능 구현 시 본 규칙을 최우선으로 준수해야 한다.
+
+---
+
+### 12.1 Lint / Typecheck 정책
+
+- **TypeScript strict**를 기본으로 한다.
+- ESLint는 **type-aware 설정**(TypeScript project 기반)을 사용한다.
+- 아래 룰 위반은 모두 **error**로 간주한다. (warn 지양)
+- 포맷팅은 Prettier 단일화(ESLint 스타일 충돌 제거)를 원칙으로 한다.
+
+---
+
+### 12.2 TypeScript 타입 안전 규칙 (최우선)
+
+**금지**
+- `any` 사용 금지 (`no-explicit-any`)
+- `as` type assertion 남용 금지 (불가피한 경우만 제한적으로 사용)
+- unsafe 흐름 금지:
+  - `no-unsafe-assignment`
+  - `no-unsafe-member-access`
+  - `no-unsafe-call`
+  - `no-unsafe-return`
+
+**필수**
+- 외부 입력/저장/네트워크 값은 기본적으로 `unknown`으로 받고,
+  **zod.parse()** 또는 **type guard**로 좁힌다.
+- Promise는 **떠다니면 안 된다**:
+  - `no-floating-promises` 준수(의도적인 fire-and-forget은 명시적으로 void 처리 + 주석)
+- Promise 오용 금지:
+  - `no-misused-promises`
+  - `await-thenable`
+- union type 분기는 **exhaustive** 해야 한다:
+  - `switch-exhaustiveness-check`
+- type import/export는 일관되게 유지한다:
+  - `consistent-type-imports`
+  - (선택) `consistent-type-exports`
+
+---
+
+### 12.3 함수 시그니처/복잡도 규칙 (AI 코드 폭주 방지)
+
+**파라미터 규칙**
+- 함수 파라미터는 **최대 2개**까지만 허용한다. (`max-params: 2`)
+- 파라미터가 3개 이상 필요하면 즉시 아래 형태로 변경한다:
+
+  ✅ 허용
+  - `fn({ a, b, c }: { a: A; b: B; c: C })`
+
+  ❌ 금지
+  - `fn(a: A, b: B, c: C)`
+
+**복잡도/크기 상한**
+- 인지 복잡도 상한: `sonarjs/cognitive-complexity <= 15`
+- cyclomatic complexity 상한: `complexity <= 12`
+- 함수 내 statement 수 상한: `max-statements <= 30`
+- 함수 길이 상한: `max-lines-per-function <= 120` (주석/빈줄 제외)
+- 중첩 depth 상한: `max-depth <= 4`
+
+> 규칙 위반 시 “기능 추가”가 아니라 “리팩터링(분리/추출/모듈화)”가 먼저다.
+
+---
+
+### 12.4 파일 사이즈(소스) 비대화 방지
+
+- 파일 길이 상한: `max-lines <= 450` (주석/빈줄 제외)
+- 파일당 class 수: `max-classes-per-file = 1`
+
+> 450줄을 넘기면 파일을 책임 단위로 분리한다.  
+> (UI: 화면/컴포넌트/훅/유틸, Core: 엔진/계산/모델/시리얼라이즈 등)
+
+---
+
+### 12.5 React / React Native 필수 규칙
+
+- Hooks 룰 위반 금지:
+  - `react-hooks/rules-of-hooks`
+- dependency 누락 금지:
+  - `react-hooks/exhaustive-deps`
+- nested component(렌더 내부 컴포넌트 정의) 금지:
+  - `react/no-unstable-nested-components`
+
+---
+
+### 12.6 Import 규칙 (아키텍처 경계 + 번들/용량 예방)
+
+**정렬/위생**
+- import 정렬은 자동화한다:
+  - `simple-import-sort/imports`, `simple-import-sort/exports`
+- 순환 참조 금지:
+  - `import/no-cycle`
+- 의존성 누락/오염 금지:
+  - `import/no-extraneous-dependencies`
+
+**무거운 의존성 금지(번들/용량)**
+- 아래 라이브러리 직접 사용 금지(대안 사용):
+  - `moment` 금지 → `date-fns` 사용
+  - `lodash` 전체 import 금지 → 필요 시 함수 단위 import 또는 `lodash-es` (허용 정책은 별도 문서로 고정)
+
+**레이어/경계 규칙(필수)**
+- `packages/core`는 플랫폼 의존을 가지면 안 된다:
+  - `react`, `react-native`, `expo` import 금지
+- 앱 레이어는 core를 사용하되, core는 앱을 참조하면 안 된다:
+  - `packages/core` → `apps/*` import 금지
+- DB 접근은 지정된 레이어를 통해서만 한다(직접 접근 금지 정책을 유지):
+  - `apps/mobile`에서 `packages/db` 직접 사용을 제한(필요 시 repo/service 통해 접근)
+
+> 위 금지/경계 규칙은 `no-restricted-imports` 또는 boundaries/import-path 규칙으로 강제한다.
+
+---
+
+### 12.7 기본 안정성 규칙
+
+- 느슨한 비교 금지: `eqeqeq`
+- 중괄호 생략 금지: `curly`
+- debugger 금지: `no-debugger`
+- console 금지: `no-console`  
+  - 예외: 개발 전용 스크립트/샘플 코드는 overrides로 허용 가능
+
+---
+
+### 12.8 예외(Overrides) 정책
+
+- 테스트 파일, 스크립트, 툴링 영역은 일부 룰을 완화할 수 있다.
+  - 예: `no-console`, `max-lines`, `max-lines-per-function`, `max-statements`
+- 예외가 필요하면 “무조건 disable”이 아니라,
+  - 최소 범위(한 줄/한 파일)로 제한하고,
+  - 주석으로 사유를 남긴다.
+
+---
+
+### 12.9 UI Token / i18n 강제 규칙 (필수)
+
+#### UI Token
+- 스크린/피처 레벨에서 임의 `spacing/fontSize/color` literal 사용 금지.
+  - 금지 예: `padding: 13`, `fontSize: 15`, `color: '#111'`, `className="p-[13px]"` 등
+- 허용: `tokens.*` 참조 또는 primitives의 props(예: `variant`, `size`, `tone`)로만 스타일링.
+- 집행: `apps/mobile/src/features/**`에서
+  - StyleSheet 직접 사용 제한(또는 tokens만 참조하도록 규칙화)
+  - NativeWind 사용 시 arbitrary value(`[]`) 금지
+
+#### i18n
+- 사용자 노출 문자열 하드코딩 금지.
+  - 금지 예: `<Text>완료</Text>`, `title: "Settings"`
+- 허용: `t('...')` / `formatNumber(...)` / `formatDate(...)` (및 동일 목적의 래퍼 유틸)
+- 집행: `apps/mobile/src/features/**`에서 literal string 사용을 리뷰 체크리스트 + 린트(가능한 범위)로 강제
+
+#### Overrides(예외)
+- 테스트/샘플 코드에 한해 최소 범위로만 허용.
+- 예외 필요 시 “한 줄/한 파일” 수준으로 제한하고 사유 주석 필수.
+---
