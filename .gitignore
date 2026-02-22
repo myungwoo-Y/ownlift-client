@@ -1,0 +1,99 @@
+# =========================
+# Dependencies
+# =========================
+node_modules/
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# pnpm
+.pnpm-store/
+
+# =========================
+# Build outputs
+# =========================
+dist/
+build/
+out/
+.next/
+.vercel/
+.turbo/
+coverage/
+
+# Expo / React Native
+.expo/
+.expo-shared/
+web-build/
+*.jks
+*.keystore
+*.p8
+*.p12
+*.mobileprovision
+
+# Native build dirs (if you ever prebuild/eject)
+android/.gradle/
+android/build/
+android/app/build/
+ios/Pods/
+ios/build/
+ios/DerivedData/
+
+# =========================
+# Logs
+# =========================
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+
+# =========================
+# Env files / secrets
+# =========================
+.env
+.env.*
+!.env.example
+*.local
+
+# =========================
+# Cache
+# =========================
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.swc/
+.vite/
+.nx/
+
+# =========================
+# TypeScript
+# =========================
+*.tsbuildinfo
+
+# =========================
+# Testing
+# =========================
+playwright-report/
+test-results/
+
+# =========================
+# Editor / IDE
+# =========================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.iml
+
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
