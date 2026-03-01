@@ -1,7 +1,8 @@
 import { getWeekLabel } from "@ownlift/core";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, Button, Card, colors, Divider, Section, spacing, Text } from "../../src/design";
 import { useProgramStore } from "../../src/stores/program-store";
 

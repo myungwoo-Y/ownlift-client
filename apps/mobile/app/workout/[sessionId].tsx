@@ -2,7 +2,8 @@ import { getWeekLabel } from "@ownlift/core";
 import { updateStubStatus } from "@ownlift/db";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
     Badge,
     borderRadius,

@@ -4,7 +4,8 @@ import { getPrescriptionBySession, getSetLogsBySession, getWorkoutResultBySessio
 import type { PrescriptionData } from "@ownlift/schemas";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
     Badge,
     Card,

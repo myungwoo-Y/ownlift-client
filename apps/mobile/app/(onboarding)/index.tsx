@@ -2,7 +2,8 @@ import type { RoundingMode, WeightUnit } from "@ownlift/schemas";
 import { DEFAULT_SETTINGS } from "@ownlift/schemas";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Divider, Section, SegmentedControl, Text, colors, spacing } from "../../src/design";
 
 export default function OnboardingStep1() {

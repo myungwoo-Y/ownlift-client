@@ -2,7 +2,8 @@ import { updateInstanceState } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
     Divider,
     Section,

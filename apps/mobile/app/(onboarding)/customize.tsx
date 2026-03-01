@@ -3,7 +3,8 @@ import type { MainLift, ProgramParams, RoundingMode, WeightUnit } from "@ownlift
 import { DEFAULT_SETTINGS } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, colors, Divider, Section, spacing, Text } from "../../src/design";
 import { useProgramStore } from "../../src/stores/program-store";
 

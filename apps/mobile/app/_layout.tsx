@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useProgramStore } from "../src/stores/program-store";
 import { useSettingsStore } from "../src/stores/settings-store";
 
@@ -60,17 +61,19 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(onboarding)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="workout/[sessionId]"
-        options={{ presentation: "fullScreenModal" }}
-      />
-      <Stack.Screen
-        name="session/[sessionId]"
-        options={{ presentation: "card" }}
-      />
-    </Stack>
+    <SafeAreaProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(onboarding)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="workout/[sessionId]"
+          options={{ presentation: "fullScreenModal" }}
+        />
+        <Stack.Screen
+          name="session/[sessionId]"
+          options={{ presentation: "card" }}
+        />
+      </Stack>
+    </SafeAreaProvider>
   );
 }

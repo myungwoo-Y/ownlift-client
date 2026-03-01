@@ -3,7 +3,8 @@ import type { SessionStubRecord } from "@ownlift/db";
 import { getWorkoutResultBySession } from "@ownlift/db";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { FlatList, Pressable, SafeAreaView, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, colors, Divider, spacing, Text } from "../../src/design";
 import { useProgramStore } from "../../src/stores/program-store";
 
