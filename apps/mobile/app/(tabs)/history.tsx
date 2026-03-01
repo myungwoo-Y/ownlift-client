@@ -1,4 +1,3 @@
-import { getWeekLabel } from "@ownlift/core";
 import type { SessionStubRecord } from "@ownlift/db";
 import { getWorkoutResultBySession } from "@ownlift/db";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -6,22 +5,15 @@ import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, colors, Divider, spacing, Text } from "../../src/design";
+import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
-const LIFT_DISPLAY: Record<string, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
-
-function formatDate(dateStr: string | null): { day: string; weekday: string } {
+function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
   if (!dateStr) return { day: "", weekday: "" };
   const d = new Date(dateStr);
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  const dayNum = d.getDate();
-  const weekday = d.toLocaleDateString("en-US", { weekday: "long" });
-  return { day: `${month} ${String(dayNum)}`, weekday };
+  const day = formatLocaleDate(d, { month: "short", day: "numeric" });
+  const weekday = formatLocaleDate(d, { weekday: "long" });
+  return { day, weekday };
 }
 
 interface HistoryItem extends SessionStubRecord {
@@ -30,6 +22,8 @@ interface HistoryItem extends SessionStubRecord {
 }
 
 export default function HistoryScreen() {
+  useLocale();
+
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -63,9 +57,9 @@ export default function HistoryScreen() {
   );
 
   const renderItem = ({ item }: { item: HistoryItem }) => {
-    const { day, weekday } = formatDate(item.completedAt ?? null);
+    const { day, weekday } = formatHistoryDate(item.completedAt ?? null);
     const weekLabel = getWeekLabel(item.weekIndex);
-    const sessionLabel = `Session ${String.fromCharCode(65 + item.dayIndex)}`;
+    const sessionLabel = getSessionLabel(item.dayIndex);
 
     return (
       <Pressable
@@ -79,18 +73,18 @@ export default function HistoryScreen() {
           <View style={styles.detailColumn}>
             <View style={styles.titleRow}>
               <Text style={styles.liftName}>
-                {LIFT_DISPLAY[item.mainLiftKey] ?? item.mainLiftKey}
+                {getLiftLabel(item.mainLiftKey)}
               </Text>
               <View style={styles.badges}>
-                <Badge variant="amrap" label="+ AMRAP" />
+                <Badge variant="amrap" label={t("badge.amrap")} />
               </View>
             </View>
             <Text variant="caption">
-              {sessionLabel} · Week {String(item.weekIndex + 1)} · {weekLabel}
+              {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
             </Text>
             {item.totalVolume ? (
               <Text variant="caption">
-                Volume {String(item.totalVolume.toLocaleString())} {instance?.params.unit ?? "kg"}
+                {t("history.volume", { volume: formatNumber(item.totalVolume), unit: instance?.params.unit ?? "kg" })}
               </Text>
             ) : null}
           </View>
@@ -103,13 +97,13 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text variant="title">History</Text>
+        <Text variant="title">{t("history.title")}</Text>
       </View>
       <Divider />
       {items.length === 0 ? (
         <View style={styles.empty}>
-          <Text variant="body">No completed workouts yet.</Text>
-          <Text variant="caption">Complete your first workout to see it here.</Text>
+          <Text variant="body">{t("history.emptyTitle")}</Text>
+          <Text variant="caption">{t("history.emptySubtitle")}</Text>
         </View>
       ) : (
         <FlatList

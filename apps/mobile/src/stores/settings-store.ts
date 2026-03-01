@@ -2,8 +2,10 @@ import { getAllSettings, setSetting } from "@ownlift/db";
 import type { RoundingMode, WeightUnit } from "@ownlift/schemas";
 import { DEFAULT_SETTINGS } from "@ownlift/schemas";
 import { create } from "zustand";
+import { getLocale, isAppLocale, setLocale, type AppLocale } from "../i18n";
 
 interface SettingsStore {
+  locale: AppLocale;
   unit: WeightUnit;
   roundingIncrement: number;
   roundingMode: RoundingMode;
@@ -18,6 +20,7 @@ interface SettingsStore {
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
+  locale: getLocale(),
   unit: DEFAULT_SETTINGS.unit,
   roundingIncrement: DEFAULT_SETTINGS.roundingIncrement.kg,
   roundingMode: DEFAULT_SETTINGS.roundingMode,
@@ -29,7 +32,11 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   loadSettings: async () => {
     const raw = await getAllSettings();
+    const locale = raw.locale === "en" || raw.locale === "ko" ? raw.locale : getLocale();
+    setLocale(locale);
+
     set({
+      locale,
       unit: (raw.unit as WeightUnit) ?? DEFAULT_SETTINGS.unit,
       roundingIncrement: raw.roundingIncrement
         ? parseFloat(raw.roundingIncrement)
@@ -48,13 +55,21 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
   },
 
   updateSetting: async (key, value) => {
+    if (key === "locale" && isAppLocale(value)) {
+      // Apply locale immediately so UI updates without waiting for DB persistence.
+      setLocale(value);
+      set({ locale: value });
+    }
+
     await setSetting({ key, value });
 
     // Update local state based on key
-    set((state) => {
+    set(() => {
       switch (key) {
         case "unit":
           return { unit: value as WeightUnit };
+        case "locale":
+          return {};
         case "roundingIncrement":
           return { roundingIncrement: parseFloat(value) };
         case "roundingMode":

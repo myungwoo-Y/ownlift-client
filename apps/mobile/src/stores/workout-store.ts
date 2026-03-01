@@ -187,10 +187,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       completedAt: nowISO(),
       summary: {
         totalVolume,
-        topSetReps: null,
-        e1rm: null,
         isPR: false,
-        durationMinutes: null,
+        durationMinutes: undefined,
       },
     });
   },

@@ -4,12 +4,14 @@ import * as SplashScreen from "expo-splash-screen";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useLocale } from "../src/i18n";
 import { useProgramStore } from "../src/stores/program-store";
 import { useSettingsStore } from "../src/stores/settings-store";
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  useLocale();
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const segments = useSegments();

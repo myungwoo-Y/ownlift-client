@@ -5,11 +5,15 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, Divider, Section, SegmentedControl, Text, colors, spacing } from "../../src/design";
+import { getRoundingModeLabel, t, useLocale } from "../../src/i18n";
 
 export default function OnboardingStep1() {
+  useLocale();
+
   const router = useRouter();
   const [unit, setUnit] = useState<WeightUnit>(DEFAULT_SETTINGS.unit);
   const [roundingMode, setRoundingMode] = useState<RoundingMode>(DEFAULT_SETTINGS.roundingMode);
+  const roundingModes: readonly RoundingMode[] = ["nearest", "down", "up"];
 
   const roundingIncrement = unit === "kg"
     ? DEFAULT_SETTINGS.roundingIncrement.kg
@@ -19,29 +23,33 @@ export default function OnboardingStep1() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text variant="title">Welcome to OwnLift</Text>
-          <Text variant="subtitle">Let's set up your 5/3/1 program</Text>
+          <Text variant="title">{t("onboarding.step1.title")}</Text>
+          <Text variant="subtitle">{t("onboarding.step1.subtitle")}</Text>
         </View>
 
-        <Section title="WEIGHT UNIT">
+        <Section title={t("onboarding.section.weightUnit")}>
           <SegmentedControl
             options={["kg", "lb"]}
             selectedIndex={unit === "kg" ? 0 : 1}
             onSelect={(i) => setUnit(i === 0 ? "kg" : "lb")}
           />
           <Text variant="caption">
-            Rounding: {roundingIncrement} {unit} ({roundingMode})
+            {t("onboarding.roundingSummary", {
+              increment: roundingIncrement,
+              unit,
+              mode: getRoundingModeLabel(roundingMode),
+            })}
           </Text>
         </Section>
 
         <Divider />
 
-        <Section title="ROUNDING MODE">
+        <Section title={t("onboarding.section.roundingMode")}>
           <SegmentedControl
-            options={["Nearest", "Down", "Up"]}
-            selectedIndex={["nearest", "down", "up"].indexOf(roundingMode)}
+            options={roundingModes.map((mode) => getRoundingModeLabel(mode))}
+            selectedIndex={roundingModes.indexOf(roundingMode)}
             onSelect={(i) =>
-              setRoundingMode((["nearest", "down", "up"] as const)[i])
+              setRoundingMode(roundingModes[i] ?? "nearest")
             }
           />
         </Section>
@@ -49,7 +57,7 @@ export default function OnboardingStep1() {
         <View style={styles.spacer} />
 
         <Button
-          title="Next → Training Maxes"
+          title={t("onboarding.nextTrainingMaxes")}
           onPress={() =>
             router.push({
               pathname: "/(onboarding)/training-max",

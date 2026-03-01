@@ -1,19 +1,14 @@
-import { getWeekLabel } from "@ownlift/core";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, Button, Card, colors, Divider, Section, spacing, Text } from "../../src/design";
+import { getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
-const LIFT_DISPLAY: Record<string, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
-
 export default function PlanScreen() {
+  useLocale();
+
   const router = useRouter();
   const { instance, currentWeekStubs, stubs, nextStub, isLoading, loadProgram } = useProgramStore();
 
@@ -27,7 +22,7 @@ export default function PlanScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text variant="body">Loading program...</Text>
+          <Text variant="body">{t("plan.loadingProgram")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -44,7 +39,7 @@ export default function PlanScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text variant="title">Week {String(state.currentWeek + 1)}</Text>
+            <Text variant="title">{t("week.title", { week: state.currentWeek + 1 })}</Text>
             <Text variant="subtitle">{weekLabel}</Text>
           </View>
           <View style={styles.progressPill}>
@@ -57,8 +52,8 @@ export default function PlanScreen() {
         <Divider />
 
         {/* This Week */}
-        <Section title="THIS WEEK">
-          {currentWeekStubs.map((stub, index) => {
+        <Section title={t("plan.section.thisWeek")}>
+          {currentWeekStubs.map((stub) => {
             const isToday = nextStub?.sessionId === stub.sessionId;
             const isCompleted = stub.status === "completed";
 
@@ -74,22 +69,22 @@ export default function PlanScreen() {
                 <Card highlighted={isToday}>
                   {isToday && (
                     <View style={styles.todayLabel}>
-                      <Text style={styles.todayLabelText}>Today</Text>
+                      <Text style={styles.todayLabelText}>{t("status.today")}</Text>
                     </View>
                   )}
                   <View style={styles.cardContent}>
                     <View style={styles.cardLeft}>
                       <Text variant="caption">
-                        Session {String.fromCharCode(65 + index)}
+                        {getSessionLabel(stub.dayIndex)}
                       </Text>
                       <Text style={styles.liftName}>
-                        {LIFT_DISPLAY[stub.mainLiftKey] ?? stub.mainLiftKey}
+                        {getLiftLabel(stub.mainLiftKey)}
                       </Text>
-                      <Text variant="caption">531 + assistance</Text>
+                      <Text variant="caption">{t("plan.assistance")}</Text>
                     </View>
                     <Badge
                       variant={isCompleted ? "completed" : isToday ? "today" : "planned"}
-                      label={isCompleted ? "Completed" : isToday ? "Today" : "Planned"}
+                      label={isCompleted ? t("status.completed") : isToday ? t("status.today") : t("status.planned")}
                     />
                   </View>
                 </Card>
@@ -100,15 +95,15 @@ export default function PlanScreen() {
 
         {/* Upcoming */}
         {state.currentWeek < 3 && (
-          <Section title="UPCOMING">
+          <Section title={t("plan.section.upcoming")}>
             <Card>
               <View style={styles.upcomingRow}>
                 <View>
                   <Text style={styles.upcomingTitle}>
-                    Week {String(state.currentWeek + 2)}
+                    {t("week.title", { week: state.currentWeek + 2 })}
                   </Text>
                   <Text variant="caption">
-                    {LIFT_DISPLAY[instance.params.liftOrder[0] ?? ""] ?? ""} and more
+                    {t("plan.andMore", { lift: getLiftLabel(instance.params.liftOrder[0] ?? "") })}
                   </Text>
                 </View>
                 <Text style={styles.chevron}>›</Text>
@@ -124,7 +119,7 @@ export default function PlanScreen() {
           <Divider />
           <View style={styles.ctaPadding}>
             <Button
-              title="Start Today Workout"
+              title={t("plan.startTodayWorkout")}
               onPress={() => router.push(`/workout/${nextStub.sessionId}`)}
             />
           </View>

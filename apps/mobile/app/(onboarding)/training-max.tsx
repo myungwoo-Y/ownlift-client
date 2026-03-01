@@ -1,4 +1,4 @@
-import type { MainLift, RoundingMode, WeightUnit } from "@ownlift/schemas";
+import type { RoundingMode, WeightUnit } from "@ownlift/schemas";
 import { DEFAULT_SETTINGS } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -13,15 +13,11 @@ import {
   colors,
   spacing,
 } from "../../src/design";
-
-const LIFT_LABELS: Record<MainLift, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
+import { getLiftLabel, t, useLocale } from "../../src/i18n";
 
 export default function OnboardingStep2() {
+  useLocale();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ unit: WeightUnit; roundingMode: RoundingMode }>();
   const unit = params.unit ?? "kg";
@@ -34,8 +30,8 @@ export default function OnboardingStep2() {
   const defaultInc = unit === "kg" ? DEFAULT_SETTINGS.tmIncreaseUpper.kg : DEFAULT_SETTINGS.tmIncreaseUpper.lb;
   const defaultIncLower = unit === "kg" ? DEFAULT_SETTINGS.tmIncreaseLower.kg : DEFAULT_SETTINGS.tmIncreaseLower.lb;
 
-  const [tmIncUpper, setTmIncUpper] = useState(defaultInc);
-  const [tmIncLower, setTmIncLower] = useState(defaultIncLower);
+  const [tmIncUpper, setTmIncUpper] = useState<number>(defaultInc);
+  const [tmIncLower, setTmIncLower] = useState<number>(defaultIncLower);
 
   const allFilled = squat && bench && deadlift && press;
 
@@ -43,21 +39,21 @@ export default function OnboardingStep2() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text variant="title">Training Maxes</Text>
+          <Text variant="title">{t("onboarding.step2.title")}</Text>
           <Text variant="caption">
-            Typically 85–90% of your true 1RM
+            {t("onboarding.step2.subtitle")}
           </Text>
         </View>
 
-        <Section title="TRAINING MAX (TM)">
+        <Section title={t("onboarding.section.trainingMax")}>
           {([
-            { key: "squat" as const, label: "Squat", value: squat, onChange: setSquat },
-            { key: "bench" as const, label: "Bench Press", value: bench, onChange: setBench },
-            { key: "deadlift" as const, label: "Deadlift", value: deadlift, onChange: setDeadlift },
-            { key: "press" as const, label: "Press", value: press, onChange: setPress },
+            { key: "squat" as const, value: squat, onChange: setSquat },
+            { key: "bench" as const, value: bench, onChange: setBench },
+            { key: "deadlift" as const, value: deadlift, onChange: setDeadlift },
+            { key: "press" as const, value: press, onChange: setPress },
           ] as const).map((lift) => (
             <View key={lift.key} style={styles.liftRow}>
-              <Text variant="body" style={styles.liftLabel}>{lift.label}</Text>
+              <Text variant="body" style={styles.liftLabel}>{getLiftLabel(lift.key)}</Text>
               <NumericInput
                 value={lift.value}
                 onChangeText={lift.onChange}
@@ -70,11 +66,11 @@ export default function OnboardingStep2() {
 
         <Divider />
 
-        <Section title="TM INCREASE PER CYCLE">
+        <Section title={t("onboarding.section.tmIncreasePerCycle")}>
           <View style={styles.incRow}>
             <View style={styles.incLabel}>
-              <Text variant="body">Upper Body</Text>
-              <Text variant="caption">Press, Bench Press</Text>
+              <Text variant="body">{t("settings.upperBody")}</Text>
+              <Text variant="caption">{t("settings.upperBodyHint")}</Text>
             </View>
             <Stepper
               value={tmIncUpper}
@@ -85,8 +81,8 @@ export default function OnboardingStep2() {
           </View>
           <View style={styles.incRow}>
             <View style={styles.incLabel}>
-              <Text variant="body">Lower Body</Text>
-              <Text variant="caption">Squat, Deadlift</Text>
+              <Text variant="body">{t("settings.lowerBody")}</Text>
+              <Text variant="caption">{t("settings.lowerBodyHint")}</Text>
             </View>
             <Stepper
               value={tmIncLower}
@@ -100,7 +96,7 @@ export default function OnboardingStep2() {
         <View style={styles.spacer} />
 
         <Button
-          title="Next → Customize"
+          title={t("onboarding.nextCustomize")}
           disabled={!allFilled}
           onPress={() =>
             router.push({

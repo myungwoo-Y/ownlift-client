@@ -1,4 +1,3 @@
-import { getWeekLabel } from "@ownlift/core";
 import { updateStubStatus } from "@ownlift/db";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -14,17 +13,13 @@ import {
   spacing,
   Text,
 } from "../../src/design";
+import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-store";
 
-const LIFT_DISPLAY: Record<string, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
-
 export default function WorkoutScreen() {
+  useLocale();
+
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const router = useRouter();
   const { instance, stubs, completeSession } = useProgramStore();
@@ -56,7 +51,7 @@ export default function WorkoutScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text variant="body">Loading workout...</Text>
+          <Text variant="body">{t("workout.loading")}</Text>
         </View>
       </SafeAreaView>
     );
@@ -78,8 +73,8 @@ export default function WorkoutScreen() {
     } catch (error) {
       console.error("Failed to complete workout:", error);
       Alert.alert(
-        "Could not complete workout",
-        "An error occurred while saving. Please try again.",
+        t("workout.errorCompleteTitle"),
+        t("workout.errorCompleteMessage"),
       );
     } finally {
       setIsSubmitting(false);
@@ -89,11 +84,11 @@ export default function WorkoutScreen() {
   const confirmComplete = () => {
     if (!allSetsCompleted) {
       Alert.alert(
-        "Incomplete Sets",
-        "Some sets are not marked as complete. Finish anyway?",
+        t("workout.incompleteTitle"),
+        t("workout.incompleteMessage"),
         [
-          { text: "Cancel", style: "cancel" },
-          { text: "Complete", onPress: () => void handleComplete() },
+          { text: t("common.cancel"), style: "cancel" },
+          { text: t("common.complete"), onPress: () => void handleComplete() },
         ],
       );
     } else {
@@ -105,11 +100,11 @@ export default function WorkoutScreen() {
     if (isSubmitting) return;
 
     Alert.alert(
-      "Exit workout?",
-      "You can resume this workout later from the plan screen.",
+      t("workout.exitTitle"),
+      t("workout.exitMessage"),
       [
-        { text: "Stay", style: "cancel" },
-        { text: "Exit", style: "destructive", onPress: () => router.back() },
+        { text: t("workout.stay"), style: "cancel" },
+        { text: t("workout.exit"), style: "destructive", onPress: () => router.back() },
       ],
     );
   };
@@ -125,15 +120,15 @@ export default function WorkoutScreen() {
               style={styles.backButton}
               disabled={isSubmitting}
             >
-              <Text style={styles.backButtonText}>← Back</Text>
+              <Text style={styles.backButtonText}>← {t("common.back")}</Text>
             </Pressable>
           </View>
           <View style={styles.headerRow}>
             <Text variant="title">
-              {LIFT_DISPLAY[stub.mainLiftKey] ?? stub.mainLiftKey}
+              {getLiftLabel(stub.mainLiftKey)}
             </Text>
             <Text variant="subtitle">
-              Week {String(stub.weekIndex + 1)} / {weekLabel}
+              {t("workout.subtitle", { week: stub.weekIndex + 1, label: weekLabel })}
             </Text>
           </View>
           {/* Progress bar */}
@@ -153,7 +148,7 @@ export default function WorkoutScreen() {
         <Divider />
 
         {/* Work Sets */}
-        <Section title="WORK SETS">
+        <Section title={t("workout.section.workSets")}>
           {sets.map((setData) => (
             <SetCard
               key={setData.id}
@@ -172,7 +167,7 @@ export default function WorkoutScreen() {
         <Divider />
         <View style={styles.ctaPadding}>
           <Button
-            title={isSubmitting ? "Saving..." : "Complete Workout"}
+            title={isSubmitting ? t("workout.saving") : t("workout.completeWorkout")}
             onPress={confirmComplete}
             disabled={isSubmitting}
           />
@@ -201,8 +196,8 @@ function SetCard({
     <Card>
       <View style={styles.setHeader}>
         <View style={styles.setLabelRow}>
-          <Text style={styles.setLabel}>Set {String(data.setOrder + 1)}</Text>
-          {data.isAmrap && <Badge variant="amrap" label="+ AMRAP" />}
+          <Text style={styles.setLabel}>{t("workout.setLabel", { set: data.setOrder + 1 })}</Text>
+          {data.isAmrap && <Badge variant="amrap" label={t("badge.amrap")} />}
         </View>
         <Text variant="caption">
           {String(data.prescribed.targetWeight)}{unit} × {String(data.prescribed.targetReps)}
@@ -218,7 +213,7 @@ function SetCard({
         <NumericInput
           value={data.actualReps}
           onChangeText={onChangeReps}
-          unit="reps"
+          unit={t("unit.reps")}
         />
         <Pressable
           style={[styles.checkButton, data.isCompleted && styles.checkButtonActive]}

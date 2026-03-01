@@ -6,9 +6,12 @@ import { useState } from "react";
 import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, colors, Divider, Section, spacing, Text } from "../../src/design";
+import { getLiftLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
 export default function OnboardingStep3() {
+  useLocale();
+
   const router = useRouter();
   const params = useLocalSearchParams<{
     unit: WeightUnit;
@@ -68,15 +71,15 @@ export default function OnboardingStep3() {
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text variant="title">Customize</Text>
-          <Text variant="caption">Fine-tune your program settings</Text>
+          <Text variant="title">{t("onboarding.step3.title")}</Text>
+          <Text variant="caption">{t("onboarding.step3.subtitle")}</Text>
         </View>
 
-        <Section title="PROGRAM OPTIONS">
+        <Section title={t("onboarding.section.programOptions")}>
           <View style={styles.row}>
             <View style={styles.rowTextContainer}>
-              <Text variant="body">Deload Week</Text>
-              <Text variant="caption">Include deload every 4th week</Text>
+              <Text variant="body">{t("settings.deloadWeek")}</Text>
+              <Text variant="caption">{t("settings.deloadHint")}</Text>
             </View>
             <Switch
               value={includeDeload}
@@ -87,8 +90,8 @@ export default function OnboardingStep3() {
 
           <View style={styles.row}>
             <View style={styles.rowTextContainer}>
-              <Text variant="body">Warm-up Sets</Text>
-              <Text variant="caption">40/50/60% warm-up before work sets</Text>
+              <Text variant="body">{t("onboarding.warmupSets")}</Text>
+              <Text variant="caption">{t("onboarding.warmupHint")}</Text>
             </View>
             <Switch
               value={warmUpEnabled}
@@ -100,24 +103,24 @@ export default function OnboardingStep3() {
 
         <Divider />
 
-        <Section title="LIFT ORDER">
+        <Section title={t("onboarding.section.liftOrder")}>
           {(["squat", "bench", "deadlift", "press"] as const).map((lift, i) => (
             <View key={lift} style={styles.liftOrderRow}>
               <Text style={styles.liftOrderIndex}>{String(i + 1)}</Text>
               <Text variant="body" style={styles.liftOrderName}>
-                {lift === "bench" ? "Bench Press" : lift.charAt(0).toUpperCase() + lift.slice(1)}
+                {getLiftLabel(lift)}
               </Text>
             </View>
           ))}
           <Text variant="caption">
-            Drag to reorder (coming soon). Default order used.
+            {t("onboarding.liftOrderHint")}
           </Text>
         </Section>
 
         <View style={styles.spacer} />
 
         <Button
-          title={isCreating ? "Creating Program..." : "Start Program"}
+          title={isCreating ? t("onboarding.creatingProgram") : t("onboarding.startProgram")}
           disabled={isCreating}
           onPress={handleFinish}
         />

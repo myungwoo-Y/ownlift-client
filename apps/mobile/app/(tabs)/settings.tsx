@@ -13,34 +13,31 @@ import {
     colors, fontSize, fontWeight,
     spacing,
 } from "../../src/design";
+import { getLiftLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useSettingsStore } from "../../src/stores/settings-store";
-
-const LIFT_DISPLAY: Record<MainLift, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
 
 const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
 
 export default function SettingsScreen() {
+  const locale = useLocale();
+
   const { instance, loadProgram } = useProgramStore();
+  const loadSettings = useSettingsStore((state) => state.loadSettings);
   const settings = useSettingsStore();
 
   useFocusEffect(
     useCallback(() => {
-      void settings.loadSettings();
-    }, []),
+      void loadSettings();
+    }, [loadSettings]),
   );
 
   const handleTmEdit = (lift: MainLift) => {
     if (!instance) return;
     const currentTm = instance.state.trainingMaxes[lift];
     Alert.prompt(
-      `Edit ${LIFT_DISPLAY[lift]} TM`,
-      `Current: ${String(currentTm)} ${settings.unit}`,
+      t("settings.editTmTitle", { lift: getLiftLabel(lift) }),
+      t("settings.editTmMessage", { tm: currentTm, unit: settings.unit }),
       async (text) => {
         const newTm = parseFloat(text ?? "");
         if (isNaN(newTm) || newTm <= 0) return;
@@ -60,6 +57,11 @@ export default function SettingsScreen() {
     await settings.updateSetting("unit", newUnit);
   };
 
+  const handleLocaleChange = async (index: number) => {
+    const nextLocale = index === 0 ? "en" : "ko";
+    await settings.updateSetting("locale", nextLocale);
+  };
+
   const handleIncrementChange = async (key: string, delta: number) => {
     const current = key === "tmIncreaseUpper" ? settings.tmIncreaseUpper : settings.tmIncreaseLower;
     const newVal = Math.max(0, current + delta);
@@ -67,17 +69,17 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView key={locale} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text variant="title">Settings</Text>
+          <Text variant="title">{t("settings.title")}</Text>
         </View>
 
         <Divider />
 
         {/* Training Maxes */}
-        <Section title="TRAINING MAX (TM)">
-          <Text variant="caption">Used to calculate your 531 percentages</Text>
+        <Section title={t("settings.section.trainingMax")}>
+          <Text variant="caption">{t("settings.trainingMaxHint")}</Text>
           <View style={styles.card}>
             {LIFTS.map((lift) => (
               <Pressable
@@ -85,7 +87,7 @@ export default function SettingsScreen() {
                 style={styles.tmRow}
                 onPress={() => handleTmEdit(lift)}
               >
-                <Text variant="body">{LIFT_DISPLAY[lift]}</Text>
+                <Text variant="body">{getLiftLabel(lift)}</Text>
                 <View style={styles.tmValue}>
                   <Text style={styles.tmNumber}>
                     {instance ? String(instance.state.trainingMaxes[lift]) : "—"} {settings.unit}
@@ -100,12 +102,12 @@ export default function SettingsScreen() {
         <Divider />
 
         {/* Units */}
-        <Section title="UNITS">
+        <Section title={t("settings.section.units")}>
           <View style={styles.card}>
             <View style={styles.unitRow}>
               <View style={styles.unitLabel}>
-                <Text variant="body">Weight Unit</Text>
-                <Text variant="caption">Changing units converts existing values</Text>
+                <Text variant="body">{t("settings.weightUnit")}</Text>
+                <Text variant="caption">{t("settings.weightUnitHint")}</Text>
               </View>
               <SegmentedControl
                 options={["kg", "lb"]}
@@ -118,13 +120,30 @@ export default function SettingsScreen() {
 
         <Divider />
 
+        <Section title={t("settings.section.language")}>
+          <View style={styles.card}>
+            <View style={styles.unitRow}>
+              <View style={styles.unitLabel}>
+                <Text variant="body">{t("settings.languageLabel")}</Text>
+              </View>
+              <SegmentedControl
+                options={[t("language.en"), t("language.ko")]}
+                selectedIndex={settings.locale === "en" ? 0 : 1}
+                onSelect={handleLocaleChange}
+              />
+            </View>
+          </View>
+        </Section>
+
+        <Divider />
+
         {/* Increments */}
-        <Section title="INCREMENTS">
+        <Section title={t("settings.section.increments")}>
           <View style={styles.card}>
             <View style={styles.incRow}>
               <View style={styles.incLabel}>
-                <Text variant="body">Upper Body</Text>
-                <Text variant="caption">Press, Bench Press</Text>
+                <Text variant="body">{t("settings.upperBody")}</Text>
+                <Text variant="caption">{t("settings.upperBodyHint")}</Text>
               </View>
               <Stepper
                 value={settings.tmIncreaseUpper}
@@ -135,8 +154,8 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.incRow}>
               <View style={styles.incLabel}>
-                <Text variant="body">Lower Body</Text>
-                <Text variant="caption">Squat, Deadlift</Text>
+                <Text variant="body">{t("settings.lowerBody")}</Text>
+                <Text variant="caption">{t("settings.lowerBodyHint")}</Text>
               </View>
               <Stepper
                 value={settings.tmIncreaseLower}
@@ -151,12 +170,12 @@ export default function SettingsScreen() {
         <Divider />
 
         {/* Program */}
-        <Section title="PROGRAM">
+        <Section title={t("settings.section.program")}>
           <View style={styles.card}>
             <View style={styles.switchRow}>
               <View style={styles.switchLabel}>
-                <Text variant="body">Deload Week</Text>
-                <Text variant="caption">Include deload every 4th week</Text>
+                <Text variant="body">{t("settings.deloadWeek")}</Text>
+                <Text variant="caption">{t("settings.deloadHint")}</Text>
               </View>
               <Switch
                 value={settings.includeDeload}
@@ -180,10 +199,10 @@ const styles = StyleSheet.create({
   },
   container: {
     gap: spacing.lg,
+    paddingHorizontal: spacing["2xl"],
     paddingBottom: spacing["5xl"],
   },
   header: {
-    paddingHorizontal: spacing["2xl"],
     paddingTop: spacing["3xl"],
   },
   card: {

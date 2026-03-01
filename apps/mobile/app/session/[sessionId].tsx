@@ -1,4 +1,3 @@
-import { getWeekLabel } from "@ownlift/core";
 import type { SetLogRecord, WorkoutResultRecord } from "@ownlift/db";
 import { getPrescriptionBySession, getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
@@ -15,16 +14,12 @@ import {
     spacing,
     Text,
 } from "../../src/design";
+import { formatDate, formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
-const LIFT_DISPLAY: Record<string, string> = {
-  squat: "Squat",
-  bench: "Bench Press",
-  deadlift: "Deadlift",
-  press: "Press",
-};
-
 export default function SessionDetailScreen() {
+  useLocale();
+
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
   const { stubs, instance } = useProgramStore();
 
@@ -53,14 +48,13 @@ export default function SessionDetailScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Text variant="body">Session not found.</Text>
+          <Text variant="body">{t("session.notFound")}</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  const weekLabel = getWeekLabel(stub.weekIndex);
-  const sessionLabel = `Session ${String.fromCharCode(65 + stub.dayIndex)}`;
+  const sessionLabel = getSessionLabel(stub.dayIndex);
   const unit = instance.params.unit;
   const isCompleted = stub.status === "completed";
 
@@ -68,7 +62,7 @@ export default function SessionDetailScreen() {
 
   // Format date
   const dateStr = result?.completedAt
-    ? new Date(result.completedAt).toLocaleDateString("en-US", {
+    ? formatDate(result.completedAt, {
         month: "short",
         day: "numeric",
         year: "numeric",
@@ -77,20 +71,20 @@ export default function SessionDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Stack.Screen options={{ headerShown: true, title: "", headerBackTitle: "Back" }} />
+      <Stack.Screen options={{ headerShown: true, title: "", headerBackTitle: t("common.back") }} />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <Text variant="title">
-            {LIFT_DISPLAY[stub.mainLiftKey] ?? stub.mainLiftKey}
+            {getLiftLabel(stub.mainLiftKey)}
           </Text>
           <Text variant="subtitle">
-            Week {String(stub.weekIndex + 1)} · {sessionLabel}
+            {t("session.weekAndSession", { week: stub.weekIndex + 1, session: sessionLabel })}
           </Text>
 
           <View style={styles.badgeRow}>
-            {isCompleted && <Badge variant="completed" label="Completed" />}
-            {workSets.some((s) => s.isAmrap) && <Badge variant="amrap" label="+ AMRAP" />}
+            {isCompleted && <Badge variant="completed" label={t("status.completed")} />}
+            {workSets.some((s) => s.isAmrap) && <Badge variant="amrap" label={t("badge.amrap")} />}
           </View>
 
           {dateStr && (
@@ -98,7 +92,7 @@ export default function SessionDetailScreen() {
           )}
           {result?.summary?.totalVolume ? (
             <Text variant="caption">
-              Volume: {String(result.summary.totalVolume.toLocaleString())} {unit}
+              {t("session.volume", { volume: formatNumber(result.summary.totalVolume), unit })}
             </Text>
           ) : null}
         </View>
@@ -106,7 +100,7 @@ export default function SessionDetailScreen() {
         <Divider />
 
         {/* Work Sets */}
-        <Section title="WORK SETS">
+        <Section title={t("session.section.workSets")}>
           {workSets.map((set) => {
             const log = setLogs.find((l) => l.setOrder === set.setOrder);
             return (
@@ -114,9 +108,9 @@ export default function SessionDetailScreen() {
                 <View style={styles.setHeader}>
                   <View style={styles.setLabelRow}>
                     <Text style={styles.setLabel}>
-                      Set {String(set.setOrder + 1)}
+                      {t("workout.setLabel", { set: set.setOrder + 1 })}
                     </Text>
-                    {set.isAmrap && <Badge variant="amrap" label="+ AMRAP" />}
+                    {set.isAmrap && <Badge variant="amrap" label={t("badge.amrap")} />}
                   </View>
                   <Text variant="caption">
                     {String(set.targetWeight)}{unit} × {String(set.targetReps)}
@@ -135,7 +129,7 @@ export default function SessionDetailScreen() {
                     <Text style={styles.valueNumber}>
                       {log ? String(log.actualReps ?? "—") : "—"}
                     </Text>
-                    <Text variant="caption">reps</Text>
+                    <Text variant="caption">{t("unit.reps")}</Text>
                   </View>
                   <View style={[styles.checkCircle, log?.isCompleted && styles.checkCircleActive]}>
                     <Text style={[styles.checkMark, log?.isCompleted && styles.checkMarkActive]}>
