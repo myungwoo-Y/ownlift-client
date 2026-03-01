@@ -1,6 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
-import migration001 from "./migrations/001_init.sql";
+import migration001 from "./migrations/001_init";
 
 const MIGRATIONS: readonly { version: number; sql: string }[] = [
   { version: 1, sql: migration001 },

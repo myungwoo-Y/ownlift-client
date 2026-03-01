@@ -4,13 +4,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { SafeAreaView, ScrollView, StyleSheet, View } from "react-native";
 import {
-    Button,
-    Divider,
-    NumericInput, Section,
-    Stepper,
-    Text,
-    colors,
-    spacing,
+  Button,
+  Divider,
+  NumericInput, Section,
+  Stepper,
+  Text,
+  colors,
+  spacing,
 } from "../../src/design";
 
 const LIFT_LABELS: Record<MainLift, string> = {

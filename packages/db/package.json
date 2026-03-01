@@ -16,6 +16,6 @@
   },
   "devDependencies": {
     "typescript": "~5.9.2",
-    "expo-sqlite": "~15.1.4"
+    "expo-sqlite": "~55.0.10"
   }
 }
