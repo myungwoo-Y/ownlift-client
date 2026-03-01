@@ -11,7 +11,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const router = useRouter();
   const segments = useSegments();
 
@@ -23,11 +22,7 @@ export default function RootLayout() {
         setDatabase(db);
         await runMigrations(db);
 
-        // 2. Check if onboarding is complete
-        const onboardingDone = await getSetting("onboarding_complete");
-        setNeedsOnboarding(onboardingDone !== "true");
-
-        // 3. Load stores
+        // 2. Load stores
         await useSettingsStore.getState().loadSettings();
         await useProgramStore.getState().loadProgram();
 
@@ -46,15 +41,27 @@ export default function RootLayout() {
     if (!isReady) return;
 
     void SplashScreen.hideAsync();
+    let isCancelled = false;
 
-    const inOnboarding = segments[0] === "(onboarding)";
+    async function syncNavigation() {
+      const onboardingDone = await getSetting("onboarding_complete");
+      if (isCancelled) return;
+      const needsOnboarding = onboardingDone !== "true";
+      const inOnboarding = segments[0] === "(onboarding)";
 
-    if (needsOnboarding && !inOnboarding) {
-      router.replace("/(onboarding)");
-    } else if (!needsOnboarding && inOnboarding) {
-      router.replace("/(tabs)");
+      if (needsOnboarding && !inOnboarding) {
+        router.replace("/(onboarding)");
+      } else if (!needsOnboarding && inOnboarding) {
+        router.replace("/(tabs)");
+      }
     }
-  }, [isReady, needsOnboarding, segments, router]);
+
+    void syncNavigation();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isReady, segments, router]);
 
   if (!isReady) {
     return null;

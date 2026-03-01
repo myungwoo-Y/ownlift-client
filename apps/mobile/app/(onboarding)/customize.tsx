@@ -34,29 +34,34 @@ export default function OnboardingStep3() {
   const handleFinish = async () => {
     setIsCreating(true);
 
-    const programParams: ProgramParams = {
-      trainingMaxes: {
-        squat: parseFloat(params.squat ?? "0"),
-        bench: parseFloat(params.bench ?? "0"),
-        deadlift: parseFloat(params.deadlift ?? "0"),
-        press: parseFloat(params.press ?? "0"),
-      },
-      unit,
-      roundingIncrement,
-      roundingMode,
-      tmIncreaseUpper: parseFloat(params.tmIncUpper ?? "2.5"),
-      tmIncreaseLower: parseFloat(params.tmIncLower ?? "5"),
-      liftOrder: ["squat", "bench", "deadlift", "press"] as MainLift[],
-      warmUpEnabled,
-      includeDeload,
-    };
+    try {
+      const programParams: ProgramParams = {
+        trainingMaxes: {
+          squat: parseFloat(params.squat ?? "0"),
+          bench: parseFloat(params.bench ?? "0"),
+          deadlift: parseFloat(params.deadlift ?? "0"),
+          press: parseFloat(params.press ?? "0"),
+        },
+        unit,
+        roundingIncrement,
+        roundingMode,
+        tmIncreaseUpper: parseFloat(params.tmIncUpper ?? "2.5"),
+        tmIncreaseLower: parseFloat(params.tmIncLower ?? "5"),
+        liftOrder: ["squat", "bench", "deadlift", "press"] as MainLift[],
+        warmUpEnabled,
+        includeDeload,
+      };
 
-    await useProgramStore.getState().initProgram(programParams);
-    await setSetting({ key: "onboarding_complete", value: "true" });
-    await setSetting({ key: "includeDeload", value: String(includeDeload) });
-    await setSetting({ key: "warmUpEnabled", value: String(warmUpEnabled) });
+      await useProgramStore.getState().initProgram(programParams);
+      await setSetting({ key: "onboarding_complete", value: "true" });
+      await setSetting({ key: "includeDeload", value: String(includeDeload) });
+      await setSetting({ key: "warmUpEnabled", value: String(warmUpEnabled) });
 
-    router.replace("/(tabs)");
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Failed to finish onboarding:", error);
+      setIsCreating(false);
+    }
   };
 
   return (

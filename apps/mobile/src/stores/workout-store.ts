@@ -1,5 +1,6 @@
 import {
     createWorkoutResult,
+    getOrCreateExercise,
     getPrescriptionBySession,
     getSetLogsBySession,
     upsertSetLog,
@@ -25,6 +26,13 @@ export interface WorkoutSetState {
   isCompleted: boolean;
   isAmrap: boolean;
 }
+
+const MAIN_LIFT_LABELS: Record<string, string> = {
+  squat: "Squat",
+  bench: "Bench Press",
+  deadlift: "Deadlift",
+  press: "Press",
+};
 
 interface WorkoutStore {
   sessionId: string | null;
@@ -102,8 +110,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const { sets, sessionId } = get();
     const setData = sets.find((s) => s.id === setId);
     if (!setData || !sessionId) return;
+    const mainLift = get().prescription?.mainLift;
+    if (!mainLift) return;
 
     const newCompleted = !setData.isCompleted;
+    const exercise = await getOrCreateExercise({
+      id: mainLift,
+      name: MAIN_LIFT_LABELS[mainLift] ?? mainLift,
+    });
 
     set((state) => ({
       sets: state.sets.map((s) =>
@@ -115,7 +129,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     await upsertSetLog({
       id: setData.id,
       sessionId,
-      exerciseId: get().prescription?.mainLift ?? "",
+      exerciseId: exercise.id,
       setType: "main" as SetType,
       setOrder: setData.setOrder,
       planned: {
@@ -131,15 +145,21 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   completeWorkout: async () => {
-    const { sessionId, instanceId, sets, startedAt } = get();
+    const { sessionId, instanceId, sets } = get();
     if (!sessionId || !instanceId) return;
+    const mainLift = get().prescription?.mainLift;
+    if (!mainLift) return;
+    const exercise = await getOrCreateExercise({
+      id: mainLift,
+      name: MAIN_LIFT_LABELS[mainLift] ?? mainLift,
+    });
 
     // Save all sets
     for (const setData of sets) {
       await upsertSetLog({
         id: setData.id,
         sessionId,
-        exerciseId: get().prescription?.mainLift ?? "",
+        exerciseId: exercise.id,
         setType: "main" as SetType,
         setOrder: setData.setOrder,
         planned: {
