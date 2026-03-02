@@ -147,6 +147,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   completeWorkout: async () => {
     const { sessionId, instanceId, sets } = get();
     if (!sessionId || !instanceId) return;
+
     const mainLift = get().prescription?.mainLift;
     if (!mainLift) return;
     const exercise = await getOrCreateExercise({

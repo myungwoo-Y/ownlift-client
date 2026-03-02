@@ -71,16 +71,16 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, freezeOnBlur: false }}>
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
           name="workout/[sessionId]"
-          options={{ presentation: "fullScreenModal" }}
+          options={{ presentation: "card", freezeOnBlur: false }}
         />
         <Stack.Screen
           name="session/[sessionId]"
-          options={{ presentation: "card" }}
+          options={{ presentation: "card", freezeOnBlur: false }}
         />
       </Stack>
     </SafeAreaProvider>

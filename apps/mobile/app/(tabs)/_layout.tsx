@@ -11,6 +11,7 @@ export default function TabLayout() {
       key={locale}
       screenOptions={{
         headerShown: false,
+        freezeOnBlur: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textTertiary,
         tabBarStyle: {

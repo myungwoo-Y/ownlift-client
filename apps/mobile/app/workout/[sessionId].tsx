@@ -20,7 +20,8 @@ import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-
 export default function WorkoutScreen() {
   useLocale();
 
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const params = useLocalSearchParams<{ sessionId?: string | string[] }>();
+  const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
   const router = useRouter();
   const { instance, stubs, completeSession } = useProgramStore();
   const isLoading = useWorkoutStore((state) => state.isLoading);
@@ -38,9 +39,13 @@ export default function WorkoutScreen() {
 
   useEffect(() => {
     if (sessionId && instanceId) {
-      void startWorkout(sessionId, instanceId);
+      void startWorkout(sessionId, instanceId).catch((error) => {
+        console.error("Failed to start workout:", error);
+      });
       // Mark session as started
-      void updateStubStatus({ sessionId, status: "started" });
+      void updateStubStatus({ sessionId, status: "started" }).catch((error) => {
+        console.error("Failed to mark session as started:", error);
+      });
     }
     return () => {
       resetWorkout();
@@ -62,14 +67,39 @@ export default function WorkoutScreen() {
   const totalCount = stubs.length;
   const allSetsCompleted = sets.every((s) => s.isCompleted);
 
+  const navigateAfterComplete = () => {
+    try {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+
+      if (router.canDismiss()) {
+        router.dismiss();
+        return;
+      }
+
+      router.dismissTo("/(tabs)");
+    } catch {
+      try {
+        router.dismissTo("/(tabs)");
+      } catch {
+        try {
+          router.replace("/(tabs)");
+        } catch {
+        }
+      }
+    }
+  };
+
   const handleComplete = async () => {
-    if (isSubmitting) return;
+    if (isSubmitting || !sessionId) return;
 
     try {
       setIsSubmitting(true);
       await completeWorkout();
       await completeSession(sessionId);
-      router.back();
+      navigateAfterComplete();
     } catch (error) {
       console.error("Failed to complete workout:", error);
       Alert.alert(

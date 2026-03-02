@@ -15,6 +15,8 @@ import {
 import type { ProgramParams } from "@ownlift/schemas";
 import { create } from "zustand";
 
+let loadProgramInFlight: Promise<void> | null = null;
+
 function generateId(): string {
   // Simple UUID v4 generator (no external dep needed at runtime)
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -44,22 +46,40 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   isLoading: true,
 
   loadProgram: async () => {
-    set({ isLoading: true });
-    const instance = await getActiveInstance();
-    if (!instance) {
-      set({ instance: null, stubs: [], currentWeekStubs: [], nextStub: null, isLoading: false });
-      return;
+    if (loadProgramInFlight) {
+      return loadProgramInFlight;
     }
 
-    const stubs = await getStubsByInstance(instance.instanceId);
-    const currentWeekStubs = await getStubsByWeek({
-      instanceId: instance.instanceId,
-      cycleIndex: instance.state.currentCycle,
-      weekIndex: instance.state.currentWeek,
-    });
-    const nextStub = await getNextIncompleteStub(instance.instanceId);
+    const loadPromise = (async () => {
+      try {
+        set({ isLoading: true });
+        const instance = await getActiveInstance();
+        if (!instance) {
+          set({ instance: null, stubs: [], currentWeekStubs: [], nextStub: null, isLoading: false });
+          return;
+        }
 
-    set({ instance, stubs, currentWeekStubs, nextStub, isLoading: false });
+        const stubs = await getStubsByInstance(instance.instanceId);
+        const currentWeekStubs = await getStubsByWeek({
+          instanceId: instance.instanceId,
+          cycleIndex: instance.state.currentCycle,
+          weekIndex: instance.state.currentWeek,
+        });
+        const nextStub = await getNextIncompleteStub(instance.instanceId);
+
+        set({ instance, stubs, currentWeekStubs, nextStub, isLoading: false });
+      } catch (error) {
+        set({ isLoading: false });
+        throw error;
+      }
+    })();
+
+    loadProgramInFlight = loadPromise;
+    try {
+      await loadPromise;
+    } finally {
+      loadProgramInFlight = null;
+    }
   },
 
   initProgram: async (params: ProgramParams) => {
@@ -151,7 +171,5 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
         });
       }
     }
-
-    await get().loadProgram();
   },
 }));
