@@ -160,3 +160,70 @@ export async function getStubsByWeek({
 
   return rows.map(rowToRecord);
 }
+
+/** Reorder stubs for a specific week by writing new day_index values */
+export async function reorderStubsByWeek({
+  instanceId,
+  cycleIndex,
+  weekIndex,
+  orderedSessionIds,
+}: {
+  instanceId: string;
+  cycleIndex: number;
+  weekIndex: number;
+  orderedSessionIds: string[];
+}): Promise<void> {
+  if (orderedSessionIds.length === 0) return;
+
+  const db = getDatabase();
+  const rows = await db.getAllAsync<{ session_id: string; day_index: number; revision: number }>(
+    `SELECT session_id, day_index, revision
+     FROM session_stubs
+     WHERE instance_id = ? AND cycle_index = ? AND week_index = ? AND deleted_at IS NULL
+     ORDER BY day_index`,
+    instanceId,
+    cycleIndex,
+    weekIndex,
+  );
+
+  if (rows.length !== orderedSessionIds.length) {
+    throw new Error("Ordered session count does not match current week stub count.");
+  }
+
+  const orderedSet = new Set(orderedSessionIds);
+  if (orderedSet.size !== orderedSessionIds.length) {
+    throw new Error("Ordered sessions contain duplicates.");
+  }
+
+  const rowBySessionId = new Map(rows.map((row) => [row.session_id, row]));
+  for (const sessionId of orderedSessionIds) {
+    if (!rowBySessionId.has(sessionId)) {
+      throw new Error(`Session does not belong to the target week: ${sessionId}`);
+    }
+  }
+
+  const isUnchanged = orderedSessionIds.every((sessionId, index) => {
+    const row = rowBySessionId.get(sessionId);
+    return row?.day_index === index;
+  });
+  if (isUnchanged) return;
+
+  for (let dayIndex = 0; dayIndex < orderedSessionIds.length; dayIndex += 1) {
+    const sessionId = orderedSessionIds[dayIndex];
+    const row = rowBySessionId.get(sessionId);
+    if (!row) continue;
+    if (row.day_index === dayIndex) continue;
+
+    const meta = updateMeta(row.revision);
+    await db.runAsync(
+      `UPDATE session_stubs
+       SET day_index = ?, updated_at = ?, dirty = ?, revision = ?
+       WHERE session_id = ?`,
+      dayIndex,
+      meta.updated_at,
+      meta.dirty,
+      meta.revision,
+      sessionId,
+    );
+  }
+}

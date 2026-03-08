@@ -20,7 +20,7 @@ export {
 export type { ProgramInstanceRecord } from "./repos/program-instance-repo";
 
 export {
-    bulkCreateStubs, getNextIncompleteStub, getStubsByInstance, getStubsByWeek, updateStubStatus
+    bulkCreateStubs, getNextIncompleteStub, getStubsByInstance, getStubsByWeek, reorderStubsByWeek, updateStubStatus
 } from "./repos/session-stub-repo";
 export type { SessionStubRecord } from "./repos/session-stub-repo";
 
@@ -46,4 +46,3 @@ export {
     createExercise, getOrCreateExercise, getRecentExercises, searchExercises
 } from "./repos/exercise-repo";
 export type { ExerciseRecord } from "./repos/exercise-repo";
-

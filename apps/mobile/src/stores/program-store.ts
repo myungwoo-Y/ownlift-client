@@ -8,6 +8,7 @@ import {
     getNextIncompleteStub,
     getStubsByInstance,
     getStubsByWeek,
+    reorderStubsByWeek,
     setSetting,
     updateInstanceState,
     updateStubStatus,
@@ -36,6 +37,7 @@ interface ProgramStore {
   loadProgram: () => Promise<void>;
   initProgram: (params: ProgramParams) => Promise<void>;
   completeSession: (sessionId: string) => Promise<void>;
+  reorderCurrentWeek: (orderedSessionIds: string[]) => Promise<void>;
 }
 
 export const useProgramStore = create<ProgramStore>((set, get) => ({
@@ -171,5 +173,28 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
         });
       }
     }
+  },
+
+  reorderCurrentWeek: async (orderedSessionIds: string[]) => {
+    const { instance, currentWeekStubs } = get();
+    if (!instance) return;
+
+    if (orderedSessionIds.length !== currentWeekStubs.length) {
+      throw new Error("Ordered session count does not match current week session count.");
+    }
+
+    const isUnchanged = orderedSessionIds.every(
+      (sessionId, index) => currentWeekStubs[index]?.sessionId === sessionId,
+    );
+    if (isUnchanged) return;
+
+    await reorderStubsByWeek({
+      instanceId: instance.instanceId,
+      cycleIndex: instance.state.currentCycle,
+      weekIndex: instance.state.currentWeek,
+      orderedSessionIds,
+    });
+
+    await get().loadProgram();
   },
 }));
