@@ -85,6 +85,7 @@ export default function OnboardingStep3() {
               value={includeDeload}
               onValueChange={setIncludeDeload}
               trackColor={{ true: colors.primary, false: colors.border }}
+              thumbColor={includeDeload ? colors.accentForeground : colors.surfaceElevated}
             />
           </View>
 
@@ -97,6 +98,7 @@ export default function OnboardingStep3() {
               value={warmUpEnabled}
               onValueChange={setWarmUpEnabled}
               trackColor={{ true: colors.primary, false: colors.border }}
+              thumbColor={warmUpEnabled ? colors.accentForeground : colors.surfaceElevated}
             />
           </View>
         </Section>

@@ -43,7 +43,9 @@ const styles = StyleSheet.create({
   },
   segmentSelected: {
     backgroundColor: colors.surfaceElevated,
-    shadowColor: "#000",
+    shadowColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -55,7 +57,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   textSelected: {
-    color: colors.text,
+    color: colors.accent,
     fontWeight: fontWeight.semibold,
   },
 });

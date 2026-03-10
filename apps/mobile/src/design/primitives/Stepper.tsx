@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: fontSize.xl,
     fontWeight: fontWeight.medium,
-    color: colors.text,
+    color: colors.accent,
     lineHeight: 24,
   },
   value: {

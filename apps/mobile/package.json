@@ -10,6 +10,8 @@
     "ios": "expo start --dev-client --ios",
     "android:go": "expo start --android",
     "ios:go": "expo start --ios",
+    "run:android": "expo run:android",
+    "run:ios": "expo run:ios",
     "build:dev:ios": "npx eas-cli build --profile development --platform ios",
     "build:dev:android": "npx eas-cli build --profile development --platform android",
     "web": "expo start --web",

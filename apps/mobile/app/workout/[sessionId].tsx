@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -343,15 +343,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
   },
   checkButtonActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.accent,
   },
   checkMark: {
     fontSize: 20,
@@ -359,7 +359,7 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   checkMarkActive: {
-    color: colors.primaryForeground,
+    color: colors.accent,
   },
   ctaContainer: {
     position: "absolute",

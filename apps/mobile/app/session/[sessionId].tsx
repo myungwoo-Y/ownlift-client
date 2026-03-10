@@ -1,6 +1,7 @@
 import type { SetLogRecord, WorkoutResultRecord } from "@ownlift/db";
 import { getPrescriptionBySession, getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
+import { StatusBar } from "expo-status-bar";
 import { Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
@@ -71,7 +72,25 @@ export default function SessionDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Stack.Screen options={{ headerShown: true, title: "", headerBackTitle: t("common.back") }} />
+      <StatusBar style="light" />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "",
+          headerBackTitle: t("common.back"),
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
+          headerShadowVisible: false,
+          headerTitleStyle: {
+            color: colors.text,
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+        }}
+      />
       <ScrollView contentContainerStyle={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -190,7 +209,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   valueBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -210,7 +231,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: "center",
@@ -218,8 +239,8 @@ const styles = StyleSheet.create({
     marginLeft: "auto",
   },
   checkCircleActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.accent,
   },
   checkMark: {
     fontSize: 20,
@@ -227,6 +248,6 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
   },
   checkMarkActive: {
-    color: colors.primaryForeground,
+    color: colors.accent,
   },
 });

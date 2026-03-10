@@ -69,7 +69,7 @@ const sizeTextStyles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
   primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  secondary: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
   ghost: { backgroundColor: colors.transparent },
 });
 

@@ -48,3 +48,26 @@ Join our community of developers creating universal apps.
 
 - [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
 - [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+
+---
+
+## 🏃‍♂️ 주요 실행 스크립트 가이드
+
+`package.json`의 주요 스크립트 명령어들은 다음과 같은 용도로 사용됩니다. (주로 `pnpm`을 통해 실행)
+
+1. **커스텀 개발 앱(Dev Client) 실행 (현재 메인 워크플로우)**
+   - `pnpm ios` 또는 `pnpm android`
+   - 네이티브 패키지가 포함된 커스텀 앱(Dev Client)과 연결하여 실행합니다.
+   - 평상시 개발할 때 계속 이 명령어를 입력하시면 됩니다.
+
+2. **기본 Expo Go 연결 (가볍게 띄울 때)**
+   - `pnpm ios:go` 또는 `pnpm android:go`
+   - 네이티브 코드가 필요 없는 단순 구동 시, 앱스토어의 일반 `Expo Go`를 통해 빠르게 실행합니다.
+
+3. **로컬 컴파일 및 네이티브 빌드 (직접 빌드 테스트 시)**
+   - `pnpm run:ios` 또는 `pnpm run:android`
+   - 네이티브 패키지 변경 후 **로컬 Mac 환경**(Xcode, Android Studio)을 이용해 아예 새로 앱을 컴파일하고 띄울 때 사용합니다. (시간이 오래 걸립니다)
+
+4. **커스텀 클라이언트 앱 EAS 빌드 (새 네이티브 패키지 설치 시 권장)**
+   - `pnpm build:dev:ios` 또는 `pnpm build:dev:android`
+   - 새로운 네이티브 모듈(예: 새 폰트, SQLite, 결제 등)을 추가했다면, EAS 클라우드를 통해 개발용 커스텀 앱(Dev Client)을 새로 빌드해서 단말기/시뮬레이터에 다시 설치해주어야 합니다. 최초 1회, 또는 네이티브 관련 변경사항이 있을 때 실행합니다.

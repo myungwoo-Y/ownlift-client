@@ -32,18 +32,18 @@ const styles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
   default: { backgroundColor: colors.surface },
-  completed: { backgroundColor: colors.primary },
+  completed: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
   today: { backgroundColor: colors.primary },
   planned: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  amrap: { backgroundColor: colors.primary },
+  amrap: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
   pr: { backgroundColor: colors.accent },
 });
 
 const variantTextStyles = StyleSheet.create({
   default: { color: colors.text },
-  completed: { color: colors.primaryForeground },
+  completed: { color: colors.text },
   today: { color: colors.primaryForeground },
   planned: { color: colors.textSecondary },
-  amrap: { color: colors.primaryForeground },
+  amrap: { color: colors.accent },
   pr: { color: colors.accentForeground },
 });

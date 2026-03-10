@@ -183,6 +183,7 @@ export default function SettingsScreen() {
                   await settings.updateSetting("includeDeload", String(v));
                 }}
                 trackColor={{ true: colors.primary, false: colors.border }}
+                thumbColor={settings.includeDeload ? colors.accentForeground : colors.surfaceElevated}
               />
             </View>
           </View>
