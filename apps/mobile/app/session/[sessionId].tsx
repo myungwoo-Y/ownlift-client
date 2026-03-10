@@ -1,19 +1,20 @@
 import type { SetLogRecord, WorkoutResultRecord } from "@ownlift/db";
 import { getPrescriptionBySession, getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-    Badge,
-    Card,
-    colors,
-    Divider,
-    Section,
-    spacing,
-    Text,
+  BackButton,
+  Badge,
+  Card,
+  colors,
+  Divider,
+  Section,
+  spacing,
+  Text,
 } from "../../src/design";
 import { formatDate, formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
@@ -22,6 +23,7 @@ export default function SessionDetailScreen() {
   useLocale();
 
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const router = useRouter();
   const { stubs, instance } = useProgramStore();
 
   const [prescription, setPrescription] = useState<PrescriptionData | null>(null);
@@ -29,6 +31,31 @@ export default function SessionDetailScreen() {
   const [result, setResult] = useState<WorkoutResultRecord | null>(null);
 
   const stub = stubs.find((s) => s.sessionId === sessionId);
+
+  const goBack = useCallback(() => {
+    try {
+      if (router.canGoBack()) {
+        router.back();
+        return;
+      }
+
+      if (router.canDismiss()) {
+        router.dismiss();
+        return;
+      }
+
+      router.dismissTo("/(tabs)");
+    } catch {
+      try {
+        router.dismissTo("/(tabs)");
+      } catch {
+        try {
+          router.replace("/(tabs)");
+        } catch {
+        }
+      }
+    }
+  }, [router]);
 
   useEffect(() => {
     async function load() {
@@ -73,26 +100,14 @@ export default function SessionDetailScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: "",
-          headerBackTitle: t("common.back"),
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          headerTitleStyle: {
-            color: colors.text,
-          },
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
+      <BackButton
+        onPress={goBack}
+        accessibilityLabel={t("common.back")}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
+        <View style={styles.topActions}>
+      
+        </View>
         <View style={styles.header}>
           <Text variant="title">
             {getLiftLabel(stub.mainLiftKey)}
@@ -181,6 +196,10 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+  },
+  topActions: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
   },
   badgeRow: {
     flexDirection: "row",

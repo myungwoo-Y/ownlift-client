@@ -1,15 +1,19 @@
-import { updateStubStatus } from "@ownlift/db";
+import { getPrescriptionBySession, updateStubStatus } from "@ownlift/db";
+import type { PrescriptionData } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, View, type DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  BackButton,
   Badge,
   borderRadius,
-  Button, Card,
+  Button,
+  Card,
   colors,
   Divider,
-  NumericInput, Section,
+  NumericInput,
+  Section,
   spacing,
   Text,
 } from "../../src/design";
@@ -17,57 +21,53 @@ import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-store";
 
+type WorkoutScreenMode = "loading" | "preview" | "active";
+type WorkoutSetType = WorkoutSetState;
+
 export default function WorkoutScreen() {
   useLocale();
 
-  const params = useLocalSearchParams<{ sessionId?: string | string[] }>();
+  const params = useLocalSearchParams<{ sessionId?: string | string[]; autostart?: string | string[] }>();
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
+  const autostart = Array.isArray(params.autostart) ? params.autostart[0] : params.autostart;
   const router = useRouter();
-  const { instance, stubs, completeSession } = useProgramStore();
-  const isLoading = useWorkoutStore((state) => state.isLoading);
-  const prescription = useWorkoutStore((state) => state.prescription);
+  const { instance, stubs, nextStub, completeSession, loadProgram } = useProgramStore();
+  const isWorkoutLoading = useWorkoutStore((state) => state.isLoading);
+  const activePrescription = useWorkoutStore((state) => state.prescription);
   const sets = useWorkoutStore((state) => state.sets);
   const startWorkout = useWorkoutStore((state) => state.startWorkout);
   const updateSet = useWorkoutStore((state) => state.updateSet);
   const toggleSetComplete = useWorkoutStore((state) => state.toggleSetComplete);
   const completeWorkout = useWorkoutStore((state) => state.completeWorkout);
   const resetWorkout = useWorkoutStore((state) => state.resetWorkout);
+  const [mode, setMode] = useState<WorkoutScreenMode>("loading");
+  const [previewPrescription, setPreviewPrescription] = useState<PrescriptionData | null>(null);
+  const [isScreenLoading, setIsScreenLoading] = useState(true);
+  const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const stub = stubs.find((s) => s.sessionId === sessionId);
+  const stub = stubs.find((item) => item.sessionId === sessionId);
+  const sessionStatus = stub?.status;
   const instanceId = instance?.instanceId;
+  const shouldAutostart = autostart === "1";
+  const isTodaySession = nextStub?.sessionId === sessionId;
+  const canStartTodayWorkout = Boolean(stub && stub.status !== "completed" && isTodaySession);
+  const isWorkoutActive = mode === "active";
+  const prescription = isWorkoutActive ? activePrescription : previewPrescription;
 
   useEffect(() => {
-    if (sessionId && instanceId) {
-      void startWorkout(sessionId, instanceId).catch((error) => {
-        console.error("Failed to start workout:", error);
-      });
-      // Mark session as started
-      void updateStubStatus({ sessionId, status: "started" }).catch((error) => {
-        console.error("Failed to mark session as started:", error);
-      });
-    }
-    return () => {
-      resetWorkout();
-    };
-  }, [sessionId, instanceId, startWorkout, resetWorkout]);
+    setMode("loading");
+    setPreviewPrescription(null);
+    setIsScreenLoading(true);
+    setIsStarting(false);
+    setIsSubmitting(false);
+  }, [sessionId]);
 
-  if (isLoading || !stub || !instance || !prescription) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.center}>
-          <Text variant="body">{t("workout.loading")}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  useEffect(() => () => {
+    resetWorkout();
+  }, [sessionId, resetWorkout]);
 
-  const weekLabel = getWeekLabel(stub.weekIndex);
-  const completedCount = stubs.filter((s) => s.status === "completed").length;
-  const totalCount = stubs.length;
-  const allSetsCompleted = sets.every((s) => s.isCompleted);
-
-  const navigateAfterComplete = () => {
+  const goBack = useCallback(() => {
     try {
       if (router.canGoBack()) {
         router.back();
@@ -90,16 +90,115 @@ export default function WorkoutScreen() {
         }
       }
     }
-  };
+  }, [router]);
+
+  const activateWorkout = useCallback(
+    async ({ markStarted }: { markStarted: boolean }) => {
+      if (!sessionId || !instanceId) return;
+
+      await startWorkout(sessionId, instanceId);
+
+      if (markStarted) {
+        await updateStubStatus({ sessionId, status: "started" });
+        void loadProgram();
+      }
+
+      setPreviewPrescription(null);
+      setMode("active");
+    },
+    [instanceId, loadProgram, sessionId, startWorkout],
+  );
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function initializeScreen() {
+      if (!sessionId || !instanceId || !sessionStatus) return;
+      if (mode === "active" || (mode === "preview" && previewPrescription)) {
+        setIsScreenLoading(false);
+        return;
+      }
+
+      try {
+        setIsScreenLoading(true);
+
+        if (sessionStatus === "started") {
+          await activateWorkout({ markStarted: false });
+          return;
+        }
+
+        if (shouldAutostart && canStartTodayWorkout) {
+          await activateWorkout({ markStarted: true });
+          return;
+        }
+
+        const rx = await getPrescriptionBySession(sessionId);
+        if (isCancelled) return;
+
+        setPreviewPrescription(rx?.data ?? null);
+        setMode("preview");
+      } catch (error) {
+        console.error("Failed to initialize workout:", error);
+      } finally {
+        if (!isCancelled) {
+          setIsScreenLoading(false);
+        }
+      }
+    }
+
+    void initializeScreen();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [activateWorkout, canStartTodayWorkout, instanceId, mode, previewPrescription, sessionId, sessionStatus, shouldAutostart]);
+
+  if (isScreenLoading || (isWorkoutActive && isWorkoutLoading) || !stub || !instance) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text variant="body">{t("workout.loading")}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!prescription) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.center}>
+          <Text variant="body">{t("session.notFound")}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const weekLabel = getWeekLabel(stub.weekIndex);
+  const completedCount = stubs.filter((item) => item.status === "completed").length;
+  const totalCount = stubs.length;
+  const allSetsCompleted = sets.every((item) => item.isCompleted);
+  const workSets = isWorkoutActive
+    ? sets
+    : prescription.sets
+        .filter((setData) => !setData.isWarmup)
+        .map((setData) => ({
+          id: `preview-${setData.setOrder}`,
+          setOrder: setData.setOrder,
+          prescribed: setData,
+          actualWeight: String(setData.targetWeight),
+          actualReps: String(setData.targetReps),
+          isCompleted: false,
+          isAmrap: setData.isAmrap,
+        }));
 
   const handleComplete = async () => {
-    if (isSubmitting || !sessionId) return;
+    if (isSubmitting || !sessionId || !isWorkoutActive) return;
 
     try {
       setIsSubmitting(true);
       await completeWorkout();
       await completeSession(sessionId);
-      navigateAfterComplete();
+      goBack();
     } catch (error) {
       console.error("Failed to complete workout:", error);
       Alert.alert(
@@ -108,6 +207,23 @@ export default function WorkoutScreen() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleStartWorkout = async () => {
+    if (!canStartTodayWorkout || isStarting || isSubmitting) return;
+
+    try {
+      setIsStarting(true);
+      await activateWorkout({ markStarted: stub.status === "planned" });
+    } catch (error) {
+      console.error("Failed to start workout:", error);
+      Alert.alert(
+        t("workout.errorStartTitle"),
+        t("workout.errorStartMessage"),
+      );
+    } finally {
+      setIsStarting(false);
     }
   };
 
@@ -128,31 +244,32 @@ export default function WorkoutScreen() {
 
   const confirmExit = () => {
     if (isSubmitting) return;
+    if (!isWorkoutActive) {
+      goBack();
+      return;
+    }
 
     Alert.alert(
       t("workout.exitTitle"),
       t("workout.exitMessage"),
       [
         { text: t("workout.stay"), style: "cancel" },
-        { text: t("workout.exit"), style: "destructive", onPress: () => router.back() },
+        { text: t("workout.exit"), style: "destructive", onPress: goBack },
       ],
     );
   };
 
   return (
     <SafeAreaView style={styles.safe}>
+      <BackButton
+        onPress={confirmExit}
+        disabled={isSubmitting || isStarting}
+        accessibilityLabel={t("common.back")}
+      />
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Header */}
+        <View style={styles.topActions}>
+        </View>
         <View style={styles.header}>
-          <View style={styles.topActions}>
-            <Pressable
-              onPress={confirmExit}
-              style={styles.backButton}
-              disabled={isSubmitting}
-            >
-              <Text style={styles.backButtonText}>← {t("common.back")}</Text>
-            </Pressable>
-          </View>
           <View style={styles.headerRow}>
             <Text variant="title">
               {getLiftLabel(stub.mainLiftKey)}
@@ -161,7 +278,19 @@ export default function WorkoutScreen() {
               {t("workout.subtitle", { week: stub.weekIndex + 1, label: weekLabel })}
             </Text>
           </View>
-          {/* Progress bar */}
+          <View style={styles.badgeRow}>
+            {isTodaySession ? (
+              <Badge variant="today" label={t("status.today")} />
+            ) : (
+              <Badge
+                variant={stub.status === "completed" ? "completed" : "planned"}
+                label={stub.status === "completed" ? t("status.completed") : t("status.planned")}
+              />
+            )}
+            {workSets.some((setData) => setData.isAmrap) ? (
+              <Badge variant="amrap" label={t("badge.amrap")} />
+            ) : null}
+          </View>
           <View style={styles.progressBarContainer}>
             <View
               style={[
@@ -177,37 +306,48 @@ export default function WorkoutScreen() {
 
         <Divider />
 
-        {/* Work Sets */}
+        {!isWorkoutActive ? (
+          <Card>
+            <View style={styles.previewNotice}>
+              <Text style={styles.previewNoticeTitle}>
+                {canStartTodayWorkout ? t("workout.readyToStart") : t("workout.onlyTodayCanStart")}
+              </Text>
+            </View>
+          </Card>
+        ) : null}
+
         <Section title={t("workout.section.workSets")}>
-          {sets.map((setData) => (
+          {workSets.map((setData) => (
             <SetCard
               key={setData.id}
               data={setData}
               unit={instance.params.unit}
-              onChangeWeight={(v) => updateSet(setData.id, "actualWeight", v)}
-              onChangeReps={(v) => updateSet(setData.id, "actualReps", v)}
+              editable={isWorkoutActive}
+              onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
+              onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
               onToggle={() => void toggleSetComplete(setData.id)}
             />
           ))}
         </Section>
       </ScrollView>
 
-      {/* Bottom CTA */}
-      <View style={styles.ctaContainer}>
-        <Divider />
-        <View style={styles.ctaPadding}>
-          <Button
-            title={isSubmitting ? t("workout.saving") : t("workout.completeWorkout")}
-            onPress={confirmComplete}
-            disabled={isSubmitting}
-          />
+      {(isWorkoutActive || canStartTodayWorkout) ? (
+        <View style={styles.ctaContainer}>
+          <Divider />
+          <View style={styles.ctaPadding}>
+            <Button
+              title={isWorkoutActive
+                ? (isSubmitting ? t("workout.saving") : t("workout.completeWorkout"))
+                : (isStarting ? t("workout.starting") : t("workout.startWorkout"))}
+              onPress={isWorkoutActive ? confirmComplete : () => void handleStartWorkout()}
+              disabled={isWorkoutActive ? isSubmitting : isStarting}
+            />
+          </View>
         </View>
-      </View>
+      ) : null}
     </SafeAreaView>
   );
 }
-
-// ─── Set Card Component ─────────────────────────────────
 
 function SetCard({
   data,
@@ -215,19 +355,21 @@ function SetCard({
   onChangeWeight,
   onChangeReps,
   onToggle,
+  editable = true,
 }: {
   data: WorkoutSetType;
   unit: string;
   onChangeWeight: (v: string) => void;
   onChangeReps: (v: string) => void;
   onToggle: () => void;
+  editable?: boolean;
 }) {
   return (
     <Card>
       <View style={styles.setHeader}>
         <View style={styles.setLabelRow}>
           <Text style={styles.setLabel}>{t("workout.setLabel", { set: data.setOrder + 1 })}</Text>
-          {data.isAmrap && <Badge variant="amrap" label={t("badge.amrap")} />}
+          {data.isAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
         </View>
         <Text variant="caption">
           {String(data.prescribed.targetWeight)}{unit} × {String(data.prescribed.targetReps)}
@@ -239,15 +381,22 @@ function SetCard({
           value={data.actualWeight}
           onChangeText={onChangeWeight}
           unit={`${unit} ×`}
+          editable={editable}
         />
         <NumericInput
           value={data.actualReps}
           onChangeText={onChangeReps}
           unit={t("unit.reps")}
+          editable={editable}
         />
         <Pressable
-          style={[styles.checkButton, data.isCompleted && styles.checkButtonActive]}
+          style={[
+            styles.checkButton,
+            data.isCompleted && styles.checkButtonActive,
+            !editable && styles.checkButtonDisabled,
+          ]}
           onPress={onToggle}
+          disabled={!editable}
         >
           <Text style={[styles.checkMark, data.isCompleted && styles.checkMarkActive]}>
             ✓
@@ -257,8 +406,6 @@ function SetCard({
     </Card>
   );
 }
-
-type WorkoutSetType = WorkoutSetState;
 
 const styles = StyleSheet.create({
   safe: {
@@ -277,29 +424,20 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
-    paddingTop: spacing["2xl"],
   },
   topActions: {
     flexDirection: "row",
     justifyContent: "flex-start",
   },
-  backButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  backButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "baseline",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   progressBarContainer: {
     height: 6,
@@ -317,6 +455,14 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textSecondary,
     textAlign: "right",
+  },
+  previewNotice: {
+    gap: spacing.xs,
+  },
+  previewNoticeTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.textSecondary,
   },
   setHeader: {
     flexDirection: "row",
@@ -352,6 +498,9 @@ const styles = StyleSheet.create({
   checkButtonActive: {
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.accent,
+  },
+  checkButtonDisabled: {
+    opacity: 0.45,
   },
   checkMark: {
     fontSize: 20,

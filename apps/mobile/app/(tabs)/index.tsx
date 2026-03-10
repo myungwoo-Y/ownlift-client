@@ -1,5 +1,6 @@
-import { useFocusEffect, useRouter } from "expo-router";
 import type { SessionStubRecord } from "@ownlift/db";
+import { Image } from "expo-image";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -7,7 +8,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, Button, Card, colors, Divider, Section, spacing, Text } from "../../src/design";
-import { getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
+import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
 function clamp(value: number, min: number, max: number): number {
@@ -15,6 +16,10 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 const DRAG_DROP_FALLBACK_THRESHOLD = 0.45;
+const squatThumbnailSource = require("../../assets/images/squat_3d.png");
+const benchThumbnailSource = require("../../assets/images/bench_press_3d.png");
+const deadliftThumbnailSource = require("../../assets/images/deadlift_3d.png");
+const pressThumbnailSource = require("../../assets/images/ohp_3d.png");
 
 function findClosestIndex(centers: number[], target: number): number {
   if (centers.length === 0) return 0;
@@ -41,6 +46,14 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return next;
 }
 
+function getLiftThumbnailSource(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
+  if (mainLiftKey === "squat") return squatThumbnailSource;
+  if (mainLiftKey === "bench") return benchThumbnailSource;
+  if (mainLiftKey === "deadlift") return deadliftThumbnailSource;
+  if (mainLiftKey === "press") return pressThumbnailSource;
+  return null;
+}
+
 interface DraggableWeekRowProps {
   stub: SessionStubRecord;
   index: number;
@@ -49,7 +62,7 @@ interface DraggableWeekRowProps {
   isDragging: boolean;
   staticShift: number;
   isAnyDragging: boolean;
-  onOpenCompletedSession: (sessionId: string) => void;
+  onPress: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
   onDragMove: (dy: number) => void;
   onDragEnd: () => void;
@@ -64,13 +77,14 @@ function DraggableWeekRow({
   isDragging,
   staticShift,
   isAnyDragging,
-  onOpenCompletedSession,
+  onPress,
   onDragBegin,
   onDragMove,
   onDragEnd,
   onLayout,
 }: DraggableWeekRowProps) {
   const dragTranslateY = useSharedValue(0);
+  const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
 
   useEffect(() => {
     if (!isDragging) {
@@ -121,9 +135,7 @@ function DraggableWeekRow({
       <Pressable
         disabled={isAnyDragging}
         onPress={() => {
-          if (isCompleted) {
-            onOpenCompletedSession(stub.sessionId);
-          }
+          onPress(stub);
         }}
       >
         <Card highlighted={isToday}>
@@ -134,13 +146,21 @@ function DraggableWeekRow({
           )}
           <View style={styles.cardContent}>
             <View style={styles.cardLeft}>
-              <Text variant="caption">
-                {getSessionLabel(index)}
-              </Text>
-              <Text style={styles.liftName}>
-                {getLiftLabel(stub.mainLiftKey)}
-              </Text>
-              <Text variant="caption">{t("plan.assistance")}</Text>
+              {thumbnailSource ? (
+                <View style={styles.thumbnailFrame}>
+                  <Image
+                    source={thumbnailSource}
+                    contentFit="cover"
+                    style={styles.thumbnailImage}
+                  />
+                </View>
+              ) : null}
+              <View style={styles.cardText}>
+                <Text style={styles.liftName}>
+                  {getLiftLabel(stub.mainLiftKey)}
+                </Text>
+                <Text variant="caption">{t("plan.assistance")}</Text>
+              </View>
             </View>
             <View style={styles.cardRight}>
               <GestureDetector gesture={handleGesture}>
@@ -363,8 +383,13 @@ export default function PlanScreen() {
                 isDragging={isDragging}
                 staticShift={staticShift}
                 isAnyDragging={draggingSessionId !== null}
-                onOpenCompletedSession={(sessionId) => {
-                  router.push(`/session/${sessionId}`);
+                onPress={(pressedStub) => {
+                  if (pressedStub.status === "completed") {
+                    router.push(`/session/${pressedStub.sessionId}`);
+                    return;
+                  }
+
+                  router.push(`/workout/${pressedStub.sessionId}`);
                 }}
                 onDragBegin={handleDragBegin}
                 onDragMove={handleDragMove}
@@ -411,7 +436,7 @@ export default function PlanScreen() {
           <View style={styles.ctaPadding}>
             <Button
               title={t("plan.startTodayWorkout")}
-              onPress={() => router.push(`/workout/${nextStub.sessionId}`)}
+              onPress={() => router.push(`/workout/${nextStub.sessionId}?autostart=1`)}
             />
           </View>
         </View>
@@ -487,12 +512,31 @@ const styles = StyleSheet.create({
   },
   cardLeft: {
     flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  cardText: {
+    flex: 1,
     gap: 2,
   },
   cardRight: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    flexShrink: 0,
+  },
+  thumbnailFrame: {
+    width: 82,
+    height: 82,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceElevated,
+    flexShrink: 0,
+  },
+  thumbnailImage: {
+    width: "100%",
+    height: "100%",
   },
   dragHandle: {
     borderWidth: 1,
