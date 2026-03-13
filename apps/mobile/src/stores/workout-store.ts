@@ -28,6 +28,14 @@ export interface WorkoutSetState {
   isAmrap: boolean;
 }
 
+function getSetType(prescribed: PrescriptionSet): SetType {
+  if (prescribed.isWarmup) {
+    return "warmup";
+  }
+
+  return prescribed.isAmrap ? "amrap" : "work";
+}
+
 const MAIN_LIFT_LABELS: Record<string, string> = {
   squat: "Squat",
   bench: "Bench Press",
@@ -77,10 +85,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const existingLogs = await getSetLogsBySession(sessionId);
     const existingMap = new Map(existingLogs.map((l) => [l.setOrder, l]));
 
-    // Only show work sets (skip warmup)
-    const workSets = rx.data.sets.filter((s) => !s.isWarmup);
-
-    const sets: WorkoutSetState[] = workSets.map((prescribed) => {
+    const sets: WorkoutSetState[] = rx.data.sets.map((prescribed) => {
       const existing = existingMap.get(prescribed.setOrder);
       return {
         id: existing?.id ?? generateId(),
@@ -137,7 +142,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       id: setData.id,
       sessionId,
       exerciseId: exercise.id,
-      setType: "main" as SetType,
+      setType: getSetType(setData.prescribed),
       setOrder: setData.setOrder,
       planned: {
         targetWeight: setData.prescribed.targetWeight,
@@ -168,7 +173,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         id: setData.id,
         sessionId,
         exerciseId: exercise.id,
-        setType: "main" as SetType,
+        setType: getSetType(setData.prescribed),
         setOrder: setData.setOrder,
         planned: {
           targetWeight: setData.prescribed.targetWeight,

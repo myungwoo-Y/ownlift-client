@@ -33,6 +33,7 @@ interface ProgramStore {
   currentWeekStubs: SessionStubRecord[];
   nextStub: SessionStubRecord | null;
   isLoading: boolean;
+  hasHydrated: boolean;
 
   loadProgram: () => Promise<void>;
   initProgram: (params: ProgramParams) => Promise<void>;
@@ -46,6 +47,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   currentWeekStubs: [],
   nextStub: null,
   isLoading: true,
+  hasHydrated: false,
 
   loadProgram: async () => {
     if (loadProgramInFlight) {
@@ -54,10 +56,20 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
 
     const loadPromise = (async () => {
       try {
-        set({ isLoading: true });
+        if (!get().hasHydrated) {
+          set({ isLoading: true });
+        }
+
         const instance = await getActiveInstance();
         if (!instance) {
-          set({ instance: null, stubs: [], currentWeekStubs: [], nextStub: null, isLoading: false });
+          set({
+            instance: null,
+            stubs: [],
+            currentWeekStubs: [],
+            nextStub: null,
+            isLoading: false,
+            hasHydrated: true,
+          });
           return;
         }
 
@@ -69,9 +81,16 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
         });
         const nextStub = await getNextIncompleteStub(instance.instanceId);
 
-        set({ instance, stubs, currentWeekStubs, nextStub, isLoading: false });
+        set({
+          instance,
+          stubs,
+          currentWeekStubs,
+          nextStub,
+          isLoading: false,
+          hasHydrated: true,
+        });
       } catch (error) {
-        set({ isLoading: false });
+        set({ isLoading: false, hasHydrated: true });
         throw error;
       }
     })();

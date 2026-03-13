@@ -3,8 +3,10 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { colors } from "../src/design/tokens";
 import { useLocale } from "../src/i18n";
 import { useProgramStore } from "../src/stores/program-store";
 import { useSettingsStore } from "../src/stores/settings-store";
@@ -44,6 +46,11 @@ export default function RootLayout() {
     if (!isReady) return;
 
     void SplashScreen.hideAsync();
+  }, [isReady]);
+
+  useEffect(() => {
+    if (!isReady) return;
+
     let isCancelled = false;
 
     async function syncNavigation() {
@@ -71,21 +78,42 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false, freezeOnBlur: false }}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: styles.stackContent,
+          }}
+        >
           <Stack.Screen name="(onboarding)" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="workout/[sessionId]"
-            options={{ presentation: "card", freezeOnBlur: false }}
+            options={{
+              presentation: "card",
+              contentStyle: styles.stackContent,
+            }}
           />
           <Stack.Screen
             name="session/[sessionId]"
-            options={{ presentation: "card", freezeOnBlur: false }}
+            options={{
+              presentation: "card",
+              contentStyle: styles.stackContent,
+            }}
           />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  stackContent: {
+    backgroundColor: colors.background,
+  },
+});

@@ -25,6 +25,18 @@ import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-
 type WorkoutScreenMode = "loading" | "preview" | "active";
 type WorkoutSetType = WorkoutSetState;
 
+function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSetType {
+  return {
+    id: `preview-${setData.setOrder}`,
+    setOrder: setData.setOrder,
+    prescribed: setData,
+    actualWeight: String(setData.targetWeight),
+    actualReps: String(setData.targetReps),
+    isCompleted: false,
+    isAmrap: setData.isAmrap,
+  };
+}
+
 export default function WorkoutScreen() {
   useLocale();
 
@@ -182,19 +194,12 @@ export default function WorkoutScreen() {
   const completedCount = stubs.filter((item) => item.status === "completed").length;
   const totalCount = stubs.length;
   const allSetsCompleted = sets.every((item) => item.isCompleted);
-  const workSets = isWorkoutActive
+  const visibleSets = isWorkoutActive
     ? sets
     : prescription.sets
-        .filter((setData) => !setData.isWarmup)
-        .map((setData) => ({
-          id: `preview-${setData.setOrder}`,
-          setOrder: setData.setOrder,
-          prescribed: setData,
-          actualWeight: String(setData.targetWeight),
-          actualReps: String(setData.targetReps),
-          isCompleted: false,
-          isAmrap: setData.isAmrap,
-        }));
+        .map(toPreviewSetState);
+  const warmupSets = visibleSets.filter((setData) => setData.prescribed.isWarmup);
+  const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
 
   const handleComplete = async () => {
     if (isSubmitting || !sessionId || !isWorkoutActive) return;
@@ -319,6 +324,22 @@ export default function WorkoutScreen() {
               </Text>
             </View>
           </Card>
+        ) : null}
+
+        {warmupSets.length > 0 ? (
+          <Section title={t("workout.section.warmupSets")}>
+            {warmupSets.map((setData) => (
+              <SetCard
+                key={setData.id}
+                data={setData}
+                unit={instance.params.unit}
+                editable={isWorkoutActive}
+                onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
+                onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
+                onToggle={() => void toggleSetComplete(setData.id)}
+              />
+            ))}
+          </Section>
         ) : null}
 
         <Section title={t("workout.section.workSets")}>

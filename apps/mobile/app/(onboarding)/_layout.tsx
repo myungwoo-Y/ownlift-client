@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { colors } from "../../src/design/tokens";
 
 export default function OnboardingLayout() {
   return (
@@ -6,6 +7,9 @@ export default function OnboardingLayout() {
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
+        contentStyle: {
+          backgroundColor: colors.background,
+        },
       }}
     >
       <Stack.Screen name="index" />
