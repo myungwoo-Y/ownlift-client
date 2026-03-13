@@ -1,4 +1,4 @@
-import { getPrescriptionBySession, updateStubStatus } from "@ownlift/db";
+import { updateStubStatus } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -18,6 +18,7 @@ import {
   Text,
 } from "../../src/design";
 import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
+import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-store";
 
@@ -132,7 +133,11 @@ export default function WorkoutScreen() {
           return;
         }
 
-        const rx = await getPrescriptionBySession(sessionId);
+        const rx = await loadSyncedPrescriptionForSession({
+          sessionId,
+          instance,
+          stub,
+        });
         if (isCancelled) return;
 
         setPreviewPrescription(rx?.data ?? null);
@@ -151,7 +156,7 @@ export default function WorkoutScreen() {
     return () => {
       isCancelled = true;
     };
-  }, [activateWorkout, canStartTodayWorkout, instanceId, mode, previewPrescription, sessionId, sessionStatus, shouldAutostart]);
+  }, [activateWorkout, canStartTodayWorkout, instance, instanceId, mode, previewPrescription, sessionId, sessionStatus, shouldAutostart, stub]);
 
   if (isScreenLoading || (isWorkoutActive && isWorkoutLoading) || !stub || !instance) {
     return (

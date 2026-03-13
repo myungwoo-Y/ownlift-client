@@ -1,13 +1,14 @@
 import {
     createWorkoutResult,
     getOrCreateExercise,
-    getPrescriptionBySession,
     getSetLogsBySession,
     upsertSetLog,
 } from "@ownlift/db";
 import type { PrescriptionData, PrescriptionSet, SetType } from "@ownlift/schemas";
 import { nowISO } from "@ownlift/schemas";
 import { create } from "zustand";
+import { loadSyncedPrescriptionForSession } from "../program/prescription-sync";
+import { useProgramStore } from "./program-store";
 
 function generateId(): string {
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -60,7 +61,13 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   startWorkout: async (sessionId, instanceId) => {
     set({ isLoading: true, sessionId, instanceId });
 
-    const rx = await getPrescriptionBySession(sessionId);
+    const { instance, stubs } = useProgramStore.getState();
+    const stub = stubs.find((item) => item.sessionId === sessionId);
+    const rx = await loadSyncedPrescriptionForSession({
+      sessionId,
+      instance,
+      stub,
+    });
     if (!rx) {
       set({ isLoading: false });
       return;

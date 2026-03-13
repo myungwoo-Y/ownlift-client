@@ -14,6 +14,7 @@ import {
     spacing,
 } from "../../src/design";
 import { getLiftLabel, t, useLocale } from "../../src/i18n";
+import { syncLiftPrescriptions } from "../../src/program/prescription-sync";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useSettingsStore } from "../../src/stores/settings-store";
 
@@ -22,7 +23,7 @@ const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
 export default function SettingsScreen() {
   const locale = useLocale();
 
-  const { instance, loadProgram } = useProgramStore();
+  const { instance, stubs, loadProgram } = useProgramStore();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const settings = useSettingsStore();
 
@@ -44,6 +45,12 @@ export default function SettingsScreen() {
         const newTMs = { ...instance.state.trainingMaxes, [lift]: newTm };
         const newState = { ...instance.state, trainingMaxes: newTMs };
         await updateInstanceState({ instanceId: instance.instanceId, state: newState });
+        await syncLiftPrescriptions({
+          instance,
+          stubs,
+          lift,
+          state: newState,
+        });
         await loadProgram();
       },
       "plain-text",

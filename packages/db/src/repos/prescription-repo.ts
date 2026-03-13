@@ -1,6 +1,6 @@
 import type { PrescriptionData } from "@ownlift/schemas";
 import { getDatabase } from "../client";
-import { insertMeta } from "../helpers/sync-meta";
+import { insertMeta, updateMeta } from "../helpers/sync-meta";
 
 interface PrescriptionRow {
   session_id: string;
@@ -23,7 +23,8 @@ function rowToRecord(row: PrescriptionRow): PrescriptionRecord {
 }
 
 /**
- * Create a prescription (snapshot — should never be updated after creation).
+ * Create a prescription snapshot for a session.
+ * It may be replaced later if the user updates an unfinished session's TM.
  */
 export async function createPrescription({
   sessionId,
@@ -50,6 +51,37 @@ export async function createPrescription({
     meta.deleted_at,
     meta.dirty,
     meta.revision,
+  );
+}
+
+/** Replace an existing prescription snapshot for a session. */
+export async function updatePrescription({
+  sessionId,
+  data,
+}: {
+  sessionId: string;
+  data: PrescriptionData;
+}): Promise<void> {
+  const db = getDatabase();
+  const row = await db.getFirstAsync<{ revision: number }>(
+    "SELECT revision FROM prescriptions WHERE session_id = ?",
+    sessionId,
+  );
+
+  if (!row) {
+    throw new Error(`Prescription not found for session: ${sessionId}`);
+  }
+
+  const meta = updateMeta(row.revision);
+  await db.runAsync(
+    `UPDATE prescriptions
+     SET prescription_json = ?, updated_at = ?, dirty = ?, revision = ?
+     WHERE session_id = ?`,
+    JSON.stringify(data),
+    meta.updated_at,
+    meta.dirty,
+    meta.revision,
+    sessionId,
   );
 }
 

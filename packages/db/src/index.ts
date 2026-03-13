@@ -26,7 +26,8 @@ export type { SessionStubRecord } from "./repos/session-stub-repo";
 
 export {
     createPrescription,
-    getPrescriptionBySession
+    getPrescriptionBySession,
+    updatePrescription
 } from "./repos/prescription-repo";
 export type { PrescriptionRecord } from "./repos/prescription-repo";
 

@@ -55,21 +55,24 @@ Join our community of developers creating universal apps.
 
 `package.json`의 주요 스크립트 명령어들은 다음과 같은 용도로 사용됩니다. (주로 `pnpm`을 통해 실행)
 
-1. **커스텀 개발 앱(Dev Client) 실행 (현재 메인 워크플로우)**
-   - `pnpm ios` 또는 `pnpm android`
-   - 네이티브 패키지가 포함된 커스텀 앱(Dev Client)과 연결하여 실행합니다.
-   - 평상시 개발할 때 계속 이 명령어를 입력하시면 됩니다.
+1. **로컬 개발 서버(Metro)만 실행 (현재 메인 워크플로우)**
+   - `pnpm start:ios` 또는 `pnpm start:android`
+   - 이미 기기에 설치된 커스텀 앱(Dev Client)을 깨워 연결합니다. 내장된 네이티브 코드가 변경되지 않았을 때 가장 빠르고 가볍게 코딩할 수 있습니다.
 
-2. **기본 Expo Go 연결 (가볍게 띄울 때)**
-   - `pnpm ios:go` 또는 `pnpm android:go`
+2. **외부 네트워크에서 원격 테스트 (Tunnel 모드)**
+   - `pnpm start:tunnel:ios` 또는 `pnpm start:tunnel:android`
+   - 내 폰이 LTE나 다른 식당 와이파이에 접속해 있을 때 사용합니다. 전 세계 어디서든 내 Mac의 서버(Metro)에 접속할 수 있도록 ngrok 터널을 뚫어줍니다.
+
+3. **기본 Expo Go 연결 (가볍게 띄울 때)**
+   - `pnpm start:go:ios` 또는 `pnpm start:go:android`
    - 네이티브 코드가 필요 없는 단순 구동 시, 앱스토어의 일반 `Expo Go`를 통해 빠르게 실행합니다.
 
-3. **로컬 컴파일 및 네이티브 빌드 (직접 빌드 테스트 시)**
-   - `pnpm run:ios` 또는 `pnpm run:android`
-   - 네이티브 패키지 변경 후 **로컬 Mac 환경**(Xcode, Android Studio)을 이용해 아예 새로 앱을 컴파일하고 띄울 때 사용합니다. (시간이 오래 걸립니다)
+3. **로컬 개발용 네이티브 앱 빌드 및 실행**
+   - `pnpm build-run:ios` 또는 `pnpm build-run:android`
+   - 네이티브 패키지 변경 후 **로컬 Mac 환경**(Xcode, Android Studio)을 이용해 아예 새로 앱을 컴파일한 뒤 바로 실행할 때 사용합니다. (시간이 오래 걸립니다)
 
 4. **커스텀 클라이언트 앱 EAS 빌드 (새 네이티브 패키지 설치 시 권장)**
-   - `pnpm build:dev:ios` 또는 `pnpm build:dev:android`
+   - `pnpm build:cloud:ios` 또는 `pnpm build:cloud:android`
    - 새로운 네이티브 모듈(예: 새 폰트, SQLite, 결제 등)을 추가했다면, EAS 클라우드를 통해 개발용 커스텀 앱(Dev Client)을 새로 빌드해서 단말기/시뮬레이터에 다시 설치해주어야 합니다. 최초 1회, 또는 네이티브 관련 변경사항이 있을 때 실행합니다.
 
 ---
@@ -80,7 +83,7 @@ Join our community of developers creating universal apps.
 
 **[설치 방법]**
 1. 아이폰을 Mac에 유선(USB 케이블)으로 연결합니다.
-2. 터미널에서 `pnpm run:ios` 명령어를 실행하여 로컬 빌드 및 `ios` 폴더를 생성합니다. (오류가 나도 폴더만 생기면 됩니다)
+2. 터미널에서 `pnpm build:local:ios` 명령어를 실행하여 로컬 빌드 및 `ios` 폴더를 생성합니다. (오류가 나도 폴더만 생기면 됩니다)
 3. Mac에서 **Xcode** 프로그램을 실행합니다.
 4. 방금 전 생성된 프로젝트 내부의 `ios/mobile.xcworkspace` 파일을 엽니다.
 5. Xcode 좌측의 최상단 프로젝트 이름(`mobile`)을 클릭하고, **[Signing & Capabilities]** 탭으로 이동합니다.
