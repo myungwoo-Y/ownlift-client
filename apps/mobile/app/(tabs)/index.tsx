@@ -34,6 +34,21 @@ function getLiftThumbnailSource(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   return null;
 }
 
+function getReorderableSegmentStart(
+  stubs: readonly SessionStubRecord[],
+): number {
+  let lastLockedIndex = -1;
+
+  for (let index = 0; index < stubs.length; index += 1) {
+    const stub = stubs[index];
+    if (stub.status === "completed") {
+      lastLockedIndex = index;
+    }
+  }
+
+  return lastLockedIndex + 1;
+}
+
 type PanGesture = ReturnType<typeof Gesture.Pan>;
 
 interface WeekRowCardProps {
@@ -44,6 +59,7 @@ interface WeekRowCardProps {
   isAnyDragging: boolean;
   scheduledDayLabel?: string | null;
   gesture?: PanGesture;
+  showDragHandle?: boolean;
   onPress?: (stub: SessionStubRecord) => void;
 }
 
@@ -55,6 +71,7 @@ function WeekRowCard({
   isAnyDragging,
   scheduledDayLabel,
   gesture,
+  showDragHandle = true,
   onPress,
 }: WeekRowCardProps) {
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
@@ -89,20 +106,22 @@ function WeekRowCard({
           </View>
         </View>
         <View style={styles.cardRight}>
-          {gesture ? (
-            <GestureDetector gesture={gesture}>
-              <View
-                accessibilityLabel={t("plan.reorderHandleA11y")}
-                style={[styles.dragHandle, styles.dragHandleRight, isDragging && styles.dragHandleActive]}
-              >
+          {showDragHandle ? (
+            gesture ? (
+              <GestureDetector gesture={gesture}>
+                <View
+                  accessibilityLabel={t("plan.reorderHandleA11y")}
+                  style={[styles.dragHandle, styles.dragHandleRight, isDragging && styles.dragHandleActive]}
+                >
+                  <Text style={styles.dragHandleText}>≡</Text>
+                </View>
+              </GestureDetector>
+            ) : (
+              <View style={[styles.dragHandle, styles.dragHandleRight, isDragging && styles.dragHandleActive]}>
                 <Text style={styles.dragHandleText}>≡</Text>
               </View>
-            </GestureDetector>
-          ) : (
-            <View style={[styles.dragHandle, styles.dragHandleRight, isDragging && styles.dragHandleActive]}>
-              <Text style={styles.dragHandleText}>≡</Text>
-            </View>
-          )}
+            )
+          ) : null}
           <Badge
             variant={isCompleted ? "completed" : isToday ? "today" : "planned"}
             label={isCompleted ? t("status.completed") : isToday ? t("status.today") : t("status.planned")}
@@ -204,6 +223,7 @@ interface DraggableWeekRowProps {
   index: number;
   isToday: boolean;
   isCompleted: boolean;
+  isReorderable: boolean;
   isDragging: boolean;
   isAnyDragging: boolean;
   scheduledDayLabel?: string | null;
@@ -220,6 +240,7 @@ function DraggableWeekRow({
   index,
   isToday,
   isCompleted,
+  isReorderable,
   isDragging,
   isAnyDragging,
   scheduledDayLabel,
@@ -231,8 +252,12 @@ function DraggableWeekRow({
   onLayout,
 }: DraggableWeekRowProps) {
   const handleGesture = useMemo(
-    () =>
-      Gesture.Pan()
+    () => {
+      if (!isReorderable) {
+        return undefined;
+      }
+
+      return Gesture.Pan()
         .minDistance(1)
         .onStart(() => {
           runOnJS(onDragBegin)(index, stub.sessionId);
@@ -245,8 +270,9 @@ function DraggableWeekRow({
         })
         .onFinalize(() => {
           runOnJS(onDragEnd)();
-        }),
-    [index, onDragBegin, onDragEnd, onDragMove, stub.sessionId],
+        });
+    },
+    [index, isReorderable, onDragBegin, onDragEnd, onDragMove, stub.sessionId],
   );
 
   return (
@@ -270,6 +296,7 @@ function DraggableWeekRow({
         isAnyDragging={isAnyDragging}
         scheduledDayLabel={scheduledDayLabel}
         gesture={handleGesture}
+        showDragHandle={isReorderable}
         onPress={onPress}
       />
     </View>
@@ -311,6 +338,7 @@ function FloatingDraggedCard({
         isDragging
         isAnyDragging
         scheduledDayLabel={scheduledDayLabel}
+        showDragHandle
       />
     </Animated.View>
   );
@@ -425,6 +453,7 @@ export default function PlanScreen() {
       dragActiveRef.current = false;
 
       const currentOrder = orderedWeekStubsRef.current;
+      const reorderableSegmentStart = getReorderableSegmentStart(currentOrder);
       const activeSessionId = draggingSessionIdRef.current;
       if (!activeSessionId || currentOrder.length === 0) {
         setDraggingSessionId(null);
@@ -444,13 +473,21 @@ export default function PlanScreen() {
       }
 
       const remaining = currentOrder.filter((stub) => stub.sessionId !== activeSessionId);
-      let insertionIndex = clamp(dragTargetIndexRef.current ?? dragStartIndexRef.current, 0, remaining.length);
+      let insertionIndex = clamp(
+        dragTargetIndexRef.current ?? dragStartIndexRef.current,
+        reorderableSegmentStart,
+        remaining.length,
+      );
 
       if (insertionIndex === dragStartIndexRef.current) {
         const dragDistance = dragLastDyRef.current;
         const dragHeight = dragItemHeightRef.current;
         if (dragHeight > 0 && Math.abs(dragDistance) >= dragHeight * REORDER_OVERLAP_THRESHOLD) {
-          insertionIndex = clamp(dragStartIndexRef.current + (dragDistance > 0 ? 1 : -1), 0, remaining.length);
+          insertionIndex = clamp(
+            dragStartIndexRef.current + (dragDistance > 0 ? 1 : -1),
+            reorderableSegmentStart,
+            remaining.length,
+          );
         }
       }
 
@@ -477,6 +514,12 @@ export default function PlanScreen() {
   );
 
   const handleDragBegin = useCallback((index: number, sessionId: string) => {
+    const currentOrder = orderedWeekStubsRef.current;
+    const reorderableSegmentStart = getReorderableSegmentStart(currentOrder);
+    if (index < reorderableSegmentStart) {
+      return;
+    }
+
     dragActiveRef.current = true;
     dragStartIndexRef.current = index;
     dragLastDyRef.current = 0;
@@ -500,11 +543,14 @@ export default function PlanScreen() {
     const activeSessionId = draggingSessionIdRef.current;
     if (!activeSessionId) return;
 
-    const staticStubs = orderedWeekStubsRef.current.filter((stub) => stub.sessionId !== activeSessionId);
+    const reorderableSegmentStart = getReorderableSegmentStart(orderedWeekStubsRef.current);
+    const staticStubs = orderedWeekStubsRef.current
+      .slice(reorderableSegmentStart)
+      .filter((stub) => stub.sessionId !== activeSessionId);
     const draggedCenterY = dragStartCenterYRef.current + dy;
     const draggedHeight = dragItemHeightRef.current;
     const isMovingUp = dy < 0;
-    let nextTargetIndex = staticStubs.length;
+    let nextTargetIndex = reorderableSegmentStart + staticStubs.length;
 
     for (let index = 0; index < staticStubs.length; index += 1) {
       const layout = rowLayoutsRef.current[staticStubs[index].sessionId];
@@ -514,7 +560,7 @@ export default function PlanScreen() {
         ? layout.top + layout.height * (1 - REORDER_OVERLAP_THRESHOLD) + draggedHeight / 2
         : layout.top + layout.height * REORDER_OVERLAP_THRESHOLD - draggedHeight / 2;
       if (draggedCenterY < thresholdY) {
-        nextTargetIndex = index;
+        nextTargetIndex = reorderableSegmentStart + index;
         break;
       }
     }
@@ -546,6 +592,10 @@ export default function PlanScreen() {
   };
   const completedCount = stubs.filter((s) => s.status === "completed").length;
   const totalCount = stubs.length;
+  const reorderableSegmentStart = getReorderableSegmentStart(orderedWeekStubs);
+  const reorderableSessionIds = new Set(
+    orderedWeekStubs.slice(reorderableSegmentStart).map((stub) => stub.sessionId),
+  );
   const placeholderRenderIndex = draggingSessionId !== null && dragTargetIndex !== null
     ? dragTargetIndex > dragStartIndexRef.current ? dragTargetIndex + 1 : dragTargetIndex
     : null;
@@ -612,6 +662,7 @@ export default function PlanScreen() {
             {orderedWeekStubs.map((stub, index) => {
               const isToday = todayStub?.sessionId === stub.sessionId;
               const isCompleted = stub.status === "completed";
+              const isReorderable = reorderableSessionIds.has(stub.sessionId);
               const isDragging = draggingSessionId === stub.sessionId;
               const scheduledDayLabel = getScheduledDayLabel(index);
 
@@ -630,6 +681,7 @@ export default function PlanScreen() {
                     index={index}
                     isToday={isToday}
                     isCompleted={isCompleted}
+                    isReorderable={isReorderable}
                     isDragging={isDragging}
                     isAnyDragging={draggingSessionId !== null}
                     scheduledDayLabel={scheduledDayLabel}

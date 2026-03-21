@@ -76,15 +76,15 @@ const variantStyles = StyleSheet.create({
     boxShadow: "0px 16px 36px rgba(34, 197, 94, 0.22)",
   },
   secondary: {
-    backgroundColor: colors.surfaceGlass,
+    backgroundColor: "#7A7A7C",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "rgba(255, 255, 255, 0.04)",
   },
   ghost: { backgroundColor: "rgba(255, 255, 255, 0.04)" },
 });
 
 const variantTextStyles = StyleSheet.create({
   primary: { color: colors.primaryForeground },
-  secondary: { color: colors.text },
+  secondary: { color: colors.primary },
   ghost: { color: colors.text },
 });
