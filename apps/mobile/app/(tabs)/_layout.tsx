@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
 import { colors } from "../../src/design/tokens";
 import { t, useLocale } from "../../src/i18n";
+import { FitnessTabBar } from "../../src/navigation/FitnessTabBar";
 
 export default function TabLayout() {
   const locale = useLocale();
@@ -9,21 +10,11 @@ export default function TabLayout() {
   return (
     <Tabs
       key={locale}
+      tabBar={(props) => <FitnessTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         sceneStyle: {
           backgroundColor: colors.background,
-        },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textTertiary,
-        tabBarStyle: {
-          borderTopWidth: 0.5,
-          borderTopColor: colors.border,
-          backgroundColor: colors.background,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "600",
         },
       }}
     >
@@ -31,8 +22,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: t("tab.plan"),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "calendar" : "calendar-outline"} size={size} color={color} />
           ),
         }}
       />
@@ -40,8 +31,8 @@ export default function TabLayout() {
         name="history"
         options={{
           title: t("tab.history"),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
           ),
         }}
       />
@@ -49,8 +40,8 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: t("tab.settings"),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons name={focused ? "settings" : "settings-outline"} size={size} color={color} />
           ),
         }}
       />

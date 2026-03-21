@@ -3,9 +3,10 @@ import { getWorkoutResultBySession } from "@ownlift/db";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Badge, colors, Divider, spacing, Text } from "../../src/design";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Badge, Card, colors, spacing, Text } from "../../src/design";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
+import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
 import { useProgramStore } from "../../src/stores/program-store";
 
 function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
@@ -24,9 +25,11 @@ interface HistoryItem extends SessionStubRecord {
 export default function HistoryScreen() {
   useLocale();
 
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
   const [items, setItems] = useState<HistoryItem[]>([]);
+  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
 
   useFocusEffect(
     useCallback(() => {
@@ -65,31 +68,32 @@ export default function HistoryScreen() {
       <Pressable
         onPress={() => router.push(`/session/${item.sessionId}`)}
       >
-        <View style={styles.historyItem}>
-          <View style={styles.dateColumn}>
-            <Text style={styles.dateDay}>{day}</Text>
-            <Text variant="caption">{weekday}</Text>
-          </View>
-          <View style={styles.detailColumn}>
-            <View style={styles.titleRow}>
-              <Text style={styles.liftName}>
-                {getLiftLabel(item.mainLiftKey)}
-              </Text>
-              <View style={styles.badges}>
-                <Badge variant="amrap" label={t("badge.amrap")} />
-              </View>
+        <Card style={styles.historyCard}>
+          <View style={styles.historyItem}>
+            <View style={styles.dateColumn}>
+              <Text style={styles.dateDay}>{day}</Text>
+              <Text variant="caption">{weekday}</Text>
             </View>
-            <Text variant="caption">
-              {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
-            </Text>
-            {item.totalVolume ? (
+            <View style={styles.detailColumn}>
+              <View style={styles.titleRow}>
+                <Text style={styles.liftName}>
+                  {getLiftLabel(item.mainLiftKey)}
+                </Text>
+                <View style={styles.badges}>
+                  <Badge variant="completed" label={t("status.completed")} />
+                </View>
+              </View>
               <Text variant="caption">
-                {t("history.volume", { volume: formatNumber(item.totalVolume), unit: instance?.params.unit ?? "kg" })}
+                {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
               </Text>
-            ) : null}
+              {item.totalVolume ? (
+                <Text variant="caption">
+                  {t("history.volume", { volume: formatNumber(item.totalVolume), unit: instance?.params.unit ?? "kg" })}
+                </Text>
+              ) : null}
+            </View>
           </View>
-        </View>
-        <Divider />
+        </Card>
       </Pressable>
     );
   };
@@ -97,9 +101,9 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
+        <Text style={styles.headerEyebrow}>{t("tab.history")}</Text>
         <Text variant="title">{t("history.title")}</Text>
       </View>
-      <Divider />
       {items.length === 0 ? (
         <View style={styles.empty}>
           <Text variant="body">{t("history.emptyTitle")}</Text>
@@ -110,7 +114,8 @@ export default function HistoryScreen() {
           data={items}
           keyExtractor={(item) => item.sessionId}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
+          showsVerticalScrollIndicator={false}
         />
       )}
     </SafeAreaView>
@@ -124,16 +129,27 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing["3xl"],
+    paddingTop: spacing["2xl"],
     paddingBottom: spacing.lg,
+    gap: spacing.xs,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textTertiary,
   },
   list: {
     paddingHorizontal: spacing["2xl"],
+    gap: spacing.md,
+  },
+  historyCard: {
+    padding: spacing.lg,
   },
   historyItem: {
     flexDirection: "row",
     gap: spacing.lg,
-    paddingVertical: spacing.lg,
   },
   dateColumn: {
     width: 72,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_SCHEDULED_DAYS } from "./program";
 
 // ─── Enums ──────────────────────────────────────────────
 export const WeightUnitSchema = z.enum(["kg", "lb"]);
@@ -14,8 +15,12 @@ export const SettingsKeySchema = z.enum([
   "roundingMode",
   "tmIncreaseUpper",
   "tmIncreaseLower",
+  "locale",
   "liftOrder",
   "warmUpEnabled",
+  "includeDeload",
+  "scheduleMode",
+  "scheduledDays",
 ]);
 
 export type SettingsKey = z.infer<typeof SettingsKeySchema>;
@@ -44,4 +49,7 @@ export const DEFAULT_SETTINGS = {
   tmIncreaseUpper: { kg: 2.5, lb: 5 },
   tmIncreaseLower: { kg: 5, lb: 10 },
   warmUpEnabled: true,
+  includeDeload: true,
+  scheduleMode: "flexible" as const,
+  scheduledDays: DEFAULT_SCHEDULED_DAYS,
 } as const;

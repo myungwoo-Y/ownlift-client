@@ -10,11 +10,18 @@ import {
     getStubsByWeek,
     reorderStubsByWeek,
     setSetting,
+    updateInstanceParams,
     updateInstanceState,
     updateStubStatus,
 } from "@ownlift/db";
-import type { ProgramParams } from "@ownlift/schemas";
+import type { ProgramParams, ProgramScheduleMode, ProgramWeekday } from "@ownlift/schemas";
 import { create } from "zustand";
+import {
+  getScheduledDaysOrDefault,
+  hasRequiredScheduledDays,
+  isWorkoutAvailableToday,
+  normalizeScheduledDays,
+} from "../program/schedule-policy";
 
 let loadProgramInFlight: Promise<void> | null = null;
 
@@ -32,6 +39,7 @@ interface ProgramStore {
   stubs: SessionStubRecord[];
   currentWeekStubs: SessionStubRecord[];
   nextStub: SessionStubRecord | null;
+  todayStub: SessionStubRecord | null;
   isLoading: boolean;
   hasHydrated: boolean;
 
@@ -39,6 +47,10 @@ interface ProgramStore {
   initProgram: (params: ProgramParams) => Promise<void>;
   completeSession: (sessionId: string) => Promise<void>;
   reorderCurrentWeek: (orderedSessionIds: string[]) => Promise<void>;
+  updateSchedulePolicy: (
+    scheduleMode: ProgramScheduleMode,
+    scheduledDays: readonly ProgramWeekday[],
+  ) => Promise<void>;
 }
 
 export const useProgramStore = create<ProgramStore>((set, get) => ({
@@ -46,6 +58,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   stubs: [],
   currentWeekStubs: [],
   nextStub: null,
+  todayStub: null,
   isLoading: true,
   hasHydrated: false,
 
@@ -67,6 +80,7 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
             stubs: [],
             currentWeekStubs: [],
             nextStub: null,
+            todayStub: null,
             isLoading: false,
             hasHydrated: true,
           });
@@ -80,12 +94,14 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
           weekIndex: instance.state.currentWeek,
         });
         const nextStub = await getNextIncompleteStub(instance.instanceId);
+        const todayStub = nextStub && isWorkoutAvailableToday(instance.params) ? nextStub : null;
 
         set({
           instance,
           stubs,
           currentWeekStubs,
           nextStub,
+          todayStub,
           isLoading: false,
           hasHydrated: true,
         });
@@ -104,6 +120,10 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
   },
 
   initProgram: async (params: ProgramParams) => {
+    if (params.scheduleMode === "scheduled" && !hasRequiredScheduledDays(params.scheduledDays)) {
+      throw new Error("Scheduled mode requires exactly 4 selected days.");
+    }
+
     const result = initialize({ params });
     const instanceId = generateId();
     const now = new Date().toISOString();
@@ -147,6 +167,10 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
     await setSetting({ key: "roundingMode", value: params.roundingMode });
     await setSetting({ key: "tmIncreaseUpper", value: String(params.tmIncreaseUpper) });
     await setSetting({ key: "tmIncreaseLower", value: String(params.tmIncreaseLower) });
+    await setSetting({ key: "warmUpEnabled", value: String(params.warmUpEnabled) });
+    await setSetting({ key: "includeDeload", value: String(params.includeDeload) });
+    await setSetting({ key: "scheduleMode", value: params.scheduleMode });
+    await setSetting({ key: "scheduledDays", value: JSON.stringify(getScheduledDaysOrDefault(params.scheduledDays)) });
 
     await get().loadProgram();
   },
@@ -213,6 +237,31 @@ export const useProgramStore = create<ProgramStore>((set, get) => ({
       weekIndex: instance.state.currentWeek,
       orderedSessionIds,
     });
+
+    await get().loadProgram();
+  },
+
+  updateSchedulePolicy: async (scheduleMode, scheduledDays) => {
+    const { instance } = get();
+    if (!instance) return;
+
+    const nextScheduledDays = normalizeScheduledDays(scheduledDays);
+    if (scheduleMode === "scheduled" && !hasRequiredScheduledDays(nextScheduledDays)) {
+      throw new Error("Scheduled mode requires exactly 4 selected days.");
+    }
+
+    const nextParams: ProgramParams = {
+      ...instance.params,
+      scheduleMode,
+      scheduledDays: nextScheduledDays.length > 0 ? nextScheduledDays : getScheduledDaysOrDefault(instance.params.scheduledDays),
+    };
+
+    await updateInstanceParams({
+      instanceId: instance.instanceId,
+      params: nextParams,
+    });
+    await setSetting({ key: "scheduleMode", value: scheduleMode });
+    await setSetting({ key: "scheduledDays", value: JSON.stringify(nextScheduledDays) });
 
     await get().loadProgram();
   },

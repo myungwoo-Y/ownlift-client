@@ -1,4 +1,5 @@
 import type { SessionStubRecord } from "@ownlift/db";
+import type { PrescriptionData } from "@ownlift/schemas";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -6,9 +7,12 @@ import type { LayoutChangeEvent } from "react-native";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { type SharedValue, runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Badge, borderRadius, Button, Card, colors, Divider, Section, spacing, Text } from "../../src/design";
-import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Badge, borderRadius, Button, Card, colors, Section, spacing, Text } from "../../src/design";
+import { getLiftLabel, getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../../src/i18n";
+import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
+import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
+import { getScheduledDayForIndex } from "../../src/program/schedule-policy";
 import { useProgramStore } from "../../src/stores/program-store";
 
 function clamp(value: number, min: number, max: number): number {
@@ -38,6 +42,7 @@ interface WeekRowCardProps {
   isCompleted: boolean;
   isDragging: boolean;
   isAnyDragging: boolean;
+  scheduledDayLabel?: string | null;
   gesture?: PanGesture;
   onPress?: (stub: SessionStubRecord) => void;
 }
@@ -48,18 +53,18 @@ function WeekRowCard({
   isCompleted,
   isDragging,
   isAnyDragging,
+  scheduledDayLabel,
   gesture,
   onPress,
 }: WeekRowCardProps) {
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
+  const sessionMeta = t("session.weekAndSession", {
+    week: stub.weekIndex + 1,
+    session: getSessionLabel(stub.dayIndex),
+  });
 
   const content = (
     <Card highlighted={isToday}>
-      {isToday && (
-        <View style={styles.todayLabel}>
-          <Text style={styles.todayLabelText}>{t("status.today")}</Text>
-        </View>
-      )}
       <View style={styles.cardContent}>
         <View style={styles.cardLeft}>
           {thumbnailSource ? (
@@ -75,7 +80,12 @@ function WeekRowCard({
             <Text style={styles.liftName}>
               {getLiftLabel(stub.mainLiftKey)}
             </Text>
-            <Text variant="caption">{t("plan.assistance")}</Text>
+            <View style={styles.metaRow}>
+              <Text variant="caption">{sessionMeta}</Text>
+              {scheduledDayLabel ? (
+                <Badge variant="planned" label={scheduledDayLabel} />
+              ) : null}
+            </View>
           </View>
         </View>
         <View style={styles.cardRight}>
@@ -119,6 +129,76 @@ function WeekRowCard({
   );
 }
 
+function TodayPreviewCard({
+  stub,
+  prescription,
+  scheduledDayLabel,
+  unit,
+  onStart,
+}: {
+  stub: SessionStubRecord;
+  prescription: PrescriptionData;
+  scheduledDayLabel?: string | null;
+  unit: string;
+  onStart: () => void;
+}) {
+  const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
+  const warmupCount = prescription.sets.filter((setData) => setData.isWarmup).length;
+  const workSets = prescription.sets.filter((setData) => !setData.isWarmup);
+  const hasAmrap = workSets.some((setData) => setData.isAmrap);
+
+  return (
+    <Card highlighted style={styles.todayPreviewCard}>
+      <View style={styles.todayPreviewHeader}>
+        <View style={styles.todayPreviewCopy}>
+          <Text variant="label">{t("plan.section.today")}</Text>
+          <Text style={styles.todayPreviewTitle}>{getLiftLabel(stub.mainLiftKey)}</Text>
+          <Text variant="caption">
+            {t("session.weekAndSession", {
+              week: stub.weekIndex + 1,
+              session: getSessionLabel(stub.dayIndex),
+            })}
+          </Text>
+        </View>
+        {thumbnailSource ? (
+          <View style={styles.todayPreviewImageFrame}>
+            <Image source={thumbnailSource} contentFit="contain" style={styles.todayPreviewImage} />
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.todayPreviewMeta}>
+        {scheduledDayLabel ? <Badge variant="planned" label={scheduledDayLabel} /> : null}
+        {hasAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
+        <Badge variant="planned" label={t("plan.preview.totalSets", { count: prescription.sets.length })} />
+        {warmupCount > 0 ? (
+          <Badge variant="planned" label={t("plan.preview.warmupSets", { count: warmupCount })} />
+        ) : null}
+      </View>
+
+      <View style={styles.todayPreviewSets}>
+        <Text style={styles.todayPreviewSetsLabel}>{t("plan.preview.workSets")}</Text>
+        <View style={styles.workSetList}>
+          {workSets.map((setData) => (
+            <View key={setData.setOrder} style={styles.workSetChip}>
+              <Text style={styles.workSetChipWeight}>
+                {String(setData.targetWeight)}
+                {unit}
+              </Text>
+              <Text variant="caption">
+                × {String(setData.targetReps)}
+                {setData.isAmrap ? "+" : ""}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      <Button title={t("plan.startTodayWorkout")} onPress={onStart} />
+    </Card>
+  );
+}
+
 interface DraggableWeekRowProps {
   stub: SessionStubRecord;
   index: number;
@@ -126,6 +206,7 @@ interface DraggableWeekRowProps {
   isCompleted: boolean;
   isDragging: boolean;
   isAnyDragging: boolean;
+  scheduledDayLabel?: string | null;
   dragStartTop: number;
   onPress: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
@@ -141,6 +222,7 @@ function DraggableWeekRow({
   isCompleted,
   isDragging,
   isAnyDragging,
+  scheduledDayLabel,
   dragStartTop,
   onPress,
   onDragBegin,
@@ -186,6 +268,7 @@ function DraggableWeekRow({
         isCompleted={isCompleted}
         isDragging={isDragging}
         isAnyDragging={isAnyDragging}
+        scheduledDayLabel={scheduledDayLabel}
         gesture={handleGesture}
         onPress={onPress}
       />
@@ -199,12 +282,14 @@ function FloatingDraggedCard({
   isCompleted,
   dragStartTop,
   dragTranslateY,
+  scheduledDayLabel,
 }: {
   stub: SessionStubRecord;
   isToday: boolean;
   isCompleted: boolean;
   dragStartTop: number;
   dragTranslateY: SharedValue<number>;
+  scheduledDayLabel?: string | null;
 }) {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: dragTranslateY.value }],
@@ -225,6 +310,7 @@ function FloatingDraggedCard({
         isCompleted={isCompleted}
         isDragging
         isAnyDragging
+        scheduledDayLabel={scheduledDayLabel}
       />
     </Animated.View>
   );
@@ -233,12 +319,15 @@ function FloatingDraggedCard({
 export default function PlanScreen() {
   useLocale();
 
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { instance, currentWeekStubs, stubs, nextStub, isLoading, loadProgram, reorderCurrentWeek } =
+  const { instance, currentWeekStubs, stubs, todayStub, isLoading, loadProgram, reorderCurrentWeek } =
     useProgramStore();
   const [orderedWeekStubs, setOrderedWeekStubs] = useState(currentWeekStubs);
   const [draggingSessionId, setDraggingSessionId] = useState<string | null>(null);
   const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null);
+  const [todayPreview, setTodayPreview] = useState<PrescriptionData | null>(null);
+  const [isTodayPreviewLoading, setIsTodayPreviewLoading] = useState(true);
   const orderedWeekStubsRef = useRef(currentWeekStubs);
   const syncedWeekStubsRef = useRef(currentWeekStubs);
   const rowLayoutsRef = useRef<Record<string, { height: number; top: number }>>({});
@@ -278,6 +367,45 @@ export default function PlanScreen() {
   useEffect(() => {
     draggingSessionIdRef.current = draggingSessionId;
   }, [draggingSessionId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTodayPreview() {
+      if (!instance || !todayStub) {
+        setTodayPreview(null);
+        setIsTodayPreviewLoading(false);
+        return;
+      }
+
+      try {
+        setIsTodayPreviewLoading(true);
+        const stub = stubs.find((item) => item.sessionId === todayStub.sessionId);
+        const rx = await loadSyncedPrescriptionForSession({
+          sessionId: todayStub.sessionId,
+          instance,
+          stub,
+        });
+        if (cancelled) return;
+        setTodayPreview(rx?.data ?? null);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Failed to load today preview", error);
+          setTodayPreview(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsTodayPreviewLoading(false);
+        }
+      }
+    }
+
+    void loadTodayPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instance, stubs, todayStub]);
 
   const persistWeekOrder = useCallback(
     async (nextOrder: typeof currentWeekStubs) => {
@@ -408,7 +536,14 @@ export default function PlanScreen() {
   }
 
   const { state } = instance;
-  const weekLabel = getWeekLabel(state.currentWeek);
+  const getScheduledDayLabel = (index: number): string | null => {
+    if (instance.params.scheduleMode !== "scheduled") {
+      return null;
+    }
+
+    const scheduledDay = getScheduledDayForIndex(index, instance.params.scheduledDays);
+    return scheduledDay ? getWeekdayShortLabel(scheduledDay) : null;
+  };
   const completedCount = stubs.filter((s) => s.status === "completed").length;
   const totalCount = stubs.length;
   const placeholderRenderIndex = draggingSessionId !== null && dragTargetIndex !== null
@@ -417,28 +552,57 @@ export default function PlanScreen() {
   const draggingStub = draggingSessionId
     ? orderedWeekStubs.find((stub) => stub.sessionId === draggingSessionId) ?? null
     : null;
-  const draggingStubIsToday = draggingStub ? nextStub?.sessionId === draggingStub.sessionId : false;
+  const draggingStubIsToday = draggingStub ? todayStub?.sessionId === draggingStub.sessionId : false;
   const draggingStubIsCompleted = draggingStub?.status === "completed";
+  const todayPreviewScheduledDayLabel = todayStub
+    ? getScheduledDayLabel(orderedWeekStubs.findIndex((stub) => stub.sessionId === todayStub.sessionId))
+    : null;
+  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
+  const headerSubtitle = todayStub ? getLiftLabel(todayStub.mainLiftKey) : t("plan.section.thisWeek");
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]}
         scrollEnabled={draggingSessionId === null}
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <View>
-            <Text variant="title">{t("week.title", { week: state.currentWeek + 1 })}</Text>
-            <Text variant="subtitle">{weekLabel}</Text>
+          <View style={styles.headerCopy}>
+            <Text style={styles.headerEyebrow}>{t("tab.plan")}</Text>
+            <Text style={styles.headerTitle}>{t("week.title", { week: state.currentWeek + 1 })}</Text>
+            <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
           </View>
-          <View style={styles.progressPill}>
-            <Text style={styles.progressText}>
-              {String(completedCount)}/{String(totalCount)}
-            </Text>
+          <View style={styles.progressRing}>
+            <View style={styles.progressRingInner}>
+              <Text style={styles.progressValue}>{String(completedCount)}</Text>
+              <Text style={styles.progressLabel}>/ {String(totalCount)}</Text>
+            </View>
           </View>
         </View>
 
-        <Divider />
+        <Section title={t("plan.section.today")}>
+          {todayStub && todayPreview ? (
+            <TodayPreviewCard
+              stub={todayStub}
+              prescription={todayPreview}
+              scheduledDayLabel={todayPreviewScheduledDayLabel}
+              unit={instance.params.unit}
+              onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
+            />
+          ) : (
+            <Card>
+              <View style={styles.todayEmptyState}>
+                <Text style={styles.todayEmptyTitle}>
+                  {isTodayPreviewLoading ? t("plan.loadingProgram") : t("plan.preview.emptyTitle")}
+                </Text>
+                {!isTodayPreviewLoading ? (
+                  <Text variant="caption">{t("plan.preview.emptySubtitle")}</Text>
+                ) : null}
+              </View>
+            </Card>
+          )}
+        </Section>
 
         <Section title={t("plan.section.thisWeek")}>
           <Text variant="caption" style={styles.reorderHint}>
@@ -446,9 +610,10 @@ export default function PlanScreen() {
           </Text>
           <View style={styles.weekList}>
             {orderedWeekStubs.map((stub, index) => {
-              const isToday = nextStub?.sessionId === stub.sessionId;
+              const isToday = todayStub?.sessionId === stub.sessionId;
               const isCompleted = stub.status === "completed";
               const isDragging = draggingSessionId === stub.sessionId;
+              const scheduledDayLabel = getScheduledDayLabel(index);
 
               return (
                 <Fragment key={stub.sessionId}>
@@ -467,6 +632,7 @@ export default function PlanScreen() {
                     isCompleted={isCompleted}
                     isDragging={isDragging}
                     isAnyDragging={draggingSessionId !== null}
+                    scheduledDayLabel={scheduledDayLabel}
                     dragStartTop={dragStartTopRef.current}
                     onPress={(pressedStub) => {
                       if (pressedStub.status === "completed") {
@@ -507,6 +673,7 @@ export default function PlanScreen() {
                 stub={draggingStub}
                 isToday={draggingStubIsToday}
                 isCompleted={draggingStubIsCompleted}
+                scheduledDayLabel={getScheduledDayLabel(dragStartIndexRef.current)}
                 dragStartTop={dragStartTopRef.current}
                 dragTranslateY={dragTranslateY}
               />
@@ -532,18 +699,6 @@ export default function PlanScreen() {
           </Section>
         )}
       </ScrollView>
-
-      {nextStub && (
-        <View style={styles.ctaContainer}>
-          <Divider />
-          <View style={styles.ctaPadding}>
-            <Button
-              title={t("plan.startTodayWorkout")}
-              onPress={() => router.push(`/workout/${nextStub.sessionId}?autostart=1`)}
-            />
-          </View>
-        </View>
-      )}
     </SafeAreaView>
   );
 }
@@ -555,7 +710,6 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: spacing["2xl"],
-    paddingBottom: 120,
     gap: spacing["2xl"],
   },
   center: {
@@ -566,35 +720,138 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingTop: spacing["2xl"],
+    alignItems: "flex-end",
+    paddingTop: spacing.xl,
+    gap: spacing.lg,
   },
-  progressPill: {
-    backgroundColor: colors.surface,
-    borderRadius: 999,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
+  headerCopy: {
+    flex: 1,
+    gap: spacing.xs,
   },
-  progressText: {
-    fontSize: 13,
-    fontWeight: "600",
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textTertiary,
+  },
+  headerTitle: {
+    fontSize: 42,
+    fontWeight: "800",
+    lineHeight: 44,
+    color: colors.text,
+  },
+  headerSubtitle: {
+    fontSize: 18,
+    fontWeight: "500",
     color: colors.textSecondary,
   },
-  todayLabel: {
-    position: "absolute",
-    top: -10,
-    left: spacing.lg,
-    backgroundColor: colors.primary,
-    borderRadius: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+  progressRing: {
+    width: 88,
+    height: 88,
+    borderRadius: borderRadius.full,
+    borderCurve: "continuous",
+    backgroundColor: colors.primarySoft,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.18)",
+    boxShadow: "0px 18px 40px rgba(0, 0, 0, 0.28)",
   },
-  todayLabelText: {
-    color: colors.primaryForeground,
-    fontSize: 11,
+  progressRingInner: {
+    width: 66,
+    height: 66,
+    borderRadius: borderRadius.full,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceGlassStrong,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  progressValue: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: colors.text,
+    lineHeight: 24,
+  },
+  progressLabel: {
+    fontSize: 12,
     fontWeight: "700",
+    color: colors.primary,
+  },
+  todayPreviewCard: {
+    gap: spacing.lg,
+  },
+  todayPreviewHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.lg,
+  },
+  todayPreviewCopy: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  todayPreviewTitle: {
+    fontSize: 34,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  todayPreviewImageFrame: {
+    width: 112,
+    height: 112,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: colors.primarySoft,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  todayPreviewImage: {
+    width: "100%",
+    height: "100%",
+  },
+  todayPreviewMeta: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  todayPreviewSets: {
+    gap: spacing.sm,
+  },
+  todayPreviewSetsLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
+  workSetList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  workSetChip: {
+    minWidth: 88,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: 2,
+  },
+  workSetChipWeight: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  todayEmptyState: {
+    gap: spacing.sm,
+  },
+  todayEmptyTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
   },
   reorderHint: {
     marginTop: -spacing.xs,
@@ -617,15 +874,16 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    elevation: 6,
     opacity: 0.96,
+    boxShadow: "0px 24px 60px rgba(0, 0, 0, 0.32)",
   },
   dropPlaceholder: {
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     borderWidth: 1,
     borderStyle: "dashed",
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    backgroundColor: colors.surfaceMuted,
     opacity: 0.55,
   },
   cardContent: {
@@ -645,6 +903,12 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
   cardRight: {
     flexDirection: "row",
     alignItems: "center",
@@ -654,8 +918,10 @@ const styles = StyleSheet.create({
   thumbnailFrame: {
     width: 82,
     height: 82,
+    borderRadius: 22,
+    borderCurve: "continuous",
     overflow: "hidden",
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceMuted,
     flexShrink: 0,
   },
   thumbnailImage: {
@@ -664,9 +930,10 @@ const styles = StyleSheet.create({
   },
   dragHandle: {
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    backgroundColor: colors.surfaceGlass,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     minWidth: 34,
@@ -677,8 +944,8 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   dragHandleActive: {
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+    backgroundColor: colors.surfaceGlassStrong,
   },
   dragHandleText: {
     fontSize: 16,
@@ -704,17 +971,5 @@ const styles = StyleSheet.create({
   chevron: {
     fontSize: 24,
     color: colors.textTertiary,
-  },
-  ctaContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.background,
-    paddingBottom: spacing["3xl"],
-  },
-  ctaPadding: {
-    paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing.lg,
   },
 });

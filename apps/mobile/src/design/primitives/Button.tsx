@@ -42,10 +42,13 @@ const styles = StyleSheet.create({
   base: {
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.full,
+    borderCurve: "continuous",
+    overflow: "hidden",
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
   },
   disabled: {
     opacity: 0.4,
@@ -68,9 +71,16 @@ const sizeTextStyles = StyleSheet.create({
 });
 
 const variantStyles = StyleSheet.create({
-  primary: { backgroundColor: colors.primary },
-  secondary: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
-  ghost: { backgroundColor: colors.transparent },
+  primary: {
+    backgroundColor: colors.primary,
+    boxShadow: "0px 16px 36px rgba(34, 197, 94, 0.22)",
+  },
+  secondary: {
+    backgroundColor: colors.surfaceGlass,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  ghost: { backgroundColor: "rgba(255, 255, 255, 0.04)" },
 });
 
 const variantTextStyles = StyleSheet.create({

@@ -96,7 +96,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
           : String(prescribed.targetWeight),
         actualReps: existing?.actualReps != null
           ? String(existing.actualReps)
-          : String(prescribed.targetReps),
+          : (prescribed.isAmrap ? "" : String(prescribed.targetReps)),
         isCompleted: existing?.isCompleted ?? false,
         isAmrap: prescribed.isAmrap,
       };

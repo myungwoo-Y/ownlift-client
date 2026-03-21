@@ -31,25 +31,25 @@ export function SegmentedControl({ options, selectedIndex, onSelect }: Segmented
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    backgroundColor: colors.surfaceGlass,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
     padding: spacing["2xs"],
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
   },
   segment: {
     flex: 1,
     paddingVertical: spacing.sm,
     alignItems: "center",
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
   },
   segmentSelected: {
-    backgroundColor: colors.surfaceElevated,
-    shadowColor: colors.background,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
-    borderColor: colors.borderStrong,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    boxShadow: "0px 10px 24px rgba(0, 0, 0, 0.2)",
   },
   text: {
     fontSize: fontSize.md,
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   textSelected: {
-    color: colors.accent,
+    color: colors.text,
     fontWeight: fontWeight.semibold,
   },
 });

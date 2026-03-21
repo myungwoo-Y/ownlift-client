@@ -1,6 +1,7 @@
 import { getSetting, runMigrations, setDatabase } from "@ownlift/db";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { StatusBar } from "expo-status-bar";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
 import { StyleSheet } from "react-native";
@@ -80,6 +81,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+        <StatusBar style="light" />
         <Stack
           screenOptions={{
             headerShown: false,

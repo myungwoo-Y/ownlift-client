@@ -20,14 +20,16 @@ export function Card({ highlighted, style, ...rest }: CardProps) {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    backgroundColor: colors.surfaceGlassStrong,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    padding: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    boxShadow: "0px 18px 48px rgba(0, 0, 0, 0.24)",
   },
   highlighted: {
-    borderWidth: 2,
-    borderColor: colors.borderStrong,
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(255, 255, 255, 0.12)",
   },
 });

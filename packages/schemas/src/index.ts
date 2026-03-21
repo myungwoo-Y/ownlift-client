@@ -17,13 +17,20 @@ export type {
 
 // ─── Program ────────────────────────────────────────────
 export {
+    DEFAULT_SCHEDULED_DAYS,
     MainLiftSchema, ProgramInstanceSchema, ProgramParamsSchema,
+    PROGRAM_WEEKDAY_OPTIONS,
+    REQUIRED_SCHEDULED_DAYS,
+    ProgramScheduleModeSchema,
     ProgramStateSchema, ProgramStatusSchema,
+    ProgramWeekdaySchema,
     TrainingMaxesSchema
 } from "./program";
 export type {
     MainLift, ProgramInstance, ProgramParams,
+    ProgramScheduleMode,
     ProgramState, ProgramStatus,
+    ProgramWeekday,
     TrainingMaxes
 } from "./program";
 
@@ -60,4 +67,3 @@ export type { Exercise } from "./exercise";
 // ─── PR Event ───────────────────────────────────────────
 export { PrEventSchema, PrKindSchema } from "./pr-event";
 export type { PrEvent, PrKind } from "./pr-event";
-

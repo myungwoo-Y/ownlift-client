@@ -1,4 +1,9 @@
-import type { ProgramParams, ProgramState } from "@ownlift/schemas";
+import {
+  ProgramParamsSchema,
+  ProgramStateSchema,
+  type ProgramParams,
+  type ProgramState,
+} from "@ownlift/schemas";
 import { getDatabase } from "../client";
 import { insertMeta, updateMeta } from "../helpers/sync-meta";
 
@@ -33,8 +38,8 @@ function rowToRecord(row: ProgramInstanceRow): ProgramInstanceRecord {
     name: row.name,
     status: row.status,
     startDate: row.start_date,
-    params: JSON.parse(row.params_json) as ProgramParams,
-    state: JSON.parse(row.state_json) as ProgramState,
+    params: ProgramParamsSchema.parse(JSON.parse(row.params_json)),
+    state: ProgramStateSchema.parse(JSON.parse(row.state_json)),
   };
 }
 
@@ -116,6 +121,36 @@ export async function updateInstanceState({
      SET state_json = ?, updated_at = ?, dirty = ?, revision = ?
      WHERE instance_id = ?`,
     JSON.stringify(state),
+    meta.updated_at,
+    meta.dirty,
+    meta.revision,
+    instanceId,
+  );
+}
+
+/** Update the params JSON of a program instance */
+export async function updateInstanceParams({
+  instanceId,
+  params,
+}: {
+  instanceId: string;
+  params: ProgramParams;
+}): Promise<void> {
+  const db = getDatabase();
+  const row = await db.getFirstAsync<{ revision: number }>(
+    "SELECT revision FROM program_instances WHERE instance_id = ?",
+    instanceId,
+  );
+  if (!row) {
+    throw new Error(`Instance not found: ${instanceId}`);
+  }
+
+  const meta = updateMeta(row.revision);
+  await db.runAsync(
+    `UPDATE program_instances
+     SET params_json = ?, updated_at = ?, dirty = ?, revision = ?
+     WHERE instance_id = ?`,
+    JSON.stringify(params),
     meta.updated_at,
     meta.dirty,
     meta.revision,

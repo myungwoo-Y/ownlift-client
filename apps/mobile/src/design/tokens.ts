@@ -2,6 +2,9 @@ export const colors = {
   background: "#070A0F",
   surface: "#0E131B",
   surfaceElevated: "#141B26",
+  surfaceMuted: "#1A2230",
+  surfaceGlass: "rgba(17, 22, 30, 0.72)",
+  surfaceGlassStrong: "rgba(19, 24, 33, 0.92)",
   border: "#1F2A3A",
   borderStrong: "#334155",
 
@@ -10,6 +13,7 @@ export const colors = {
   textTertiary: "#778199",
 
   primary: "#22C55E",
+  primarySoft: "rgba(34, 197, 94, 0.16)",
   primaryForeground: "#061018",
 
   accent: "#22C55E",

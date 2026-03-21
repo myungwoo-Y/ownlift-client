@@ -1,8 +1,16 @@
 import { updateStubStatus } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, View, type DimensionValue } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
+  type DimensionValue,
+  type TextInput,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BackButton,
@@ -24,6 +32,7 @@ import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-
 
 type WorkoutScreenMode = "loading" | "preview" | "active";
 type WorkoutSetType = WorkoutSetState;
+const MAIN_LIFT_REST_SECONDS = 180;
 
 function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSetType {
   return {
@@ -37,6 +46,12 @@ function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSe
   };
 }
 
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+}
+
 export default function WorkoutScreen() {
   useLocale();
 
@@ -44,7 +59,7 @@ export default function WorkoutScreen() {
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
   const autostart = Array.isArray(params.autostart) ? params.autostart[0] : params.autostart;
   const router = useRouter();
-  const { instance, stubs, nextStub, completeSession, loadProgram } = useProgramStore();
+  const { instance, stubs, nextStub, todayStub, completeSession, loadProgram } = useProgramStore();
   const isWorkoutLoading = useWorkoutStore((state) => state.isLoading);
   const activePrescription = useWorkoutStore((state) => state.prescription);
   const sets = useWorkoutStore((state) => state.sets);
@@ -58,15 +73,22 @@ export default function WorkoutScreen() {
   const [isScreenLoading, setIsScreenLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [restSecondsRemaining, setRestSecondsRemaining] = useState(0);
+  const repsInputRefs = useRef(new Map<string, TextInput | null>());
 
   const stub = stubs.find((item) => item.sessionId === sessionId);
   const sessionStatus = stub?.status;
   const instanceId = instance?.instanceId;
   const shouldAutostart = autostart === "1";
-  const isTodaySession = nextStub?.sessionId === sessionId;
+  const isTodaySession = todayStub?.sessionId === sessionId;
   const canStartTodayWorkout = Boolean(stub && stub.status !== "completed" && isTodaySession);
   const isWorkoutActive = mode === "active";
   const prescription = isWorkoutActive ? activePrescription : previewPrescription;
+  const showScheduledDayMessage = Boolean(
+    instance?.params.scheduleMode === "scheduled" &&
+    nextStub?.sessionId === sessionId &&
+    !canStartTodayWorkout,
+  );
 
   useEffect(() => {
     setMode("loading");
@@ -74,6 +96,7 @@ export default function WorkoutScreen() {
     setIsScreenLoading(true);
     setIsStarting(false);
     setIsSubmitting(false);
+    setRestSecondsRemaining(0);
   }, [sessionId]);
 
   useEffect(() => () => {
@@ -170,6 +193,34 @@ export default function WorkoutScreen() {
     };
   }, [activateWorkout, canStartTodayWorkout, instance, instanceId, mode, previewPrescription, sessionId, sessionStatus, shouldAutostart, stub]);
 
+  const currentSetId = isWorkoutActive ? sets.find((item) => !item.isCompleted)?.id ?? null : null;
+
+  useEffect(() => {
+    if (restSecondsRemaining <= 0) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setRestSecondsRemaining((current) => Math.max(0, current - 1));
+    }, 1000);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [restSecondsRemaining]);
+
+  useEffect(() => {
+    if (!isWorkoutActive || !currentSetId) return;
+
+    const timeout = setTimeout(() => {
+      repsInputRefs.current.get(currentSetId)?.focus();
+    }, 150);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [currentSetId, isWorkoutActive]);
+
   if (isScreenLoading || (isWorkoutActive && isWorkoutLoading) || !stub || !instance) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -237,6 +288,38 @@ export default function WorkoutScreen() {
     }
   };
 
+  const handleToggleSet = async (setData: WorkoutSetType) => {
+    if (!isWorkoutActive) return;
+
+    const nextCompleted = !setData.isCompleted;
+    const actualReps = parseInt(setData.actualReps, 10);
+
+    if (nextCompleted && setData.isAmrap && (!Number.isFinite(actualReps) || actualReps <= 0)) {
+      Alert.alert(
+        t("workout.amrapRepsRequiredTitle"),
+        t("workout.amrapRepsRequiredMessage"),
+      );
+      repsInputRefs.current.get(setData.id)?.focus();
+      return;
+    }
+
+    await toggleSetComplete(setData.id);
+
+    if (nextCompleted && !setData.prescribed.isWarmup) {
+      setRestSecondsRemaining(MAIN_LIFT_REST_SECONDS);
+    }
+
+    if (!setData.isCompleted) {
+      const currentIndex = sets.findIndex((item) => item.id === setData.id);
+      const nextSet = sets.slice(currentIndex + 1).find((item) => !item.isCompleted);
+      if (nextSet) {
+        setTimeout(() => {
+          repsInputRefs.current.get(nextSet.id)?.focus();
+        }, 50);
+      }
+    }
+  };
+
   const confirmComplete = () => {
     if (!allSetsCompleted) {
       Alert.alert(
@@ -278,6 +361,16 @@ export default function WorkoutScreen() {
       />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topActions}>
+          {restSecondsRemaining > 0 ? (
+            <Pressable
+              style={styles.restTimerPill}
+              onPress={() => setRestSecondsRemaining(0)}
+            >
+              <Text style={styles.restTimerText}>
+                {t("workout.restTimer", { time: formatDuration(restSecondsRemaining) })}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={styles.header}>
           <View style={styles.headerRow}>
@@ -320,7 +413,11 @@ export default function WorkoutScreen() {
           <Card>
             <View style={styles.previewNotice}>
               <Text style={styles.previewNoticeTitle}>
-                {canStartTodayWorkout ? t("workout.readyToStart") : t("workout.onlyTodayCanStart")}
+                {canStartTodayWorkout
+                  ? t("workout.readyToStart")
+                  : (showScheduledDayMessage
+                    ? t("workout.onlyScheduledDayCanStart")
+                    : t("workout.onlyTodayCanStart"))}
               </Text>
             </View>
           </Card>
@@ -334,9 +431,13 @@ export default function WorkoutScreen() {
                 data={setData}
                 unit={instance.params.unit}
                 editable={isWorkoutActive}
+                isCurrent={currentSetId === setData.id}
+                repsInputRef={(node) => {
+                  repsInputRefs.current.set(setData.id, node);
+                }}
                 onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
                 onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
-                onToggle={() => void toggleSetComplete(setData.id)}
+                onToggle={() => void handleToggleSet(setData)}
               />
             ))}
           </Section>
@@ -349,9 +450,13 @@ export default function WorkoutScreen() {
               data={setData}
               unit={instance.params.unit}
               editable={isWorkoutActive}
+              isCurrent={currentSetId === setData.id}
+              repsInputRef={(node) => {
+                repsInputRefs.current.set(setData.id, node);
+              }}
               onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
               onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
-              onToggle={() => void toggleSetComplete(setData.id)}
+              onToggle={() => void handleToggleSet(setData)}
             />
           ))}
         </Section>
@@ -381,6 +486,8 @@ function SetCard({
   onChangeWeight,
   onChangeReps,
   onToggle,
+  isCurrent,
+  repsInputRef,
   editable = true,
 }: {
   data: WorkoutSetType;
@@ -388,13 +495,16 @@ function SetCard({
   onChangeWeight: (v: string) => void;
   onChangeReps: (v: string) => void;
   onToggle: () => void;
+  isCurrent: boolean;
+  repsInputRef?: (node: TextInput | null) => void;
   editable?: boolean;
 }) {
   return (
-    <Card>
+    <Card highlighted={editable && isCurrent}>
       <View style={styles.setHeader}>
         <View style={styles.setLabelRow}>
           <Text style={styles.setLabel}>{t("workout.setLabel", { set: data.setOrder + 1 })}</Text>
+          {isCurrent && editable ? <Badge variant="today" label={t("workout.currentSet")} /> : null}
           {data.isAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
         </View>
         <Text variant="caption">
@@ -414,6 +524,7 @@ function SetCard({
           onChangeText={onChangeReps}
           unit={t("unit.reps")}
           editable={editable}
+          ref={repsInputRef}
         />
         <Pressable
           style={[
@@ -454,6 +565,20 @@ const styles = StyleSheet.create({
   topActions: {
     flexDirection: "row",
     justifyContent: "flex-start",
+    minHeight: 28,
+  },
+  restTimerPill: {
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  restTimerText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.accent,
   },
   headerRow: {
     flexDirection: "row",

@@ -1,11 +1,12 @@
 import { updateInstanceState } from "@ownlift/db";
-import type { MainLift } from "@ownlift/schemas";
+import type { MainLift, ProgramScheduleMode, ProgramWeekday } from "@ownlift/schemas";
+import { DEFAULT_SETTINGS, REQUIRED_SCHEDULED_DAYS } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-    Divider,
+    Button,
     Section,
     SegmentedControl, Stepper,
     Text,
@@ -14,7 +15,10 @@ import {
     spacing,
 } from "../../src/design";
 import { getLiftLabel, t, useLocale } from "../../src/i18n";
+import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
+import { SchedulePolicyEditor } from "../../src/program/SchedulePolicyEditor";
 import { syncLiftPrescriptions } from "../../src/program/prescription-sync";
+import { hasRequiredScheduledDays, normalizeScheduledDays } from "../../src/program/schedule-policy";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useSettingsStore } from "../../src/stores/settings-store";
 
@@ -22,16 +26,34 @@ const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
 
 export default function SettingsScreen() {
   const locale = useLocale();
+  const insets = useSafeAreaInsets();
 
-  const { instance, stubs, loadProgram } = useProgramStore();
+  const { instance, stubs, loadProgram, updateSchedulePolicy } = useProgramStore();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const settings = useSettingsStore();
+  const scheduleMode = instance?.params.scheduleMode ?? DEFAULT_SETTINGS.scheduleMode;
+  const scheduledDays = instance?.params.scheduledDays ?? DEFAULT_SETTINGS.scheduledDays;
+  const [draftScheduleMode, setDraftScheduleMode] = useState<ProgramScheduleMode>(scheduleMode);
+  const [draftScheduledDays, setDraftScheduledDays] = useState<ProgramWeekday[]>([...scheduledDays]);
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const normalizedSavedDays = normalizeScheduledDays(scheduledDays);
+  const normalizedDraftDays = normalizeScheduledDays(draftScheduledDays);
+  const isScheduledDraftValid = draftScheduleMode !== "scheduled" || hasRequiredScheduledDays(normalizedDraftDays);
+  const isScheduleDirty = draftScheduleMode !== scheduleMode
+    || normalizedDraftDays.join(",") !== normalizedSavedDays.join(",");
+  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
 
   useFocusEffect(
     useCallback(() => {
       void loadSettings();
     }, [loadSettings]),
   );
+
+  useEffect(() => {
+    setDraftScheduleMode(scheduleMode);
+    setDraftScheduledDays([...scheduledDays]);
+    setIsSavingSchedule(false);
+  }, [scheduleMode, scheduledDays]);
 
   const handleTmEdit = (lift: MainLift) => {
     if (!instance) return;
@@ -75,14 +97,31 @@ export default function SettingsScreen() {
     await settings.updateSetting(key, String(newVal));
   };
 
+  const handleScheduleSave = async () => {
+    if (!instance || !isScheduleDirty) return;
+    if (!isScheduledDraftValid) {
+      Alert.alert(
+        t("schedule.saveBlockedTitle"),
+        t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS }),
+      );
+      return;
+    }
+
+    try {
+      setIsSavingSchedule(true);
+      await updateSchedulePolicy(draftScheduleMode, normalizedDraftDays);
+    } finally {
+      setIsSavingSchedule(false);
+    }
+  };
+
   return (
     <SafeAreaView key={locale} style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
+          <Text style={styles.headerEyebrow}>{t("tab.settings")}</Text>
           <Text variant="title">{t("settings.title")}</Text>
         </View>
-
-        <Divider />
 
         {/* Training Maxes */}
         <Section title={t("settings.section.trainingMax")}>
@@ -106,8 +145,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Divider />
-
         {/* Units */}
         <Section title={t("settings.section.units")}>
           <View style={styles.card}>
@@ -125,8 +162,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Divider />
-
         <Section title={t("settings.section.language")}>
           <View style={styles.card}>
             <View style={styles.unitRow}>
@@ -141,8 +176,6 @@ export default function SettingsScreen() {
             </View>
           </View>
         </Section>
-
-        <Divider />
 
         {/* Increments */}
         <Section title={t("settings.section.increments")}>
@@ -174,8 +207,6 @@ export default function SettingsScreen() {
           </View>
         </Section>
 
-        <Divider />
-
         {/* Program */}
         <Section title={t("settings.section.program")}>
           <View style={styles.card}>
@@ -193,6 +224,42 @@ export default function SettingsScreen() {
                 thumbColor={settings.includeDeload ? colors.accentForeground : colors.surfaceElevated}
               />
             </View>
+            <View style={styles.policyDivider} />
+            <View style={styles.policyEditor}>
+              <Text variant="body">{t("schedule.section.title")}</Text>
+              <SchedulePolicyEditor
+                mode={draftScheduleMode}
+                scheduledDays={draftScheduledDays}
+                disabled={!instance || isSavingSchedule}
+                onModeChange={setDraftScheduleMode}
+                onScheduledDaysChange={setDraftScheduledDays}
+              />
+              {draftScheduleMode === "scheduled" ? (
+                <>
+                  <Text variant="caption" style={styles.scheduleCount}>
+                    {t("schedule.days.selectedCount", {
+                      count: normalizedDraftDays.length,
+                      total: REQUIRED_SCHEDULED_DAYS,
+                    })}
+                  </Text>
+                  <Text
+                    variant="caption"
+                    style={isScheduledDraftValid ? styles.scheduleHint : styles.scheduleError}
+                  >
+                    {isScheduledDraftValid
+                      ? t("schedule.days.saveHint")
+                      : t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS })}
+                  </Text>
+                </>
+              ) : null}
+              <Button
+                title={isSavingSchedule ? t("schedule.saving") : t("schedule.save")}
+                disabled={!instance || isSavingSchedule || !isScheduleDirty}
+                onPress={() => {
+                  void handleScheduleSave();
+                }}
+              />
+            </View>
           </View>
         </Section>
       </ScrollView>
@@ -206,16 +273,26 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    gap: spacing.lg,
+    gap: spacing["2xl"],
     paddingHorizontal: spacing["2xl"],
-    paddingBottom: spacing["5xl"],
   },
   header: {
-    paddingTop: spacing["3xl"],
+    paddingTop: spacing["2xl"],
+    gap: spacing.xs,
+  },
+  headerEyebrow: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    color: colors.textTertiary,
   },
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.surfaceGlassStrong,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
     overflow: "hidden",
   },
   tmRow: {
@@ -273,5 +350,22 @@ const styles = StyleSheet.create({
   switchLabel: {
     flex: 1,
     gap: 2,
+  },
+  policyDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  policyEditor: {
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  scheduleCount: {
+    color: colors.textSecondary,
+  },
+  scheduleHint: {
+    color: colors.textSecondary,
+  },
+  scheduleError: {
+    color: colors.destructive,
   },
 });

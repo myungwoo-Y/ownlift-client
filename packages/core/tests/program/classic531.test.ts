@@ -18,6 +18,8 @@ function makeParams(overrides?: Partial<ProgramParams>): ProgramParams {
     liftOrder: ["squat", "bench", "deadlift", "press"],
     warmUpEnabled: true,
     includeDeload: true,
+    scheduleMode: "flexible",
+    scheduledDays: ["mon", "wed", "fri"],
     ...overrides,
   };
 }

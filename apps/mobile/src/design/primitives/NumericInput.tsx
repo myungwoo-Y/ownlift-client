@@ -1,4 +1,12 @@
-import { StyleSheet, TextInput, View } from "react-native";
+import { forwardRef } from "react";
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  type NativeSyntheticEvent,
+  type ReturnKeyTypeOptions,
+  type TextInputSubmitEditingEventData,
+} from "react-native";
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "../tokens";
 import { Text } from "./Text";
 
@@ -8,31 +16,44 @@ interface NumericInputProps {
   unit?: string;
   placeholder?: string;
   editable?: boolean;
+  onSubmitEditing?: (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>) => void;
+  onFocus?: () => void;
+  returnKeyType?: ReturnKeyTypeOptions;
+  blurOnSubmit?: boolean;
 }
 
-export function NumericInput({
+export const NumericInput = forwardRef<TextInput, NumericInputProps>(function NumericInput({
   value,
   onChangeText,
   unit,
   placeholder,
   editable = true,
-}: NumericInputProps) {
+  onSubmitEditing,
+  onFocus,
+  returnKeyType,
+  blurOnSubmit,
+}, ref) {
   return (
     <View style={styles.container}>
       <TextInput
+        ref={ref}
         style={[styles.input, !editable && styles.inputDisabled]}
         value={value}
         onChangeText={onChangeText}
+        onSubmitEditing={onSubmitEditing}
+        onFocus={onFocus}
         keyboardType="numeric"
         placeholder={placeholder}
         placeholderTextColor={colors.textTertiary}
         editable={editable}
         selectTextOnFocus
+        returnKeyType={returnKeyType}
+        blurOnSubmit={blurOnSubmit}
       />
       {unit ? <Text style={styles.unit}>{unit}</Text> : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

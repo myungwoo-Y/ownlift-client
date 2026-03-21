@@ -15,6 +15,7 @@ export {
 export {
     archiveInstance, createProgramInstance,
     getActiveInstance,
+    updateInstanceParams,
     updateInstanceState
 } from "./repos/program-instance-repo";
 export type { ProgramInstanceRecord } from "./repos/program-instance-repo";
