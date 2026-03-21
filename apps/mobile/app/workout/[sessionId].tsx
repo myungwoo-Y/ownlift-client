@@ -11,6 +11,7 @@ import {
   type DimensionValue,
   type TextInput,
 } from "react-native";
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BackButton,
@@ -28,11 +29,12 @@ import {
 import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
 import { useProgramStore } from "../../src/stores/program-store";
+import { useSettingsStore } from "../../src/stores/settings-store";
 import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-store";
 
 type WorkoutScreenMode = "loading" | "preview" | "active";
 type WorkoutSetType = WorkoutSetState;
-const MAIN_LIFT_REST_SECONDS = 180;
+const REST_EXTENSION_SECONDS = 30;
 
 function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSetType {
   return {
@@ -68,12 +70,15 @@ export default function WorkoutScreen() {
   const toggleSetComplete = useWorkoutStore((state) => state.toggleSetComplete);
   const completeWorkout = useWorkoutStore((state) => state.completeWorkout);
   const resetWorkout = useWorkoutStore((state) => state.resetWorkout);
+  const defaultRestTimerSeconds = useSettingsStore((state) => state.restTimerSeconds);
   const [mode, setMode] = useState<WorkoutScreenMode>("loading");
   const [previewPrescription, setPreviewPrescription] = useState<PrescriptionData | null>(null);
   const [isScreenLoading, setIsScreenLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(0);
+  const [restTimerTotalSeconds, setRestTimerTotalSeconds] = useState(0);
+  const [isRestTimerPaused, setIsRestTimerPaused] = useState(false);
   const repsInputRefs = useRef(new Map<string, TextInput | null>());
 
   const stub = stubs.find((item) => item.sessionId === sessionId);
@@ -97,6 +102,8 @@ export default function WorkoutScreen() {
     setIsStarting(false);
     setIsSubmitting(false);
     setRestSecondsRemaining(0);
+    setRestTimerTotalSeconds(0);
+    setIsRestTimerPaused(false);
   }, [sessionId]);
 
   useEffect(() => () => {
@@ -196,7 +203,7 @@ export default function WorkoutScreen() {
   const currentSetId = isWorkoutActive ? sets.find((item) => !item.isCompleted)?.id ?? null : null;
 
   useEffect(() => {
-    if (restSecondsRemaining <= 0) {
+    if (restSecondsRemaining <= 0 || isRestTimerPaused) {
       return;
     }
 
@@ -207,7 +214,7 @@ export default function WorkoutScreen() {
     return () => {
       clearTimeout(timeout);
     };
-  }, [restSecondsRemaining]);
+  }, [isRestTimerPaused, restSecondsRemaining]);
 
   useEffect(() => {
     if (!isWorkoutActive || !currentSetId) return;
@@ -220,6 +227,18 @@ export default function WorkoutScreen() {
       clearTimeout(timeout);
     };
   }, [currentSetId, isWorkoutActive]);
+
+  const startRestTimer = (seconds: number) => {
+    setRestSecondsRemaining(seconds);
+    setRestTimerTotalSeconds(seconds);
+    setIsRestTimerPaused(false);
+  };
+
+  const skipRestTimer = () => {
+    setRestSecondsRemaining(0);
+    setRestTimerTotalSeconds(0);
+    setIsRestTimerPaused(false);
+  };
 
   if (isScreenLoading || (isWorkoutActive && isWorkoutLoading) || !stub || !instance) {
     return (
@@ -306,7 +325,11 @@ export default function WorkoutScreen() {
     await toggleSetComplete(setData.id);
 
     if (nextCompleted && !setData.prescribed.isWarmup) {
-      setRestSecondsRemaining(MAIN_LIFT_REST_SECONDS);
+      if (setData.isAmrap) {
+        skipRestTimer();
+      } else if (defaultRestTimerSeconds > 0) {
+        startRestTimer(defaultRestTimerSeconds);
+      }
     }
 
     if (!setData.isCompleted) {
@@ -360,18 +383,6 @@ export default function WorkoutScreen() {
         accessibilityLabel={t("common.back")}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.topActions}>
-          {restSecondsRemaining > 0 ? (
-            <Pressable
-              style={styles.restTimerPill}
-              onPress={() => setRestSecondsRemaining(0)}
-            >
-              <Text style={styles.restTimerText}>
-                {t("workout.restTimer", { time: formatDuration(restSecondsRemaining) })}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
         <View style={styles.header}>
           <View style={styles.headerRow}>
             <Text variant="title">
@@ -466,6 +477,19 @@ export default function WorkoutScreen() {
         <View style={styles.ctaContainer}>
           <Divider />
           <View style={styles.ctaPadding}>
+            {isWorkoutActive && restSecondsRemaining > 0 ? (
+              <RestTimerBar
+                remainingSeconds={restSecondsRemaining}
+                totalSeconds={restTimerTotalSeconds}
+                isPaused={isRestTimerPaused}
+                onTogglePause={() => setIsRestTimerPaused((current) => !current)}
+                onAddTime={() => {
+                  setRestSecondsRemaining((current) => current + REST_EXTENSION_SECONDS);
+                  setRestTimerTotalSeconds((current) => current + REST_EXTENSION_SECONDS);
+                }}
+                onSkip={skipRestTimer}
+              />
+            ) : null}
             <Button
               title={isWorkoutActive
                 ? (isSubmitting ? t("workout.saving") : t("workout.completeWorkout"))
@@ -477,6 +501,117 @@ export default function WorkoutScreen() {
         </View>
       ) : null}
     </SafeAreaView>
+  );
+}
+
+function RestTimerBar({
+  remainingSeconds,
+  totalSeconds,
+  isPaused,
+  onTogglePause,
+  onAddTime,
+  onSkip,
+}: {
+  remainingSeconds: number;
+  totalSeconds: number;
+  isPaused: boolean;
+  onTogglePause: () => void;
+  onAddTime: () => void;
+  onSkip: () => void;
+}) {
+  const [trackWidth, setTrackWidth] = useState(0);
+  const progressTranslateX = useSharedValue(0);
+  const previousStateRef = useRef({
+    remainingSeconds,
+    totalSeconds,
+    isPaused,
+    trackWidth: 0,
+  });
+
+  useEffect(() => {
+    if (trackWidth <= 0) {
+      return;
+    }
+
+    const previous = previousStateRef.current;
+    const progressRatio = totalSeconds > 0 ? remainingSeconds / totalSeconds : 0;
+    const nextTranslateX = -trackWidth * (1 - progressRatio);
+    const timerStarted = previous.remainingSeconds <= 0 && remainingSeconds > 0;
+    const timerReset = remainingSeconds <= 0;
+    const timerResumed = previous.isPaused && !isPaused;
+    const timeExtended = remainingSeconds > previous.remainingSeconds || totalSeconds !== previous.totalSeconds;
+    const trackWidthChanged = trackWidth !== previous.trackWidth;
+
+    if (timerReset) {
+      cancelAnimation(progressTranslateX);
+      progressTranslateX.value = -trackWidth;
+    } else if (timerStarted || timerResumed || timeExtended || trackWidthChanged || isPaused) {
+      cancelAnimation(progressTranslateX);
+      progressTranslateX.value = nextTranslateX;
+      if (!isPaused) {
+        progressTranslateX.value = withTiming(-trackWidth, {
+          duration: remainingSeconds * 1000,
+          easing: Easing.linear,
+        });
+      }
+    }
+
+    previousStateRef.current = {
+      remainingSeconds,
+      totalSeconds,
+      isPaused,
+      trackWidth,
+    };
+  }, [isPaused, progressTranslateX, remainingSeconds, totalSeconds, trackWidth]);
+
+  const animatedProgressStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: progressTranslateX.value }],
+  }));
+
+  return (
+    <View style={styles.restBar}>
+      <View
+        style={styles.restBarProgressTrack}
+        onLayout={(event) => {
+          setTrackWidth(event.nativeEvent.layout.width);
+        }}
+      >
+        <Animated.View style={[styles.restBarProgressFill, animatedProgressStyle]} />
+      </View>
+      <View style={styles.restBarContent}>
+        <Text style={styles.restBarLabel}>
+          {t("workout.restTimer", { time: formatDuration(remainingSeconds) })}
+        </Text>
+        <View style={styles.restBarActions}>
+          <RestTimerAction
+            title={isPaused ? t("workout.restResume") : t("workout.restPause")}
+            onPress={onTogglePause}
+          />
+          <RestTimerAction title={t("workout.restAddTime")} onPress={onAddTime} />
+          <RestTimerAction title={t("workout.restSkip")} onPress={onSkip} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function RestTimerAction({
+  title,
+  onPress,
+}: {
+  title: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.restActionButton,
+        pressed && styles.restActionButtonPressed,
+      ]}
+      onPress={onPress}
+    >
+      <Text style={styles.restActionButtonText}>{title}</Text>
+    </Pressable>
   );
 }
 
@@ -556,29 +691,11 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: spacing["2xl"],
-    paddingBottom: 120,
+    paddingBottom: 180,
     gap: spacing["2xl"],
   },
   header: {
     gap: spacing.sm,
-  },
-  topActions: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
-    minHeight: 28,
-  },
-  restTimerPill: {
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  restTimerText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: colors.accent,
   },
   headerRow: {
     flexDirection: "row",
@@ -672,5 +789,57 @@ const styles = StyleSheet.create({
   ctaPadding: {
     paddingHorizontal: spacing["2xl"],
     paddingTop: spacing.lg,
+    gap: spacing.md,
+  },
+  restBar: {
+    position: "relative",
+    overflow: "hidden",
+    borderRadius: borderRadius.xl,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.surface,
+  },
+  restBarProgressTrack: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.surfaceMuted,
+  },
+  restBarProgressFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.primarySoft,
+  },
+  restBarContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  restBarLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.accent,
+  },
+  restBarActions: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: spacing.xs,
+  },
+  restActionButton: {
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  restActionButtonPressed: {
+    opacity: 0.8,
+  },
+  restActionButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textSecondary,
   },
 });

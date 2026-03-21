@@ -6,11 +6,12 @@ interface StepperProps {
   value: number;
   onIncrement: () => void;
   onDecrement: () => void;
+  displayValue?: string;
   unit?: string;
   min?: number;
 }
 
-export function Stepper({ value, onIncrement, onDecrement, unit, min = 0 }: StepperProps) {
+export function Stepper({ value, onIncrement, onDecrement, displayValue, unit, min = 0 }: StepperProps) {
   const canDecrement = value > min;
 
   return (
@@ -23,7 +24,7 @@ export function Stepper({ value, onIncrement, onDecrement, unit, min = 0 }: Step
         <Text style={styles.buttonText}>−</Text>
       </Pressable>
       <Text style={styles.value}>
-        {String(value)}{unit ? ` ${unit}` : ""}
+        {displayValue ?? `${String(value)}${unit ? ` ${unit}` : ""}`}
       </Text>
       <Pressable style={styles.button} onPress={onIncrement}>
         <Text style={styles.buttonText}>+</Text>

@@ -6,13 +6,16 @@ import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-    Button,
-    Section,
-    SegmentedControl, Stepper,
-    Text,
-    borderRadius,
-    colors, fontSize, fontWeight,
-    spacing,
+  Button,
+  Section,
+  SegmentedControl,
+  Stepper,
+  Text,
+  borderRadius,
+  colors,
+  fontSize,
+  fontWeight,
+  spacing,
 } from "../../src/design";
 import { getLiftLabel, t, useLocale } from "../../src/i18n";
 import { SchedulePolicyEditor } from "../../src/program/SchedulePolicyEditor";
@@ -22,6 +25,13 @@ import { useProgramStore } from "../../src/stores/program-store";
 import { useSettingsStore } from "../../src/stores/settings-store";
 
 const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
+const REST_TIMER_STEP_SECONDS = 30;
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remaining = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+}
 
 export default function SettingsScreen() {
   const locale = useLocale();
@@ -88,10 +98,15 @@ export default function SettingsScreen() {
     await settings.updateSetting("locale", nextLocale);
   };
 
-  const handleIncrementChange = async (key: string, delta: number) => {
+  const handleIncrementChange = async (key: "tmIncreaseUpper" | "tmIncreaseLower", delta: number) => {
     const current = key === "tmIncreaseUpper" ? settings.tmIncreaseUpper : settings.tmIncreaseLower;
     const newVal = Math.max(0, current + delta);
     await settings.updateSetting(key, String(newVal));
+  };
+
+  const handleRestTimerChange = async (delta: number) => {
+    const newValue = Math.max(REST_TIMER_STEP_SECONDS, settings.restTimerSeconds + delta);
+    await settings.updateSetting("restTimerSeconds", String(newValue));
   };
 
   const handleScheduleSave = async () => {
@@ -169,6 +184,28 @@ export default function SettingsScreen() {
                 options={[t("language.en"), t("language.ko")]}
                 selectedIndex={settings.locale === "en" ? 0 : 1}
                 onSelect={handleLocaleChange}
+              />
+            </View>
+          </View>
+        </Section>
+
+        <Section title={t("settings.section.workout")}>
+          <View style={styles.card}>
+            <View style={styles.incRow}>
+              <View style={styles.incLabel}>
+                <Text variant="body">{t("settings.restTimerDefault")}</Text>
+                <Text variant="caption">{t("settings.restTimerHint")}</Text>
+              </View>
+              <Stepper
+                value={settings.restTimerSeconds}
+                displayValue={formatDuration(settings.restTimerSeconds)}
+                min={REST_TIMER_STEP_SECONDS}
+                onIncrement={() => {
+                  void handleRestTimerChange(REST_TIMER_STEP_SECONDS);
+                }}
+                onDecrement={() => {
+                  void handleRestTimerChange(-REST_TIMER_STEP_SECONDS);
+                }}
               />
             </View>
           </View>

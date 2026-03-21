@@ -20,6 +20,8 @@ function clamp(value: number, min: number, max: number): number {
 
 const REORDER_OVERLAP_THRESHOLD = 0.4;
 const FALLBACK_ROW_HEIGHT = 128;
+const TAB_BAR_CLEARANCE = spacing["5xl"] + spacing.lg;
+const TAB_BAR_SCROLL_INDICATOR_INSETS = { bottom: TAB_BAR_CLEARANCE };
 const squatThumbnailSource = require("../../assets/images/squat_3d.png");
 const benchThumbnailSource = require("../../assets/images/bench_press_3d.png");
 const deadliftThumbnailSource = require("../../assets/images/deadlift_3d.png");
@@ -615,7 +617,9 @@ export default function PlanScreen() {
     <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.container}
+        contentInsetAdjustmentBehavior="automatic"
         scrollEnabled={draggingSessionId === null}
+        scrollIndicatorInsets={TAB_BAR_SCROLL_INDICATOR_INSETS}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -772,7 +776,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: spacing["2xl"],
-    paddingBottom: spacing["4xl"],
+    paddingBottom: spacing["4xl"] + TAB_BAR_CLEARANCE,
     gap: spacing["2xl"],
   },
   center: {
