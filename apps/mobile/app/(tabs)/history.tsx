@@ -3,10 +3,9 @@ import { getWorkoutResultBySession } from "@ownlift/db";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, Card, colors, spacing, Text } from "../../src/design";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
-import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
 import { useProgramStore } from "../../src/stores/program-store";
 
 function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
@@ -25,11 +24,9 @@ interface HistoryItem extends SessionStubRecord {
 export default function HistoryScreen() {
   useLocale();
 
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
   const [items, setItems] = useState<HistoryItem[]>([]);
-  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +96,7 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <View style={styles.header}>
         <Text style={styles.headerEyebrow}>{t("tab.history")}</Text>
         <Text variant="title">{t("history.title")}</Text>
@@ -114,7 +111,7 @@ export default function HistoryScreen() {
           data={items}
           keyExtractor={(item) => item.sessionId}
           renderItem={renderItem}
-          contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
+          contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
         />
       )}
@@ -142,6 +139,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: spacing["2xl"],
+    paddingBottom: spacing["4xl"],
     gap: spacing.md,
   },
   historyCard: {

@@ -1,50 +1,80 @@
-import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
+import { DynamicColorIOS, Platform } from "react-native";
 import { colors } from "../../src/design/tokens";
 import { t, useLocale } from "../../src/i18n";
-import { FitnessTabBar } from "../../src/navigation/FitnessTabBar";
+
+const defaultTabColor = Platform.OS === "ios"
+  ? DynamicColorIOS({
+      light: "rgba(17, 17, 17, 0.72)",
+      dark: "rgba(255, 255, 255, 0.78)",
+    })
+  : colors.textSecondary;
+
+const selectedTabColor = Platform.OS === "ios"
+  ? DynamicColorIOS({
+      light: "#111111",
+      dark: "#FFFFFF",
+    })
+  : colors.primary;
 
 export default function TabLayout() {
   const locale = useLocale();
 
   return (
-    <Tabs
+    <NativeTabs
       key={locale}
-      tabBar={(props) => <FitnessTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle: {
-          backgroundColor: colors.background,
+      backBehavior="history"
+      disableTransparentOnScrollEdge
+      iconColor={{
+        default: defaultTabColor,
+        selected: selectedTabColor,
+      }}
+      labelStyle={{
+        default: {
+          color: defaultTabColor,
+          fontSize: 11,
+          fontWeight: "600",
+        },
+        selected: {
+          color: selectedTabColor,
+          fontSize: 11,
+          fontWeight: "700",
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t("tab.plan"),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "calendar" : "calendar-outline"} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: t("tab.history"),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "time" : "time-outline"} size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: t("tab.settings"),
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons name={focused ? "settings" : "settings-outline"} size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      <NativeTabs.Trigger name="index">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "calendar", selected: "calendar.circle.fill" }}
+          src={{
+            default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="calendar-outline" />,
+            selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="calendar" />,
+          }}
+        />
+        <NativeTabs.Trigger.Label>{t("tab.plan")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="history">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "clock", selected: "clock.fill" }}
+          src={{
+            default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="time-outline" />,
+            selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="time" />,
+          }}
+        />
+        <NativeTabs.Trigger.Label>{t("tab.history")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="settings">
+        <NativeTabs.Trigger.Icon
+          sf={{ default: "gearshape", selected: "gearshape.fill" }}
+          src={{
+            default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="settings-outline" />,
+            selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name="settings" />,
+          }}
+        />
+        <NativeTabs.Trigger.Label>{t("tab.settings")}</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }

@@ -104,6 +104,13 @@ export default function RootLayout() {
               contentStyle: styles.stackContent,
             }}
           />
+          <Stack.Screen
+            name="upcoming"
+            options={{
+              presentation: "card",
+              contentStyle: styles.stackContent,
+            }}
+          />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

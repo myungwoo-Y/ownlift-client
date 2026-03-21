@@ -4,7 +4,7 @@ import { DEFAULT_SETTINGS, REQUIRED_SCHEDULED_DAYS } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
     Button,
     Section,
@@ -15,7 +15,6 @@ import {
     spacing,
 } from "../../src/design";
 import { getLiftLabel, t, useLocale } from "../../src/i18n";
-import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
 import { SchedulePolicyEditor } from "../../src/program/SchedulePolicyEditor";
 import { syncLiftPrescriptions } from "../../src/program/prescription-sync";
 import { hasRequiredScheduledDays, normalizeScheduledDays } from "../../src/program/schedule-policy";
@@ -26,7 +25,6 @@ const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
 
 export default function SettingsScreen() {
   const locale = useLocale();
-  const insets = useSafeAreaInsets();
 
   const { instance, stubs, loadProgram, updateSchedulePolicy } = useProgramStore();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
@@ -41,7 +39,6 @@ export default function SettingsScreen() {
   const isScheduledDraftValid = draftScheduleMode !== "scheduled" || hasRequiredScheduledDays(normalizedDraftDays);
   const isScheduleDirty = draftScheduleMode !== scheduleMode
     || normalizedDraftDays.join(",") !== normalizedSavedDays.join(",");
-  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
 
   useFocusEffect(
     useCallback(() => {
@@ -116,8 +113,8 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView key={locale} style={styles.safe}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]} showsVerticalScrollIndicator={false}>
+    <SafeAreaView key={locale} edges={["top", "left", "right"]} style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.headerEyebrow}>{t("tab.settings")}</Text>
           <Text variant="title">{t("settings.title")}</Text>
@@ -275,6 +272,7 @@ const styles = StyleSheet.create({
   container: {
     gap: spacing["2xl"],
     paddingHorizontal: spacing["2xl"],
+    paddingBottom: spacing["4xl"],
   },
   header: {
     paddingTop: spacing["2xl"],

@@ -7,10 +7,9 @@ import type { LayoutChangeEvent } from "react-native";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { type SharedValue, runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Badge, borderRadius, Button, Card, colors, Section, spacing, Text } from "../../src/design";
 import { getLiftLabel, getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../../src/i18n";
-import { getFloatingTabBarScreenPadding } from "../../src/navigation/FitnessTabBar";
 import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
 import { getScheduledDayForIndex } from "../../src/program/schedule-policy";
 import { useProgramStore } from "../../src/stores/program-store";
@@ -347,7 +346,6 @@ function FloatingDraggedCard({
 export default function PlanScreen() {
   useLocale();
 
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { instance, currentWeekStubs, stubs, todayStub, isLoading, loadProgram, reorderCurrentWeek } =
     useProgramStore();
@@ -573,7 +571,7 @@ export default function PlanScreen() {
 
   if (isLoading || !instance) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
         <View style={styles.center}>
           <Text variant="body">{t("plan.loadingProgram")}</Text>
         </View>
@@ -607,13 +605,16 @@ export default function PlanScreen() {
   const todayPreviewScheduledDayLabel = todayStub
     ? getScheduledDayLabel(orderedWeekStubs.findIndex((stub) => stub.sessionId === todayStub.sessionId))
     : null;
-  const bottomPadding = getFloatingTabBarScreenPadding(insets.bottom);
   const headerSubtitle = todayStub ? getLiftLabel(todayStub.mainLiftKey) : t("plan.section.thisWeek");
+  const upcomingStubs = stubs.filter(
+    (stub) => stub.cycleIndex === state.currentCycle && stub.weekIndex > state.currentWeek,
+  );
+  const nextUpcomingStub = upcomingStubs[0] ?? null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
       <ScrollView
-        contentContainerStyle={[styles.container, { paddingBottom: bottomPadding }]}
+        contentContainerStyle={styles.container}
         scrollEnabled={draggingSessionId === null}
         showsVerticalScrollIndicator={false}
       >
@@ -733,23 +734,32 @@ export default function PlanScreen() {
           </View>
         </Section>
 
-        {state.currentWeek < 3 && (
+        {nextUpcomingStub ? (
           <Section title={t("plan.section.upcoming")}>
-            <Card>
-              <View style={styles.upcomingRow}>
-                <View>
-                  <Text style={styles.upcomingTitle}>
-                    {t("week.title", { week: state.currentWeek + 2 })}
-                  </Text>
-                  <Text variant="caption">
-                    {t("plan.andMore", { lift: getLiftLabel(instance.params.liftOrder[0] ?? "") })}
-                  </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                router.push("/upcoming");
+              }}
+            >
+              <Card>
+                <View style={styles.upcomingRow}>
+                  <View style={styles.upcomingHeader}>
+                    <Text style={styles.upcomingTitle}>
+                      {t("week.title", { week: nextUpcomingStub.weekIndex + 1 })}
+                    </Text>
+                    <Text variant="caption">
+                      {t("plan.andMore", {
+                        lift: getLiftLabel(nextUpcomingStub.mainLiftKey),
+                      })}
+                    </Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
                 </View>
-                <Text style={styles.chevron}>›</Text>
-              </View>
-            </Card>
+              </Card>
+            </Pressable>
           </Section>
-        )}
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
@@ -762,6 +772,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: spacing["2xl"],
+    paddingBottom: spacing["4xl"],
     gap: spacing["2xl"],
   },
   center: {
@@ -1009,6 +1020,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: colors.text,
+  },
+  upcomingHeader: {
+    gap: spacing.xs,
   },
   upcomingRow: {
     flexDirection: "row",
