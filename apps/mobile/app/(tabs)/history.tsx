@@ -7,16 +7,16 @@ import { useCallback, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Badge, Card, SegmentedControl, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../src/design";
+import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../src/design";
+import { buildMockHistoryItems } from "../../src/history/mock-history";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
-
-type HistoryLiftFilter = "all" | MainLift;
 
 interface HistoryItem extends SessionStubRecord {
   completedAt?: string;
   totalVolume?: number;
   estimatedOneRepMax?: number | null;
+  isMock?: boolean;
 }
 
 interface TrendPoint {
@@ -26,25 +26,22 @@ interface TrendPoint {
   value: number;
 }
 
-interface WeeklyWorkoutCount {
-  key: string;
-  label: string;
-  count: number;
-  isCurrentWeek: boolean;
+interface LiftSummary {
+  lift: MainLift;
+  latestPoint: TrendPoint | null;
+  previousPoint: TrendPoint | null;
+  change: number | null;
 }
 
-const HISTORY_FILTERS: readonly HistoryLiftFilter[] = [
-  "all",
+const SUMMARY_LIFTS: readonly MainLift[] = [
+  "deadlift",
   "squat",
   "bench",
-  "deadlift",
   "press",
 ];
-const MAX_TREND_POINTS = 6;
+const MAX_TREND_POINTS = 8;
 const MIN_TREND_POINTS = 2;
-const MIN_WEEKLY_WORKOUTS = 2;
 const LINE_CHART_HEIGHT = 152;
-const BAR_TRACK_HEIGHT = 92;
 
 function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
   if (!dateStr) return { day: "", weekday: "" };
@@ -52,14 +49,6 @@ function formatHistoryDate(dateStr: string | null): { day: string; weekday: stri
   const day = formatLocaleDate(d, { month: "short", day: "numeric" });
   const weekday = formatLocaleDate(d, { weekday: "long" });
   return { day, weekday };
-}
-
-function getHistoryFilterLabel(filter: HistoryLiftFilter): string {
-  if (filter === "all") return t("history.filter.all");
-  if (filter === "squat") return t("history.filter.squat");
-  if (filter === "bench") return t("history.filter.bench");
-  if (filter === "deadlift") return t("history.filter.deadlift");
-  return t("history.filter.press");
 }
 
 function getCompletedSetMetrics(log: SetLogRecord): { weight: number; reps: number } | null {
@@ -96,65 +85,40 @@ function getSessionEstimatedOneRepMax(logs: SetLogRecord[]): number | null {
   return bestEstimate;
 }
 
-function getWeekStart(date: Date): Date {
-  const value = new Date(date);
-  value.setHours(0, 0, 0, 0);
-  const day = value.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  value.setDate(value.getDate() + diff);
-  return value;
-}
-
-function addDays(date: Date, days: number): Date {
-  const value = new Date(date);
-  value.setDate(value.getDate() + days);
-  return value;
-}
-
-function getRelativeWeekLabel(offset: number): string {
-  if (offset === 0) return t("history.weekLabel.this");
-  if (offset === 1) return t("history.weekLabel.last");
-  return t("history.weekLabel.weeksAgo", { count: offset });
-}
-
-function buildTrendPoints(items: HistoryItem[], lift: MainLift): TrendPoint[] {
-  return items
+function buildTrendPoints(items: HistoryItem[], lift: MainLift, limit = MAX_TREND_POINTS): TrendPoint[] {
+  const points = items
     .filter((item) => item.mainLiftKey === lift && item.completedAt && item.estimatedOneRepMax != null)
     .sort((a, b) => (a.completedAt ?? "").localeCompare(b.completedAt ?? ""))
-    .slice(-MAX_TREND_POINTS)
     .map((item) => ({
       sessionId: item.sessionId,
       completedAt: item.completedAt ?? "",
       label: formatLocaleDate(item.completedAt ?? "", { month: "numeric", day: "numeric" }),
       value: item.estimatedOneRepMax ?? 0,
     }));
-}
 
-function buildWeeklyWorkoutCounts(items: HistoryItem[]): WeeklyWorkoutCount[] {
-  const currentWeekStart = getWeekStart(new Date());
-  const weekStarts = Array.from({ length: 4 }, (_, index) => addDays(currentWeekStart, (index - 3) * 7));
-  const counts = new Map(weekStarts.map((start) => [start.toISOString(), 0]));
-
-  for (const item of items) {
-    if (!item.completedAt) continue;
-    const weekStart = getWeekStart(new Date(item.completedAt)).toISOString();
-    if (!counts.has(weekStart)) continue;
-    counts.set(weekStart, (counts.get(weekStart) ?? 0) + 1);
-  }
-
-  return weekStarts.map((weekStart, index) => {
-    const offset = weekStarts.length - index - 1;
-    return {
-      key: weekStart.toISOString(),
-      label: getRelativeWeekLabel(offset),
-      count: counts.get(weekStart.toISOString()) ?? 0,
-      isCurrentWeek: offset === 0,
-    };
-  });
+  return limit > 0 ? points.slice(-limit) : points;
 }
 
 function formatMeasurement(value: number, unit: string): string {
   return `${formatNumber(value, { maximumFractionDigits: 1 })} ${unit}`;
+}
+
+function formatChange(value: number): string {
+  const sign = value > 0 ? "+" : value < 0 ? "-" : "";
+  return `${sign}${formatNumber(Math.abs(value), { maximumFractionDigits: 1 })}`;
+}
+
+function buildLiftSummary(items: HistoryItem[], lift: MainLift): LiftSummary {
+  const points = buildTrendPoints(items, lift, 2);
+  const latestPoint = points[points.length - 1] ?? null;
+  const previousPoint = points[points.length - 2] ?? null;
+
+  return {
+    lift,
+    latestPoint,
+    previousPoint,
+    change: latestPoint && previousPoint ? latestPoint.value - previousPoint.value : null,
+  };
 }
 
 function ChartEmptyState({
@@ -185,6 +149,67 @@ function MetricPill({
     <View style={styles.metricPill}>
       <Text variant="label">{label}</Text>
       <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function LiftSummaryCards({
+  items,
+  selectedLift,
+  unit,
+  onSelect,
+}: {
+  items: HistoryItem[];
+  selectedLift: MainLift;
+  unit: string;
+  onSelect: (lift: MainLift) => void;
+}) {
+  return (
+    <View style={styles.summaryGrid}>
+      {SUMMARY_LIFTS.map((lift) => {
+        const summary = buildLiftSummary(items, lift);
+        const isSelected = selectedLift === lift;
+        const changeStyle = summary.change == null
+          ? styles.summaryChangePlaceholder
+          : summary.change > 0
+            ? styles.summaryChangePositive
+            : summary.change < 0
+              ? styles.summaryChangeNegative
+              : styles.summaryChangeNeutral;
+
+        return (
+          <Pressable
+            key={lift}
+            style={styles.summaryCardPressable}
+            onPress={() => onSelect(lift)}
+          >
+            <Card style={[styles.summaryCard, isSelected && styles.summaryCardSelected]}>
+              <View style={styles.summaryCardTop}>
+                <Text
+                  style={styles.summaryLiftLabel}
+                  numberOfLines={2}
+                >
+                  {getLiftLabel(lift)}
+                </Text>
+                <View style={[styles.summaryActiveDot, isSelected && styles.summaryActiveDotSelected]} />
+              </View>
+
+              <Text
+                style={styles.summaryLiftValue}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                numberOfLines={1}
+              >
+                {summary.latestPoint ? formatMeasurement(summary.latestPoint.value, unit) : "—"}
+              </Text>
+
+              <Text style={[styles.summaryLiftChange, changeStyle]}>
+                {summary.change == null ? " " : formatChange(summary.change)}
+              </Text>
+            </Card>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -309,28 +334,37 @@ function LiftTrendCard({
   items,
   unit,
 }: {
-  selectedLift: HistoryLiftFilter;
+  selectedLift: MainLift;
   items: HistoryItem[];
   unit: string;
 }) {
-  const latestCompleted = items[0];
-  const trendPoints = selectedLift === "all" ? [] : buildTrendPoints(items, selectedLift);
+  const trendPoints = buildTrendPoints(items, selectedLift);
   const latestPoint = trendPoints[trendPoints.length - 1];
+  const previousPoint = trendPoints[trendPoints.length - 2] ?? null;
+  const change = latestPoint && previousPoint ? latestPoint.value - previousPoint.value : null;
 
   return (
     <Card style={styles.chartCard}>
       <View style={styles.chartCardHeader}>
         <View style={styles.chartCardCopy}>
           <Text style={styles.chartTitle}>
-            {selectedLift === "all"
-              ? t("history.allLiftTrendTitle")
-              : t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
+            {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
           </Text>
-          <Text variant="caption">
-            {selectedLift === "all"
-              ? t("history.allLiftTrendHelper")
-              : t("history.e1rmHelper")}
-          </Text>
+          <Text variant="caption">{t("history.e1rmHelper")}</Text>
+          {change != null ? (
+            <Text
+              style={[
+                styles.chartChange,
+                change > 0
+                  ? styles.summaryChangePositive
+                  : change < 0
+                    ? styles.summaryChangeNegative
+                    : styles.summaryChangeNeutral,
+              ]}
+            >
+              {formatChange(change)}
+            </Text>
+          ) : null}
         </View>
         {latestPoint ? (
           <MetricPill
@@ -340,41 +374,7 @@ function LiftTrendCard({
         ) : null}
       </View>
 
-      {selectedLift === "all" ? (
-        items.length === 0 ? (
-          <ChartEmptyState
-            title={t("history.e1rmEmptyTitle")}
-            subtitle={t("history.e1rmEmptySubtitle")}
-          />
-        ) : (
-          <View style={styles.summaryBlock}>
-            <Text style={styles.summaryMessage}>
-              {t("history.allLiftTrendPlaceholder")}
-            </Text>
-
-            <View style={styles.summaryStats}>
-              <View style={styles.summaryStat}>
-                <Text variant="label">{t("history.completedWorkouts")}</Text>
-                <Text style={styles.summaryStatValue}>{formatNumber(items.length)}</Text>
-              </View>
-              <View style={styles.summaryStat}>
-                <Text variant="label">{t("history.latestWorkout")}</Text>
-                <Text style={styles.summaryStatValue}>
-                  {latestCompleted ? getLiftLabel(latestCompleted.mainLiftKey) : "—"}
-                </Text>
-                {latestCompleted?.completedAt ? (
-                  <Text variant="caption">
-                    {formatLocaleDate(latestCompleted.completedAt, {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          </View>
-        )
-      ) : trendPoints.length < MIN_TREND_POINTS ? (
+      {trendPoints.length < MIN_TREND_POINTS ? (
         <ChartEmptyState
           title={t("history.e1rmEmptyTitle")}
           subtitle={t("history.e1rmEmptySubtitle")}
@@ -386,81 +386,13 @@ function LiftTrendCard({
   );
 }
 
-function WeeklyWorkoutChart({
-  weeks,
-}: {
-  weeks: WeeklyWorkoutCount[];
-}) {
-  const maxCount = Math.max(...weeks.map((week) => week.count), 1);
-
-  return (
-    <View style={styles.barChart}>
-      {weeks.map((week) => {
-        const ratio = week.count / maxCount;
-        const height = week.count === 0 ? 0 : Math.max(ratio * BAR_TRACK_HEIGHT, 12);
-
-        return (
-          <View key={week.key} style={styles.barColumn}>
-            <Text style={styles.barValue}>{formatNumber(week.count)}</Text>
-            <View style={styles.barTrack}>
-              <View
-                style={[
-                  styles.barFill,
-                  week.isCurrentWeek && styles.barFillCurrent,
-                  { height },
-                ]}
-              />
-            </View>
-            <Text style={styles.barLabel}>{week.label}</Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function WeeklyWorkoutCard({
-  items,
-}: {
-  items: HistoryItem[];
-}) {
-  const weeks = buildWeeklyWorkoutCounts(items);
-  const totalWorkouts = weeks.reduce((sum, week) => sum + week.count, 0);
-
-  return (
-    <Card style={styles.chartCard}>
-      <View style={styles.chartCardHeader}>
-        <View style={styles.chartCardCopy}>
-          <Text style={styles.chartTitle}>{t("history.weeklyWorkoutTitle")}</Text>
-          <Text variant="caption">{t("history.weeklyWorkoutHelper")}</Text>
-        </View>
-        {totalWorkouts > 0 ? (
-          <MetricPill
-            label={t("history.last4Weeks")}
-            value={formatNumber(totalWorkouts)}
-          />
-        ) : null}
-      </View>
-
-      {items.length < MIN_WEEKLY_WORKOUTS ? (
-        <ChartEmptyState
-          title={t("history.weeklyWorkoutEmptyTitle")}
-          subtitle={t("history.weeklyWorkoutEmptySubtitle")}
-        />
-      ) : (
-        <WeeklyWorkoutChart weeks={weeks} />
-      )}
-    </Card>
-  );
-}
-
 export default function HistoryScreen() {
   useLocale();
 
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
   const [items, setItems] = useState<HistoryItem[]>([]);
-  const [selectedLift, setSelectedLift] = useState<HistoryLiftFilter>("bench");
+  const [selectedLift, setSelectedLift] = useState<MainLift>("deadlift");
 
   useFocusEffect(
     useCallback(() => {
@@ -489,8 +421,12 @@ export default function HistoryScreen() {
           (b.completedAt ?? b.scheduledDate ?? "").localeCompare(a.completedAt ?? a.scheduledDate ?? ""),
         );
 
+        const nextItems = enriched.length === 0 && __DEV__ && instance
+          ? buildMockHistoryItems(instance)
+          : enriched;
+
         if (isActive) {
-          setItems(enriched);
+          setItems(nextItems);
         }
       }
 
@@ -499,16 +435,23 @@ export default function HistoryScreen() {
       return () => {
         isActive = false;
       };
-    }, [stubs]),
+    }, [instance, stubs]),
   );
 
   const renderItem = ({ item }: { item: HistoryItem }) => {
     const { day, weekday } = formatHistoryDate(item.completedAt ?? null);
     const weekLabel = getWeekLabel(item.weekIndex);
     const sessionLabel = getSessionLabel(item.dayIndex);
+    const isInteractive = !item.isMock;
 
     return (
-      <Pressable onPress={() => router.push(`/session/${item.sessionId}`)}>
+      <Pressable
+        disabled={!isInteractive}
+        onPress={() => {
+          if (!isInteractive) return;
+          router.push(`/session/${item.sessionId}`);
+        }}
+      >
         <Card style={styles.historyCard}>
           <View style={styles.historyItem}>
             <View style={styles.dateColumn}>
@@ -558,14 +501,11 @@ export default function HistoryScreen() {
             </View>
 
             <View style={styles.chartSection}>
-              <SegmentedControl
-                options={HISTORY_FILTERS.map((filter) => getHistoryFilterLabel(filter))}
-                selectedIndex={HISTORY_FILTERS.indexOf(selectedLift)}
-                onSelect={(index) => {
-                  const nextFilter = HISTORY_FILTERS[index];
-                  if (!nextFilter) return;
-                  setSelectedLift(nextFilter);
-                }}
+              <LiftSummaryCards
+                items={items}
+                selectedLift={selectedLift}
+                unit={instance?.params.unit ?? "kg"}
+                onSelect={setSelectedLift}
               />
 
               <LiftTrendCard
@@ -573,8 +513,6 @@ export default function HistoryScreen() {
                 items={items}
                 unit={instance?.params.unit ?? "kg"}
               />
-
-              <WeeklyWorkoutCard items={items} />
 
               <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
             </View>
@@ -623,6 +561,67 @@ const styles = StyleSheet.create({
   chartSection: {
     gap: spacing.md,
   },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+  },
+  summaryCardPressable: {
+    width: "48%",
+  },
+  summaryCard: {
+    minHeight: 122,
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  summaryCardSelected: {
+    backgroundColor: "rgba(34, 197, 94, 0.14)",
+    borderColor: "rgba(34, 197, 94, 0.38)",
+  },
+  summaryCardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
+  summaryLiftLabel: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  summaryActiveDot: {
+    width: 9,
+    height: 9,
+    borderRadius: borderRadius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    marginTop: spacing.xs,
+  },
+  summaryActiveDotSelected: {
+    backgroundColor: colors.accent,
+  },
+  summaryLiftValue: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold,
+    color: colors.text,
+  },
+  summaryLiftChange: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  summaryChangePositive: {
+    color: colors.accent,
+  },
+  summaryChangeNegative: {
+    color: colors.destructive,
+  },
+  summaryChangeNeutral: {
+    color: colors.textSecondary,
+  },
+  summaryChangePlaceholder: {
+    color: colors.transparent,
+  },
   chartCard: {
     gap: spacing.lg,
   },
@@ -640,6 +639,10 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
     color: colors.text,
+  },
+  chartChange: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
   },
   metricPill: {
     minWidth: 88,
@@ -727,73 +730,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: spacing.xs,
-  },
-  summaryBlock: {
-    gap: spacing.md,
-  },
-  summaryMessage: {
-    fontSize: fontSize.md,
-    lineHeight: 22,
-    color: colors.text,
-  },
-  summaryStats: {
-    flexDirection: "row",
-    gap: spacing.sm,
-  },
-  summaryStat: {
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderCurve: "continuous",
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-  },
-  summaryStatValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-    color: colors.text,
-  },
-  barChart: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.md,
-    paddingTop: spacing.sm,
-  },
-  barColumn: {
-    flex: 1,
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  barValue: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
-  },
-  barTrack: {
-    width: "100%",
-    height: BAR_TRACK_HEIGHT,
-    justifyContent: "flex-end",
-    borderRadius: borderRadius.lg,
-    borderCurve: "continuous",
-    overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
-  },
-  barFill: {
-    width: "100%",
-    borderRadius: borderRadius.md,
-    backgroundColor: "rgba(34, 197, 94, 0.28)",
-  },
-  barFillCurrent: {
-    backgroundColor: colors.accent,
-  },
-  barLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.textTertiary,
   },
   historyCard: {
     padding: spacing.lg,
