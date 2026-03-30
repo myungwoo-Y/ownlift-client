@@ -128,10 +128,14 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView key={locale} edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView
+      key={locale}
+      collapsable={false}
+      edges={["top", "left", "right"]}
+      style={styles.safe}
+    >
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>{t("tab.settings")}</Text>
           <Text variant="title">{t("settings.title")}</Text>
         </View>
 

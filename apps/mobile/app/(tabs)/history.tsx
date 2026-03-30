@@ -486,7 +486,11 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView
+      collapsable={false}
+      edges={["top", "left", "right"]}
+      style={styles.safe}
+    >
       <FlatList
         data={items}
         keyExtractor={(item) => item.sessionId}
@@ -496,7 +500,6 @@ export default function HistoryScreen() {
         ListHeaderComponent={(
           <View style={styles.listHeader}>
             <View style={styles.header}>
-              <Text style={styles.headerEyebrow}>{t("tab.history")}</Text>
               <Text variant="title">{t("history.title")}</Text>
             </View>
 

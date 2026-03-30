@@ -6,33 +6,55 @@ import { t, useLocale } from "../../src/i18n";
 
 const defaultTabColor = Platform.OS === "ios"
   ? DynamicColorIOS({
-      light: "rgba(17, 17, 17, 0.72)",
-      dark: "rgba(255, 255, 255, 0.78)",
-    })
+    light: "rgba(17, 17, 17, 0.72)",
+    dark: "rgba(255, 255, 255, 0.78)",
+  })
   : colors.textSecondary;
 
-const selectedTabColor = Platform.OS === "ios"
-  ? DynamicColorIOS({
-      light: "#111111",
-      dark: "#FFFFFF",
-    })
-  : colors.primary;
+const selectedTabColor = colors.primary;
+
+const iosTabNativeProps = Platform.OS === "ios"
+  ? {
+    experimental_userInterfaceStyle: "dark" as const,
+    standardAppearance: {
+      tabBarBackgroundColor: colors.surface,
+      tabBarBlurEffect: "none" as const,
+      tabBarShadowColor: colors.border,
+    },
+    scrollEdgeAppearance: {
+      tabBarBackgroundColor: colors.surface,
+      tabBarBlurEffect: "none" as const,
+      tabBarShadowColor: colors.border,
+    },
+  }
+  : undefined;
+
+const nativeTabsHostProps = {
+  nativeContainerStyle: {
+    backgroundColor: colors.background,
+  },
+};
 
 export default function TabLayout() {
   const locale = useLocale();
 
   return (
     <NativeTabs
+      {...nativeTabsHostProps}
       key={locale}
       backBehavior="history"
+      backgroundColor={colors.surface}
+      blurEffect="none"
       disableTransparentOnScrollEdge
+      indicatorColor={colors.primary}
+      shadowColor={colors.border}
+      tintColor={colors.primary}
       iconColor={{
         default: defaultTabColor,
         selected: selectedTabColor,
       }}
       labelStyle={{
         default: {
-          color: defaultTabColor,
           fontSize: 11,
           fontWeight: "600",
         },
@@ -43,7 +65,12 @@ export default function TabLayout() {
         },
       }}
     >
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger
+        name="index"
+        contentStyle={{ backgroundColor: colors.background }}
+        disableTransparentOnScrollEdge
+        unstable_nativeProps={iosTabNativeProps}
+      >
         <NativeTabs.Trigger.Icon
           sf={{ default: "calendar", selected: "calendar.circle.fill" }}
           src={{
@@ -54,7 +81,12 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>{t("tab.plan")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="history">
+      <NativeTabs.Trigger
+        name="history"
+        contentStyle={{ backgroundColor: colors.background }}
+        disableTransparentOnScrollEdge
+        unstable_nativeProps={iosTabNativeProps}
+      >
         <NativeTabs.Trigger.Icon
           sf={{ default: "clock", selected: "clock.fill" }}
           src={{
@@ -65,7 +97,12 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Label>{t("tab.history")}</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="settings">
+      <NativeTabs.Trigger
+        name="settings"
+        contentStyle={{ backgroundColor: colors.background }}
+        disableTransparentOnScrollEdge
+        unstable_nativeProps={iosTabNativeProps}
+      >
         <NativeTabs.Trigger.Icon
           sf={{ default: "gearshape", selected: "gearshape.fill" }}
           src={{

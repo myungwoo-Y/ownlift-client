@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
-    alignSelf: "flex-start",
+    alignSelf: "center",
   },
   text: {
     fontSize: fontSize.xs,

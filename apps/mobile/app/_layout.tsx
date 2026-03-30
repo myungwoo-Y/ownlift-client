@@ -1,10 +1,12 @@
 import { getSetting, runMigrations, setDatabase } from "@ownlift/db";
+import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
-import { StyleSheet } from "react-native";
+import { Appearance, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../src/design/tokens";
@@ -14,6 +16,19 @@ import { useSettingsStore } from "../src/stores/settings-store";
 
 SplashScreen.preventAutoHideAsync();
 
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: colors.background,
+    card: colors.surface,
+    border: colors.border,
+    notification: colors.primary,
+    primary: colors.primary,
+    text: colors.text,
+  },
+};
+
 export default function RootLayout() {
   useLocale();
   const [isReady, setIsReady] = useState(false);
@@ -21,6 +36,9 @@ export default function RootLayout() {
   const segments = useSegments();
 
   useEffect(() => {
+    Appearance.setColorScheme("dark");
+    void SystemUI.setBackgroundColorAsync(colors.background);
+
     async function bootstrap() {
       try {
         // 1. Open DB & run migrations
@@ -81,37 +99,39 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: styles.stackContent,
-          }}
-        >
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="workout/[sessionId]"
-            options={{
-              presentation: "card",
+        <ThemeProvider value={navigationTheme}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
               contentStyle: styles.stackContent,
             }}
-          />
-          <Stack.Screen
-            name="session/[sessionId]"
-            options={{
-              presentation: "card",
-              contentStyle: styles.stackContent,
-            }}
-          />
-          <Stack.Screen
-            name="upcoming"
-            options={{
-              presentation: "card",
-              contentStyle: styles.stackContent,
-            }}
-          />
-        </Stack>
+          >
+            <Stack.Screen name="(onboarding)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="workout/[sessionId]"
+              options={{
+                presentation: "card",
+                contentStyle: styles.stackContent,
+              }}
+            />
+            <Stack.Screen
+              name="session/[sessionId]"
+              options={{
+                presentation: "card",
+                contentStyle: styles.stackContent,
+              }}
+            />
+            <Stack.Screen
+              name="upcoming"
+              options={{
+                presentation: "card",
+                contentStyle: styles.stackContent,
+              }}
+            />
+          </Stack>
+        </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

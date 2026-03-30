@@ -283,9 +283,9 @@ function DraggableWeekRow({
         styles.weekRow,
         isDragging
           ? [
-              styles.weekRowDragSource,
-              { top: dragStartTop },
-            ]
+            styles.weekRowDragSource,
+            { top: dragStartTop },
+          ]
           : null,
       ]}
     >
@@ -573,7 +573,11 @@ export default function PlanScreen() {
 
   if (isLoading || !instance) {
     return (
-      <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+      <SafeAreaView
+        collapsable={false}
+        edges={["top", "left", "right"]}
+        style={styles.safe}
+      >
         <View style={styles.center}>
           <Text variant="body">{t("plan.loadingProgram")}</Text>
         </View>
@@ -614,7 +618,11 @@ export default function PlanScreen() {
   const nextUpcomingStub = upcomingStubs[0] ?? null;
 
   return (
-    <SafeAreaView edges={["top", "left", "right"]} style={styles.safe}>
+    <SafeAreaView
+      collapsable={false}
+      edges={["top", "left", "right"]}
+      style={styles.safe}
+    >
       <ScrollView
         contentContainerStyle={styles.container}
         contentInsetAdjustmentBehavior="automatic"
@@ -626,7 +634,6 @@ export default function PlanScreen() {
           <View style={styles.headerCopy}>
             <Text style={styles.headerEyebrow}>{t("tab.plan")}</Text>
             <Text style={styles.headerTitle}>{t("week.title", { week: state.currentWeek + 1 })}</Text>
-            <Text style={styles.headerSubtitle}>{headerSubtitle}</Text>
           </View>
           <View style={styles.progressRing}>
             <View style={styles.progressRingInner}>
