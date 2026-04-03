@@ -21,7 +21,6 @@ import { styles } from "../../src/program/plan-screen/styles";
 import { clamp, getReorderableSegmentStart } from "../../src/program/plan-screen/utils";
 import { getScheduledDayForIndex } from "../../src/program/schedule-policy";
 import { useProgramStore } from "../../src/stores/program-store";
-
 export default function PlanScreen() {
   useLocale();
 

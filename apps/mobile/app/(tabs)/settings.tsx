@@ -34,7 +34,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function SettingsScreen() {
-  const locale = useLocale();
+  useLocale();
 
   const { instance, stubs, loadProgram, updateSchedulePolicy } = useProgramStore();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
@@ -129,7 +129,6 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView
-      key={locale}
       collapsable={false}
       edges={["top", "left", "right"]}
       style={styles.safe}
