@@ -22,10 +22,10 @@ const REORDER_OVERLAP_THRESHOLD = 0.4;
 const FALLBACK_ROW_HEIGHT = 128;
 const TAB_BAR_CLEARANCE = spacing["5xl"] + spacing.lg;
 const TAB_BAR_SCROLL_INDICATOR_INSETS = { bottom: TAB_BAR_CLEARANCE };
-const squatThumbnailSource = require("../../assets/images/squat_3d.png");
-const benchThumbnailSource = require("../../assets/images/bench_press_3d.png");
-const deadliftThumbnailSource = require("../../assets/images/deadlift_3d.png");
-const pressThumbnailSource = require("../../assets/images/ohp_3d.png");
+const squatThumbnailSource = require("../../assets/images/squat.png");
+const benchThumbnailSource = require("../../assets/images/bench-press.png");
+const deadliftThumbnailSource = require("../../assets/images/deadlift.png");
+const pressThumbnailSource = require("../../assets/images/ohp.png");
 
 function getLiftThumbnailSource(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "squat") return squatThumbnailSource;

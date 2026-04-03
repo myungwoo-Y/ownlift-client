@@ -9,10 +9,10 @@ import { getLiftLabel, getSessionLabel, getWeekdayShortLabel, t, useLocale } fro
 import { getScheduledDayForIndex } from "../src/program/schedule-policy";
 import { useProgramStore } from "../src/stores/program-store";
 
-const squatThumbnailSource = require("../assets/images/squat_3d.png");
-const benchThumbnailSource = require("../assets/images/bench_press_3d.png");
-const deadliftThumbnailSource = require("../assets/images/deadlift_3d.png");
-const pressThumbnailSource = require("../assets/images/ohp_3d.png");
+const squatThumbnailSource = require("../assets/images/squat.png");
+const benchThumbnailSource = require("../assets/images/bench-press.png");
+const deadliftThumbnailSource = require("../assets/images/deadlift.png");
+const pressThumbnailSource = require("../assets/images/ohp.png");
 
 function getLiftThumbnailSource(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "squat") return squatThumbnailSource;

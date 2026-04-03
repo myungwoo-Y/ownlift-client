@@ -6,6 +6,7 @@ import { getLocale, isAppLocale, setLocale, type AppLocale } from "../i18n";
 
 interface SettingsStore {
   locale: AppLocale;
+  pendingLocale: AppLocale | null;
   unit: WeightUnit;
   roundingIncrement: number;
   roundingMode: RoundingMode;
@@ -20,8 +21,9 @@ interface SettingsStore {
   updateSetting: (key: SettingsKey, value: string) => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsStore>((set) => ({
+export const useSettingsStore = create<SettingsStore>((set, get) => ({
   locale: getLocale(),
+  pendingLocale: null,
   unit: DEFAULT_SETTINGS.unit,
   roundingIncrement: DEFAULT_SETTINGS.roundingIncrement.kg,
   roundingMode: DEFAULT_SETTINGS.roundingMode,
@@ -34,12 +36,15 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   loadSettings: async () => {
     const raw = await getAllSettings();
-    const locale = raw.locale === "en" || raw.locale === "ko" ? raw.locale : getLocale();
+    const storedLocale = raw.locale === "en" || raw.locale === "ko" ? raw.locale : null;
+    const pendingLocale = get().pendingLocale;
+    const locale = pendingLocale ?? storedLocale ?? getLocale();
     const parsedRestTimerSeconds = raw.restTimerSeconds ? parseFloat(raw.restTimerSeconds) : NaN;
     setLocale(locale);
 
     set({
       locale,
+      pendingLocale: pendingLocale && storedLocale === pendingLocale ? null : pendingLocale,
       unit: (raw.unit as WeightUnit) ?? DEFAULT_SETTINGS.unit,
       roundingIncrement: raw.roundingIncrement
         ? parseFloat(raw.roundingIncrement)
@@ -62,9 +67,25 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
 
   updateSetting: async (key, value) => {
     if (key === "locale" && isAppLocale(value)) {
+      const previousLocale = get().locale;
+
       // Apply locale immediately so UI updates without waiting for DB persistence.
       setLocale(value);
-      set({ locale: value });
+      set({ locale: value, pendingLocale: value });
+
+      try {
+        await setSetting({ key, value });
+        set((state) => (state.pendingLocale === value ? { locale: value, pendingLocale: null } : {}));
+      } catch (error) {
+        if (get().pendingLocale === value) {
+          setLocale(previousLocale);
+          set({ locale: previousLocale, pendingLocale: null });
+        }
+
+        throw error;
+      }
+
+      return;
     }
 
     await setSetting({ key, value });

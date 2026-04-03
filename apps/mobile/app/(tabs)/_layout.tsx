@@ -36,12 +36,11 @@ const nativeTabsHostProps = {
 };
 
 export default function TabLayout() {
-  const locale = useLocale();
+  useLocale();
 
   return (
     <NativeTabs
       {...nativeTabsHostProps}
-      key={locale}
       backBehavior="history"
       backgroundColor={colors.surface}
       blurEffect="none"
