@@ -73,7 +73,6 @@ const sizeTextStyles = StyleSheet.create({
 const variantStyles = StyleSheet.create({
   primary: {
     backgroundColor: colors.primary,
-    boxShadow: "0px 16px 36px rgba(34, 197, 94, 0.22)",
   },
   secondary: {
     backgroundColor: "#7A7A7C",

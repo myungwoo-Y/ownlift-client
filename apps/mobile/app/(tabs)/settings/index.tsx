@@ -99,6 +99,12 @@ export default function SettingsScreen() {
     }
 
     await settings.updateSetting("locale", nextLocale);
+    Alert.alert(
+      t("settings.languageChangedTitle"),
+      t("settings.languageChangedMessage", {
+        language: t(nextLocale === "ko" ? "language.ko" : "language.en"),
+      }),
+    );
   };
 
   const handleIncrementChange = async (key: "tmIncreaseUpper" | "tmIncreaseLower", delta: number) => {

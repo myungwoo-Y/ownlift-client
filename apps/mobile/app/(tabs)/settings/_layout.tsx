@@ -5,11 +5,9 @@ import { t, useLocale } from "../../../src/i18n";
 
 const screenOptions = {
   contentStyle: { backgroundColor: colors.background },
-  headerStyle: { backgroundColor: colors.background },
-  headerLargeStyle: { backgroundColor: colors.background },
   headerLargeTitleShadowVisible: false,
   headerLargeTitleStyle: { color: colors.text, fontWeight: "800" as const },
-  headerShadowVisible: false,
+  headerShadowVisible: true,
   headerTintColor: colors.text,
   headerTitleStyle: { color: colors.text },
 };

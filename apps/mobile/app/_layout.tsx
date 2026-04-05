@@ -6,7 +6,7 @@ import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
 import { openDatabaseAsync } from "expo-sqlite";
 import { useEffect, useState } from "react";
-import { Appearance, StyleSheet } from "react-native";
+import { Appearance, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../src/design/tokens";
@@ -106,36 +106,38 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <ThemeProvider value={navigationTheme}>
           <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: styles.stackContent,
-            }}
-          >
-            <Stack.Screen name="(onboarding)" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="workout/[sessionId]"
-              options={{
-                presentation: "card",
+          <View key={`locale-shell-${locale}`} style={styles.navigatorShell}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
                 contentStyle: styles.stackContent,
               }}
-            />
-            <Stack.Screen
-              name="session/[sessionId]"
-              options={{
-                presentation: "card",
-                contentStyle: styles.stackContent,
-              }}
-            />
-            <Stack.Screen
-              name="upcoming"
-              options={{
-                presentation: "card",
-                contentStyle: styles.stackContent,
-              }}
-            />
-          </Stack>
+            >
+              <Stack.Screen name="(onboarding)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen
+                name="workout/[sessionId]"
+                options={{
+                  presentation: "card",
+                  contentStyle: styles.stackContent,
+                }}
+              />
+              <Stack.Screen
+                name="session/[sessionId]"
+                options={{
+                  presentation: "card",
+                  contentStyle: styles.stackContent,
+                }}
+              />
+              <Stack.Screen
+                name="upcoming"
+                options={{
+                  presentation: "card",
+                  contentStyle: styles.stackContent,
+                }}
+              />
+            </Stack>
+          </View>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
@@ -149,5 +151,8 @@ const styles = StyleSheet.create({
   },
   stackContent: {
     backgroundColor: colors.background,
+  },
+  navigatorShell: {
+    flex: 1,
   },
 });

@@ -68,7 +68,6 @@ export const styles = StyleSheet.create({
     height: 112,
     borderRadius: 28,
     borderCurve: "continuous",
-    backgroundColor: colors.primarySoft,
     overflow: "hidden",
   },
   todayPreviewImage: {
@@ -188,7 +187,6 @@ export const styles = StyleSheet.create({
     borderRadius: 22,
     borderCurve: "continuous",
     overflow: "hidden",
-    backgroundColor: colors.surfaceMuted,
     flexShrink: 0,
   },
   thumbnailImage: {

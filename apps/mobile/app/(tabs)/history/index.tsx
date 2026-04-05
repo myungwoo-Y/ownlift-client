@@ -190,7 +190,11 @@ function LiftSummaryCards({
                 >
                   {getLiftLabel(lift)}
                 </Text>
-                <View style={[styles.summaryActiveDot, isSelected && styles.summaryActiveDotSelected]} />
+                {isSelected ? (
+                  <View style={styles.summaryCurrentPill}>
+                    <Text style={styles.summaryCurrentPillText}>CURRENT</Text>
+                  </View>
+                ) : null}
               </View>
 
               <Text
@@ -569,8 +573,8 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   summaryCardSelected: {
-    backgroundColor: "rgba(34, 197, 94, 0.14)",
-    borderColor: "rgba(34, 197, 94, 0.38)",
+    backgroundColor: colors.primarySoft,
+    borderColor: "rgba(34, 197, 94, 0.34)",
   },
   summaryCardTop: {
     flexDirection: "row",
@@ -585,15 +589,19 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  summaryActiveDot: {
-    width: 9,
-    height: 9,
+  summaryCurrentPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing["2xs"],
     borderRadius: borderRadius.full,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.22)",
+    backgroundColor: "rgba(34, 197, 94, 0.08)",
   },
-  summaryActiveDotSelected: {
-    backgroundColor: colors.accent,
+  summaryCurrentPillText: {
+    fontSize: 9,
+    fontWeight: fontWeight.bold,
+    letterSpacing: 0.6,
+    color: colors.success,
   },
   summaryLiftValue: {
     fontSize: fontSize.xl,
