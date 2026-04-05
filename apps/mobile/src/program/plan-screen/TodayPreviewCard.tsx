@@ -3,7 +3,7 @@ import type { PrescriptionData } from "@ownlift/schemas";
 import { Image } from "expo-image";
 import { View } from "react-native";
 import { Badge, Button, Card, Text } from "../../design";
-import { getLiftLabel, getSessionLabel, t } from "../../i18n";
+import { getLiftLabel, getSessionLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { getLiftThumbnailSource } from "./utils";
 
@@ -22,6 +22,8 @@ export function PlanTodayPreviewCard({
   unit,
   onStart,
 }: PlanTodayPreviewCardProps) {
+  useLocale();
+
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
   const warmupCount = prescription.sets.filter((setData) => setData.isWarmup).length;
   const workSets = prescription.sets.filter((setData) => !setData.isWarmup);

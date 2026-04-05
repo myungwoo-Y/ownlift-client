@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import { Text } from "../../design";
-import { t } from "../../i18n";
+import { t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 
 interface PlanHeaderProps {
@@ -8,6 +8,8 @@ interface PlanHeaderProps {
 }
 
 export function PlanHeader({ currentWeek }: PlanHeaderProps) {
+  useLocale();
+
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>

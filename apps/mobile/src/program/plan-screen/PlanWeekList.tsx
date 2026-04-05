@@ -9,7 +9,7 @@ import Animated, {
   useAnimatedStyle,
 } from "react-native-reanimated";
 import { Text } from "../../design";
-import { t } from "../../i18n";
+import { t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { WeekRowCard } from "./WeekRowCard";
 
@@ -17,6 +17,7 @@ type PanGesture = ReturnType<typeof Gesture.Pan>;
 
 interface PlanWeekListProps {
   orderedWeekStubs: readonly SessionStubRecord[];
+  sessionSummaryBySessionId: Readonly<Record<string, string | null>>;
   todaySessionId?: string | null;
   draggingSessionId: string | null;
   dragTargetIndex: number | null;
@@ -39,6 +40,7 @@ interface PlanWeekListProps {
 
 interface DraggableWeekRowProps {
   stub: SessionStubRecord;
+  summaryText?: string | null;
   index: number;
   isToday: boolean;
   isCompleted: boolean;
@@ -56,6 +58,7 @@ interface DraggableWeekRowProps {
 
 function DraggableWeekRow({
   stub,
+  summaryText,
   index,
   isToday,
   isCompleted,
@@ -111,6 +114,7 @@ function DraggableWeekRow({
         isDragging={isDragging}
         isAnyDragging={isAnyDragging}
         scheduledDayLabel={scheduledDayLabel}
+        summaryText={summaryText}
         gesture={handleGesture}
         showDragHandle={isReorderable}
         onPress={onPress}
@@ -121,6 +125,7 @@ function DraggableWeekRow({
 
 interface FloatingDraggedCardProps {
   stub: SessionStubRecord;
+  summaryText?: string | null;
   isToday: boolean;
   isCompleted: boolean;
   dragStartTop: number;
@@ -130,6 +135,7 @@ interface FloatingDraggedCardProps {
 
 function FloatingDraggedCard({
   stub,
+  summaryText,
   isToday,
   isCompleted,
   dragStartTop,
@@ -156,6 +162,7 @@ function FloatingDraggedCard({
         isDragging
         isAnyDragging
         scheduledDayLabel={scheduledDayLabel}
+        summaryText={summaryText}
         showDragHandle
       />
     </Animated.View>
@@ -164,6 +171,7 @@ function FloatingDraggedCard({
 
 export function PlanWeekList({
   orderedWeekStubs,
+  sessionSummaryBySessionId,
   todaySessionId,
   draggingSessionId,
   dragTargetIndex,
@@ -179,6 +187,8 @@ export function PlanWeekList({
   onDragEnd,
   onRowLayout,
 }: PlanWeekListProps) {
+  useLocale();
+
   const placeholderRenderIndex = draggingSessionId !== null && dragTargetIndex !== null
     ? dragTargetIndex > dragStartIndex
       ? dragTargetIndex + 1
@@ -204,6 +214,7 @@ export function PlanWeekList({
           const isReorderable = reorderableSessionIds.has(stub.sessionId);
           const isDragging = draggingSessionId === stub.sessionId;
           const scheduledDayLabel = getScheduledDayLabel(index);
+          const summaryText = sessionSummaryBySessionId[stub.sessionId] ?? null;
 
           return (
             <Fragment key={stub.sessionId}>
@@ -224,6 +235,7 @@ export function PlanWeekList({
                 isDragging={isDragging}
                 isAnyDragging={draggingSessionId !== null}
                 scheduledDayLabel={scheduledDayLabel}
+                summaryText={summaryText}
                 dragStartTop={dragStartTop}
                 onPress={onPressStub}
                 onDragBegin={onDragBegin}
@@ -247,6 +259,7 @@ export function PlanWeekList({
             stub={draggingStub}
             isToday={draggingStubIsToday}
             isCompleted={draggingStubIsCompleted}
+            summaryText={sessionSummaryBySessionId[draggingStub.sessionId] ?? null}
             scheduledDayLabel={getScheduledDayLabel(dragStartIndex)}
             dragStartTop={dragStartTop}
             dragTranslateY={dragTranslateY}

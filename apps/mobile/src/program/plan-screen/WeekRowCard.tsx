@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Badge, Card, Text } from "../../design";
-import { getLiftLabel, getSessionLabel, t } from "../../i18n";
+import { getLiftLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { getLiftThumbnailSource } from "./utils";
 
@@ -16,6 +16,7 @@ interface WeekRowCardProps {
   isDragging: boolean;
   isAnyDragging: boolean;
   scheduledDayLabel?: string | null;
+  summaryText?: string | null;
   gesture?: PanGesture;
   showDragHandle?: boolean;
   onPress?: (stub: SessionStubRecord) => void;
@@ -28,15 +29,14 @@ export function WeekRowCard({
   isDragging,
   isAnyDragging,
   scheduledDayLabel,
+  summaryText,
   gesture,
   showDragHandle = true,
   onPress,
 }: WeekRowCardProps) {
+  useLocale();
+
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
-  const sessionMeta = t("session.weekAndSession", {
-    week: stub.weekIndex + 1,
-    session: getSessionLabel(stub.dayIndex),
-  });
 
   const content = (
     <Card highlighted={isToday}>
@@ -55,12 +55,22 @@ export function WeekRowCard({
             <Text style={styles.liftName}>
               {getLiftLabel(stub.mainLiftKey)}
             </Text>
-            <View style={styles.metaRow}>
-              <Text variant="caption">{sessionMeta}</Text>
-              {scheduledDayLabel ? (
-                <Badge variant="planned" label={scheduledDayLabel} />
-              ) : null}
-            </View>
+            {(summaryText || scheduledDayLabel) ? (
+              <View style={styles.metaRow}>
+                {summaryText ? (
+                  <Text
+                    variant="caption"
+                    numberOfLines={1}
+                    style={styles.cardMetaText}
+                  >
+                    {summaryText}
+                  </Text>
+                ) : null}
+                {scheduledDayLabel ? (
+                  <Badge variant="planned" label={scheduledDayLabel} />
+                ) : null}
+              </View>
+            ) : null}
           </View>
         </View>
         <View style={styles.cardRight}>

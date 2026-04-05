@@ -4,23 +4,34 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { ScrollView, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Card, Section, Text, spacing } from "../../src/design";
-import { getWeekdayShortLabel, t, useLocale } from "../../src/i18n";
-import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
+import { Card, Section, Text, spacing } from "../../../src/design";
+import { formatNumber, getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
+import { loadSyncedPrescriptionForSession } from "../../../src/program/prescription-sync";
 import {
   FALLBACK_ROW_HEIGHT,
   REORDER_OVERLAP_THRESHOLD,
   TAB_BAR_SCROLL_INDICATOR_INSETS,
-} from "../../src/program/plan-screen/constants";
-import { PlanHeader } from "../../src/program/plan-screen/PlanHeader";
-import { PlanTodayPreviewCard } from "../../src/program/plan-screen/TodayPreviewCard";
-import { PlanUpcomingWeekCard } from "../../src/program/plan-screen/UpcomingWeekCard";
-import { PlanWeekList } from "../../src/program/plan-screen/PlanWeekList";
-import { styles } from "../../src/program/plan-screen/styles";
-import { clamp, getReorderableSegmentStart } from "../../src/program/plan-screen/utils";
-import { getScheduledDayForIndex } from "../../src/program/schedule-policy";
-import { useProgramStore } from "../../src/stores/program-store";
+} from "../../../src/program/plan-screen/constants";
+import { PlanTodayPreviewCard } from "../../../src/program/plan-screen/TodayPreviewCard";
+import { PlanUpcomingWeekCard } from "../../../src/program/plan-screen/UpcomingWeekCard";
+import { PlanWeekList } from "../../../src/program/plan-screen/PlanWeekList";
+import { styles } from "../../../src/program/plan-screen/styles";
+import { clamp, getReorderableSegmentStart } from "../../../src/program/plan-screen/utils";
+import { getScheduledDayForIndex } from "../../../src/program/schedule-policy";
+import { useProgramStore } from "../../../src/stores/program-store";
+
+function getTopSetSummary(
+  prescription: PrescriptionData | null | undefined,
+  unit: string,
+): string | null {
+  const topSet = prescription?.sets.filter((setData) => !setData.isWarmup).at(-1);
+  if (!topSet) {
+    return null;
+  }
+
+  return `${formatNumber(topSet.targetWeight)}${unit} × ${formatNumber(topSet.targetReps)}${topSet.isAmrap ? "+" : ""}`;
+}
+
 export default function PlanScreen() {
   useLocale();
 
@@ -32,6 +43,7 @@ export default function PlanScreen() {
   const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null);
   const [todayPreview, setTodayPreview] = useState<PrescriptionData | null>(null);
   const [isTodayPreviewLoading, setIsTodayPreviewLoading] = useState(true);
+  const [weekPrescriptions, setWeekPrescriptions] = useState<Record<string, PrescriptionData | null>>({});
   const orderedWeekStubsRef = useRef(currentWeekStubs);
   const syncedWeekStubsRef = useRef(currentWeekStubs);
   const rowLayoutsRef = useRef<Record<string, { height: number; top: number }>>({});
@@ -110,6 +122,50 @@ export default function PlanScreen() {
       cancelled = true;
     };
   }, [instance, stubs, todayStub]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWeekPrescriptions() {
+      if (!instance || currentWeekStubs.length === 0) {
+        setWeekPrescriptions({});
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        currentWeekStubs.map(async (stub) => {
+          const rx = await loadSyncedPrescriptionForSession({
+            sessionId: stub.sessionId,
+            instance,
+            stub,
+          });
+
+          return [stub.sessionId, rx?.data ?? null] as const;
+        }),
+      );
+
+      if (cancelled) return;
+
+      const nextPrescriptions: Record<string, PrescriptionData | null> = {};
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const [sessionId, prescription] = result.value;
+          nextPrescriptions[sessionId] = prescription;
+          continue;
+        }
+
+        console.error("Failed to load week prescription", result.reason);
+      }
+
+      setWeekPrescriptions(nextPrescriptions);
+    }
+
+    void loadWeekPrescriptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentWeekStubs, instance]);
 
   const persistWeekOrder = useCallback(
     async (nextOrder: typeof currentWeekStubs) => {
@@ -246,15 +302,11 @@ export default function PlanScreen() {
 
   if (isLoading || !instance) {
     return (
-      <SafeAreaView
-        collapsable={false}
-        edges={["top", "left", "right"]}
-        style={styles.safe}
-      >
+      <View style={styles.safe}>
         <View style={styles.center}>
           <Text variant="body">{t("plan.loadingProgram")}</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -278,93 +330,98 @@ export default function PlanScreen() {
     (stub) => stub.cycleIndex === state.currentCycle && stub.weekIndex > state.currentWeek,
   );
   const nextUpcomingStub = upcomingStubs[0] ?? null;
+  const unit = instance.params.unit;
+  const weekSummaryBySessionId = Object.fromEntries(
+    orderedWeekStubs.map((stub) => [
+      stub.sessionId,
+      getTopSetSummary(weekPrescriptions[stub.sessionId], unit),
+    ]),
+  );
 
   return (
-    <SafeAreaView
-      collapsable={false}
-      edges={["top", "left", "right"]}
+    <ScrollView
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.container}
+      scrollEnabled={draggingSessionId === null}
+      scrollIndicatorInsets={TAB_BAR_SCROLL_INDICATOR_INSETS}
+      showsVerticalScrollIndicator={false}
       style={styles.safe}
     >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        contentInsetAdjustmentBehavior="automatic"
-        scrollEnabled={draggingSessionId === null}
-        scrollIndicatorInsets={TAB_BAR_SCROLL_INDICATOR_INSETS}
-        showsVerticalScrollIndicator={false}
-      >
-        <PlanHeader currentWeek={state.currentWeek} />
+      <Text style={styles.screenMeta}>
+        {t("week.title", { week: state.currentWeek + 1 })}
+      </Text>
 
-        <Section title={t("plan.section.today")}>
-          {todayStub && todayPreview ? (
-            <PlanTodayPreviewCard
-              stub={todayStub}
-              prescription={todayPreview}
-              scheduledDayLabel={todayPreviewScheduledDayLabel}
-              unit={instance.params.unit}
-              onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
-            />
-          ) : (
-            <Card>
-              <View style={styles.todayEmptyState}>
-                <Text style={styles.todayEmptyTitle}>
-                  {isTodayPreviewLoading ? t("plan.loadingProgram") : t("plan.preview.emptyTitle")}
-                </Text>
-                {!isTodayPreviewLoading ? (
-                  <Text variant="caption">{t("plan.preview.emptySubtitle")}</Text>
-                ) : null}
-              </View>
-            </Card>
-          )}
-        </Section>
+      <Section title={t("plan.section.today")}>
+        {todayStub && todayPreview ? (
+          <PlanTodayPreviewCard
+            stub={todayStub}
+            prescription={todayPreview}
+            scheduledDayLabel={todayPreviewScheduledDayLabel}
+            unit={unit}
+            onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
+          />
+        ) : (
+          <Card>
+            <View style={styles.todayEmptyState}>
+              <Text style={styles.todayEmptyTitle}>
+                {isTodayPreviewLoading ? t("plan.loadingProgram") : t("plan.preview.emptyTitle")}
+              </Text>
+              {!isTodayPreviewLoading ? (
+                <Text variant="caption">{t("plan.preview.emptySubtitle")}</Text>
+              ) : null}
+            </View>
+          </Card>
+        )}
+      </Section>
 
-        <Section title={t("plan.section.thisWeek")}>
-          <PlanWeekList
-            orderedWeekStubs={orderedWeekStubs}
-            todaySessionId={todayStub?.sessionId}
-            draggingSessionId={draggingSessionId}
-            dragTargetIndex={dragTargetIndex}
-            dragStartIndex={dragStartIndexRef.current}
-            dragStartTop={dragStartTopRef.current}
-            dragItemHeight={dragItemHeightRef.current}
-            dragTranslateY={dragTranslateY}
-            reorderableSessionIds={reorderableSessionIds}
-            getScheduledDayLabel={getScheduledDayLabel}
-            onPressStub={(pressedStub) => {
-              if (pressedStub.status === "completed") {
-                router.push(`/session/${pressedStub.sessionId}`);
-                return;
-              }
+      <Section title={t("plan.section.thisWeek")}>
+        <PlanWeekList
+          orderedWeekStubs={orderedWeekStubs}
+          sessionSummaryBySessionId={weekSummaryBySessionId}
+          todaySessionId={todayStub?.sessionId}
+          draggingSessionId={draggingSessionId}
+          dragTargetIndex={dragTargetIndex}
+          dragStartIndex={dragStartIndexRef.current}
+          dragStartTop={dragStartTopRef.current}
+          dragItemHeight={dragItemHeightRef.current}
+          dragTranslateY={dragTranslateY}
+          reorderableSessionIds={reorderableSessionIds}
+          getScheduledDayLabel={getScheduledDayLabel}
+          onPressStub={(pressedStub) => {
+            if (pressedStub.status === "completed") {
+              router.push(`/session/${pressedStub.sessionId}`);
+              return;
+            }
 
-              router.push(`/workout/${pressedStub.sessionId}`);
-            }}
-            onDragBegin={handleDragBegin}
-            onDragMove={handleDragMove}
-            onDragEnd={finishDrag}
-            onRowLayout={(sessionId, event: LayoutChangeEvent, isDragging: boolean) => {
-              if (isDragging) return;
+            router.push(`/workout/${pressedStub.sessionId}`);
+          }}
+          onDragBegin={handleDragBegin}
+          onDragMove={handleDragMove}
+          onDragEnd={finishDrag}
+          onRowLayout={(sessionId, event: LayoutChangeEvent, isDragging: boolean) => {
+            if (isDragging) return;
 
-              rowLayoutsRef.current[sessionId] = {
-                top: event.nativeEvent.layout.y,
-                height: event.nativeEvent.layout.height,
-              };
-              if (event.nativeEvent.layout.height > 0) {
-                dragItemHeightRef.current = event.nativeEvent.layout.height;
-              }
+            rowLayoutsRef.current[sessionId] = {
+              top: event.nativeEvent.layout.y,
+              height: event.nativeEvent.layout.height,
+            };
+            if (event.nativeEvent.layout.height > 0) {
+              dragItemHeightRef.current = event.nativeEvent.layout.height;
+            }
+          }}
+        />
+      </Section>
+
+      {nextUpcomingStub ? (
+        <Section title={t("plan.section.upcoming")}>
+          <PlanUpcomingWeekCard
+            stub={nextUpcomingStub}
+            onPress={() => {
+              router.push("/upcoming");
             }}
           />
         </Section>
-
-        {nextUpcomingStub ? (
-          <Section title={t("plan.section.upcoming")}>
-            <PlanUpcomingWeekCard
-              stub={nextUpcomingStub}
-              onPress={() => {
-                router.push("/upcoming");
-              }}
-            />
-          </Section>
-        ) : null}
-      </ScrollView>
-    </SafeAreaView>
+      ) : null}
+    </ScrollView>
   );
 }

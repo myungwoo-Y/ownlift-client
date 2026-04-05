@@ -65,7 +65,7 @@ export default function TabLayout() {
       }}
     >
       <NativeTabs.Trigger
-        name="index"
+        name="plan"
         contentStyle={{ backgroundColor: colors.background }}
         disableTransparentOnScrollEdge
         unstable_nativeProps={iosTabNativeProps}

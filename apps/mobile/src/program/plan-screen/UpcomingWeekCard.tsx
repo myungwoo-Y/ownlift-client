@@ -1,7 +1,7 @@
 import type { SessionStubRecord } from "@ownlift/db";
 import { Pressable, View } from "react-native";
 import { Card, Text } from "../../design";
-import { getLiftLabel, t } from "../../i18n";
+import { getLiftLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 
 interface PlanUpcomingWeekCardProps {
@@ -13,6 +13,8 @@ export function PlanUpcomingWeekCard({
   stub,
   onPress,
 }: PlanUpcomingWeekCardProps) {
+  useLocale();
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress}>
       <Card>

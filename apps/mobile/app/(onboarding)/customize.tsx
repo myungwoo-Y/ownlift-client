@@ -81,7 +81,7 @@ export default function OnboardingStep3() {
       await useProgramStore.getState().initProgram(programParams);
       await setSetting({ key: "onboarding_complete", value: "true" });
 
-      router.replace("/(tabs)");
+      router.replace("/(tabs)/plan");
     } catch (error) {
       console.error("Failed to finish onboarding:", error);
       setIsCreating(false);

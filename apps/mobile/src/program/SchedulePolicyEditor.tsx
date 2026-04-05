@@ -1,7 +1,7 @@
 import { REQUIRED_SCHEDULED_DAYS, type ProgramScheduleMode, type ProgramWeekday } from "@ownlift/schemas";
 import { Pressable, StyleSheet, View } from "react-native";
 import { SegmentedControl, Text, borderRadius, colors, fontSize, fontWeight, spacing } from "../design";
-import { getWeekdayShortLabel, t } from "../i18n";
+import { getWeekdayShortLabel, t, useLocale } from "../i18n";
 import { normalizeScheduledDays, WEEKDAY_SELECTION_ORDER } from "./schedule-policy";
 
 interface SchedulePolicyEditorProps {
@@ -19,6 +19,8 @@ export function SchedulePolicyEditor({
   onModeChange,
   onScheduledDaysChange,
 }: SchedulePolicyEditorProps) {
+  useLocale();
+
   const normalizedDays = normalizeScheduledDays(scheduledDays);
 
   function handleToggleDay(day: ProgramWeekday) {

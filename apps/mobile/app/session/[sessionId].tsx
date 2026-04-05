@@ -44,13 +44,13 @@ export default function SessionDetailScreen() {
         return;
       }
 
-      router.dismissTo("/(tabs)");
+      router.dismissTo("/(tabs)/plan");
     } catch {
       try {
-        router.dismissTo("/(tabs)");
+        router.dismissTo("/(tabs)/plan");
       } catch {
         try {
-          router.replace("/(tabs)");
+          router.replace("/(tabs)/plan");
         } catch {
         }
       }

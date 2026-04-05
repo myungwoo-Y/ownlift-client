@@ -6,11 +6,10 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../src/design";
-import { buildMockHistoryItems } from "../../src/history/mock-history";
-import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
-import { useProgramStore } from "../../src/stores/program-store";
+import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../../src/design";
+import { buildMockHistoryItems } from "../../../src/history/mock-history";
+import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../../src/i18n";
+import { useProgramStore } from "../../../src/stores/program-store";
 
 interface HistoryItem extends SessionStubRecord {
   completedAt?: string;
@@ -486,53 +485,45 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView
-      collapsable={false}
-      edges={["top", "left", "right"]}
+    <FlatList
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.listContent}
+      data={items}
+      keyExtractor={(item) => item.sessionId}
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
       style={styles.safe}
-    >
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.sessionId}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListHeaderComponent={(
-          <View style={styles.listHeader}>
-            <View style={styles.header}>
-              <Text variant="title">{t("history.title")}</Text>
-            </View>
+      ListHeaderComponent={(
+        <View style={styles.listHeader}>
+          <View style={styles.chartSection}>
+            <LiftSummaryCards
+              items={items}
+              selectedLift={selectedLift}
+              unit={instance?.params.unit ?? "kg"}
+              onSelect={setSelectedLift}
+            />
 
-            <View style={styles.chartSection}>
-              <LiftSummaryCards
-                items={items}
-                selectedLift={selectedLift}
-                unit={instance?.params.unit ?? "kg"}
-                onSelect={setSelectedLift}
-              />
+            <LiftTrendCard
+              selectedLift={selectedLift}
+              items={items}
+              unit={instance?.params.unit ?? "kg"}
+            />
 
-              <LiftTrendCard
-                selectedLift={selectedLift}
-                items={items}
-                unit={instance?.params.unit ?? "kg"}
-              />
-
-              <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
-            </View>
+            <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
           </View>
-        )}
-        ListEmptyComponent={(
-          <View style={styles.empty}>
-            <Text variant="body" style={styles.emptyText}>
-              {t("history.emptyTitle")}
-            </Text>
-            <Text variant="caption" style={styles.emptyText}>
-              {t("history.emptySubtitle")}
-            </Text>
-          </View>
-        )}
-      />
-    </SafeAreaView>
+        </View>
+      )}
+      ListEmptyComponent={(
+        <View style={styles.empty}>
+          <Text variant="body" style={styles.emptyText}>
+            {t("history.emptyTitle")}
+          </Text>
+          <Text variant="caption" style={styles.emptyText}>
+            {t("history.emptySubtitle")}
+          </Text>
+        </View>
+      )}
+    />
   );
 }
 
@@ -548,7 +539,7 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     gap: spacing.lg,
-    paddingTop: spacing["2xl"],
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
   header: {

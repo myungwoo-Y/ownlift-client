@@ -10,7 +10,7 @@ import { Appearance, StyleSheet } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../src/design/tokens";
-import { useLocale } from "../src/i18n";
+import { setLocale, useLocale } from "../src/i18n";
 import { useProgramStore } from "../src/stores/program-store";
 import { useSettingsStore } from "../src/stores/settings-store";
 
@@ -34,6 +34,11 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   const router = useRouter();
   const segments = useSegments();
+  const locale = useSettingsStore((state) => state.locale);
+
+  useEffect(() => {
+    setLocale(locale);
+  }, [locale]);
 
   useEffect(() => {
     Appearance.setColorScheme("dark");
@@ -81,7 +86,7 @@ export default function RootLayout() {
       if (needsOnboarding && !inOnboarding) {
         router.replace("/(onboarding)");
       } else if (!needsOnboarding && inOnboarding) {
-        router.replace("/(tabs)");
+        router.replace("/(tabs)/plan");
       }
     }
 

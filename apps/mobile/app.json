@@ -30,6 +30,7 @@
     },
     "plugins": [
       "expo-dev-client",
+      "expo-updates",
       "expo-router",
       [
         "expo-splash-screen",

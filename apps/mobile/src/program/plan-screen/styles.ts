@@ -12,6 +12,11 @@ export const styles = StyleSheet.create({
     paddingBottom: spacing["4xl"] + TAB_BAR_CLEARANCE,
     gap: spacing["2xl"],
   },
+  screenMeta: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: colors.textSecondary,
+  },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -161,6 +166,9 @@ export const styles = StyleSheet.create({
   cardText: {
     flex: 1,
     gap: 2,
+  },
+  cardMetaText: {
+    flexShrink: 1,
   },
   metaRow: {
     flexDirection: "row",

@@ -1,9 +1,9 @@
 import type { SessionStubRecord } from "@ownlift/db";
 
-const squatThumbnailSource = require("../../../assets/images/squat_3d.png");
-const benchThumbnailSource = require("../../../assets/images/bench_press_3d.png");
-const deadliftThumbnailSource = require("../../../assets/images/deadlift_3d.png");
-const pressThumbnailSource = require("../../../assets/images/ohp_3d.png");
+const squatThumbnailSource = require("../../../assets/images/squat.png");
+const benchThumbnailSource = require("../../../assets/images/bench-press.png");
+const deadliftThumbnailSource = require("../../../assets/images/deadlift.png");
+const pressThumbnailSource = require("../../../assets/images/ohp.png");
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);

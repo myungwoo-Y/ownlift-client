@@ -1,11 +1,13 @@
+import type { PrescriptionData } from "@ownlift/schemas";
 import type { SessionStubRecord } from "@ownlift/db";
 import { Image } from "expo-image";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackButton, Badge, Card, colors, Section, spacing, Text, borderRadius } from "../src/design";
-import { getLiftLabel, getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../src/i18n";
+import { formatNumber, getLiftLabel, getWeekdayShortLabel, t, useLocale } from "../src/i18n";
+import { loadSyncedPrescriptionForSession } from "../src/program/prescription-sync";
 import { getScheduledDayForIndex } from "../src/program/schedule-policy";
 import { useProgramStore } from "../src/stores/program-store";
 
@@ -22,13 +24,27 @@ function getLiftThumbnailSource(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   return null;
 }
 
+function getTopSetSummary(
+  prescription: PrescriptionData | null | undefined,
+  unit: string,
+): string | null {
+  const topSet = prescription?.sets.filter((setData) => !setData.isWarmup).at(-1);
+  if (!topSet) {
+    return null;
+  }
+
+  return `${formatNumber(topSet.targetWeight)}${unit} × ${formatNumber(topSet.targetReps)}${topSet.isAmrap ? "+" : ""}`;
+}
+
 function UpcomingSessionCard({
   stub,
   scheduledDayLabel,
+  summaryText,
   onPress,
 }: {
   stub: SessionStubRecord;
   scheduledDayLabel?: string | null;
+  summaryText?: string | null;
   onPress: (stub: SessionStubRecord) => void;
 }) {
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
@@ -52,15 +68,20 @@ function UpcomingSessionCard({
             ) : null}
             <View style={styles.cardText}>
               <Text style={styles.liftName}>{getLiftLabel(stub.mainLiftKey)}</Text>
-              <View style={styles.metaRow}>
-                <Text variant="caption">
-                  {t("session.weekAndSession", {
-                    week: stub.weekIndex + 1,
-                    session: getSessionLabel(stub.dayIndex),
-                  })}
-                </Text>
-                {scheduledDayLabel ? <Badge variant="planned" label={scheduledDayLabel} /> : null}
-              </View>
+              {(summaryText || scheduledDayLabel) ? (
+                <View style={styles.metaRow}>
+                  {summaryText ? (
+                    <Text
+                      variant="caption"
+                      numberOfLines={1}
+                      style={styles.cardMetaText}
+                    >
+                      {summaryText}
+                    </Text>
+                  ) : null}
+                  {scheduledDayLabel ? <Badge variant="planned" label={scheduledDayLabel} /> : null}
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -78,12 +99,66 @@ export default function UpcomingScreen() {
 
   const router = useRouter();
   const { instance, stubs, isLoading, loadProgram } = useProgramStore();
+  const [upcomingPrescriptions, setUpcomingPrescriptions] = useState<Record<string, PrescriptionData | null>>({});
 
   useFocusEffect(
     useCallback(() => {
       void loadProgram();
     }, [loadProgram]),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUpcomingPrescriptions() {
+      if (!instance) {
+        setUpcomingPrescriptions({});
+        return;
+      }
+
+      const targetStubs = stubs.filter(
+        (stub) => stub.cycleIndex === instance.state.currentCycle && stub.weekIndex > instance.state.currentWeek,
+      );
+
+      if (targetStubs.length === 0) {
+        setUpcomingPrescriptions({});
+        return;
+      }
+
+      const results = await Promise.allSettled(
+        targetStubs.map(async (stub) => {
+          const rx = await loadSyncedPrescriptionForSession({
+            sessionId: stub.sessionId,
+            instance,
+            stub,
+          });
+
+          return [stub.sessionId, rx?.data ?? null] as const;
+        }),
+      );
+
+      if (cancelled) return;
+
+      const nextPrescriptions: Record<string, PrescriptionData | null> = {};
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const [sessionId, prescription] = result.value;
+          nextPrescriptions[sessionId] = prescription;
+          continue;
+        }
+
+        console.error("Failed to load upcoming prescription", result.reason);
+      }
+
+      setUpcomingPrescriptions(nextPrescriptions);
+    }
+
+    void loadUpcomingPrescriptions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [instance, stubs]);
 
   const goBack = useCallback(() => {
     try {
@@ -97,13 +172,13 @@ export default function UpcomingScreen() {
         return;
       }
 
-      router.dismissTo("/(tabs)");
+      router.dismissTo("/(tabs)/plan");
     } catch {
       try {
-        router.dismissTo("/(tabs)");
+        router.dismissTo("/(tabs)/plan");
       } catch {
         try {
-          router.replace("/(tabs)");
+          router.replace("/(tabs)/plan");
         } catch {
         }
       }
@@ -123,6 +198,7 @@ export default function UpcomingScreen() {
   const upcomingStubs = stubs.filter(
     (stub) => stub.cycleIndex === instance.state.currentCycle && stub.weekIndex > instance.state.currentWeek,
   );
+  const unit = instance.params.unit;
   const upcomingWeeks = upcomingStubs.reduce<Array<{ weekIndex: number; stubs: SessionStubRecord[] }>>((groups, stub) => {
     const lastGroup = groups[groups.length - 1];
     if (lastGroup && lastGroup.weekIndex === stub.weekIndex) {
@@ -169,6 +245,7 @@ export default function UpcomingScreen() {
                       key={stub.sessionId}
                       stub={stub}
                       scheduledDayLabel={getScheduledDayLabel(stub.dayIndex)}
+                      summaryText={getTopSetSummary(upcomingPrescriptions[stub.sessionId], unit)}
                       onPress={(pressedStub) => {
                         router.push(`/workout/${pressedStub.sessionId}`);
                       }}
@@ -240,6 +317,9 @@ const styles = StyleSheet.create({
   cardText: {
     flex: 1,
     gap: 2,
+  },
+  cardMetaText: {
+    flexShrink: 1,
   },
   metaRow: {
     flexDirection: "row",
