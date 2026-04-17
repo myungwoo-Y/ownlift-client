@@ -4,11 +4,9 @@ import { colors } from "../../../src/design/tokens";
 import { t, useLocale } from "../../../src/i18n";
 
 const screenOptions = {
-  contentStyle: { backgroundColor: colors.background },
   headerLargeTitleShadowVisible: false,
   headerLargeTitleStyle: { color: colors.text, fontWeight: "800" as const },
-  headerShadowVisible: true,
-  headerTintColor: colors.text,
+  headerTransparent: Platform.OS === "ios",
   headerTitleStyle: { color: colors.text },
 };
 
@@ -20,7 +18,7 @@ export default function PlanStackLayout() {
       <Stack.Screen
         name="index"
         options={{
-          headerLargeTitle: Platform.OS === "ios",
+          headerLargeTitle: true,
           title: t("tab.plan"),
         }}
       />

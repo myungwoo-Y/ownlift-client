@@ -46,7 +46,7 @@ export function WeekRowCard({
             <View style={styles.thumbnailFrame}>
               <Image
                 source={thumbnailSource}
-                contentFit="cover"
+                contentFit="contain"
                 style={styles.thumbnailImage}
               />
             </View>

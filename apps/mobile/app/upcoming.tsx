@@ -5,7 +5,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton, Badge, Card, colors, Section, spacing, Text, borderRadius } from "../src/design";
+import { BackButton, Badge, Card, colors, Section, spacing, Text } from "../src/design";
 import { formatNumber, getLiftLabel, getWeekdayShortLabel, t, useLocale } from "../src/i18n";
 import { loadSyncedPrescriptionForSession } from "../src/program/prescription-sync";
 import { getScheduledDayForIndex } from "../src/program/schedule-policy";
@@ -61,7 +61,7 @@ function UpcomingSessionCard({
               <View style={styles.thumbnailFrame}>
                 <Image
                   source={thumbnailSource}
-                  contentFit="cover"
+                  contentFit="contain"
                   style={styles.thumbnailImage}
                 />
               </View>
@@ -199,7 +199,7 @@ export default function UpcomingScreen() {
     (stub) => stub.cycleIndex === instance.state.currentCycle && stub.weekIndex > instance.state.currentWeek,
   );
   const unit = instance.params.unit;
-  const upcomingWeeks = upcomingStubs.reduce<Array<{ weekIndex: number; stubs: SessionStubRecord[] }>>((groups, stub) => {
+  const upcomingWeeks = upcomingStubs.reduce<{ weekIndex: number; stubs: SessionStubRecord[] }[]>((groups, stub) => {
     const lastGroup = groups[groups.length - 1];
     if (lastGroup && lastGroup.weekIndex === stub.weekIndex) {
       lastGroup.stubs.push(stub);
@@ -334,12 +334,13 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   thumbnailFrame: {
-    width: 82,
-    height: 82,
-    borderRadius: 22,
+    width: 68,
+    height: 68,
+    borderRadius: 18,
     borderCurve: "continuous",
     overflow: "hidden",
     backgroundColor: colors.surfaceMuted,
+    padding: spacing.xs,
     flexShrink: 0,
   },
   thumbnailImage: {

@@ -1,12 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import { calcE1RM } from "@ownlift/core";
 import type { SessionStubRecord, SetLogRecord } from "@ownlift/db";
 import { getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
-import { FlatList, Pressable, StyleSheet, View } from "react-native";
+import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../../src/design";
+import { useHistoryFilterStore, type HistoryFilterOption } from "../../../src/history/history-filter-store";
 import { buildMockHistoryItems } from "../../../src/history/mock-history";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../../src/i18n";
 import { useProgramStore } from "../../../src/stores/program-store";
@@ -41,6 +43,70 @@ const SUMMARY_LIFTS: readonly MainLift[] = [
 const MAX_TREND_POINTS = 8;
 const MIN_TREND_POINTS = 2;
 const LINE_CHART_HEIGHT = 152;
+const WORD_BREAK_TEXT_PROPS = {
+  lineBreakStrategyIOS: "hangul-word" as const,
+};
+
+function getHistoryItemDate(item: HistoryItem): string | null {
+  return item.completedAt ?? item.scheduledDate ?? null;
+}
+
+function getHistoryMonthKey(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatHistoryMonthLabel(dateStr: string, includeYear: boolean): string {
+  return formatLocaleDate(dateStr, {
+    month: "long",
+    ...(includeYear ? { year: "numeric" } : {}),
+  });
+}
+
+function buildMonthFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
+  const options: HistoryFilterOption[] = [{ key: "all", label: t("history.filter.all") }];
+  const seenMonthKeys = new Set<string>();
+  const availableYears = new Set(
+    items
+      .map((item) => getHistoryItemDate(item))
+      .filter((value): value is string => Boolean(value))
+      .map((value) => new Date(value).getFullYear()),
+  );
+  const includeYear = availableYears.size > 1;
+
+  for (const item of items) {
+    const dateValue = getHistoryItemDate(item);
+    const monthKey = getHistoryMonthKey(dateValue);
+    if (!dateValue || !monthKey || seenMonthKeys.has(monthKey)) continue;
+
+    seenMonthKeys.add(monthKey);
+    options.push({
+      key: monthKey,
+      label: formatHistoryMonthLabel(dateValue, includeYear),
+    });
+  }
+
+  return options;
+}
+
+function buildLiftFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
+  const options: HistoryFilterOption[] = [{ key: "all", label: t("history.filter.all") }];
+
+  for (const lift of SUMMARY_LIFTS) {
+    if (!items.some((item) => item.mainLiftKey === lift)) continue;
+    options.push({ key: lift, label: getLiftLabel(lift) });
+  }
+
+  return options;
+}
+
+function getFilterOptionLabel(options: HistoryFilterOption[], key: string): string | null {
+  return options.find((option) => option.key === key)?.label ?? null;
+}
 
 function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
   if (!dateStr) return { day: "", weekday: "" };
@@ -183,32 +249,37 @@ function LiftSummaryCards({
             onPress={() => onSelect(lift)}
           >
             <Card style={[styles.summaryCard, isSelected && styles.summaryCardSelected]}>
-              <View style={styles.summaryCardTop}>
+              <View style={styles.summaryCardContent}>
                 <Text
+                  {...WORD_BREAK_TEXT_PROPS}
                   style={styles.summaryLiftLabel}
                   numberOfLines={2}
                 >
                   {getLiftLabel(lift)}
                 </Text>
-                {isSelected ? (
-                  <View style={styles.summaryCurrentPill}>
-                    <Text style={styles.summaryCurrentPillText}>CURRENT</Text>
-                  </View>
-                ) : null}
+                <View style={styles.summaryCurrentPillSlot}>
+                  {isSelected ? (
+                    <View style={styles.summaryCurrentPill}>
+                      <Text style={styles.summaryCurrentPillText}>CURRENT</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
 
-              <Text
-                style={styles.summaryLiftValue}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-                numberOfLines={1}
-              >
-                {summary.latestPoint ? formatMeasurement(summary.latestPoint.value, unit) : "—"}
-              </Text>
+              <View style={styles.summaryValueGroup}>
+                <Text
+                  style={styles.summaryLiftValue}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  numberOfLines={1}
+                >
+                  {summary.latestPoint ? formatMeasurement(summary.latestPoint.value, unit) : "—"}
+                </Text>
 
-              <Text style={[styles.summaryLiftChange, changeStyle]}>
-                {summary.change == null ? " " : formatChange(summary.change)}
-              </Text>
+                <Text style={[styles.summaryLiftChange, changeStyle]}>
+                  {summary.change == null ? " " : formatChange(summary.change)}
+                </Text>
+              </View>
             </Card>
           </Pressable>
         );
@@ -350,7 +421,10 @@ function LiftTrendCard({
     <Card style={styles.chartCard}>
       <View style={styles.chartCardHeader}>
         <View style={styles.chartCardCopy}>
-          <Text style={styles.chartTitle}>
+          <Text
+            {...WORD_BREAK_TEXT_PROPS}
+            style={styles.chartTitle}
+          >
             {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
           </Text>
           <Text variant="caption">{t("history.e1rmHelper")}</Text>
@@ -394,6 +468,11 @@ export default function HistoryScreen() {
 
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
+  const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
+  const selectedListLift = useHistoryFilterStore((state) => state.selectedListLift);
+  const setSelectedMonthKey = useHistoryFilterStore((state) => state.setSelectedMonthKey);
+  const setSelectedListLift = useHistoryFilterStore((state) => state.setSelectedListLift);
+  const setAvailableOptions = useHistoryFilterStore((state) => state.setAvailableOptions);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [selectedLift, setSelectedLift] = useState<MainLift>("deadlift");
 
@@ -441,6 +520,48 @@ export default function HistoryScreen() {
     }, [instance, stubs]),
   );
 
+  const monthFilterOptions = buildMonthFilterOptions(items);
+  const liftFilterOptions = buildLiftFilterOptions(items);
+
+  useEffect(() => {
+    setAvailableOptions(monthFilterOptions, liftFilterOptions);
+  }, [liftFilterOptions, monthFilterOptions, setAvailableOptions]);
+
+  const activeMonthKey = monthFilterOptions.some((option) => option.key === selectedMonthKey)
+    ? selectedMonthKey
+    : "all";
+  const activeListLift = liftFilterOptions.some((option) => option.key === selectedListLift)
+    ? selectedListLift
+    : "all";
+  const filteredItems = items.filter((item) => {
+    const itemMonthKey = getHistoryMonthKey(getHistoryItemDate(item));
+    const matchesMonth = activeMonthKey === "all" || itemMonthKey === activeMonthKey;
+    const matchesLift = activeListLift === "all" || item.mainLiftKey === activeListLift;
+    return matchesMonth && matchesLift;
+  });
+  const hasActiveFilters = activeMonthKey !== "all" || activeListLift !== "all";
+  const activeFilterCount = Number(activeMonthKey !== "all") + Number(activeListLift !== "all");
+  const activeFilterChips = [
+    activeMonthKey !== "all"
+      ? {
+        key: "month",
+        label: getFilterOptionLabel(monthFilterOptions, activeMonthKey) ?? activeMonthKey,
+        onRemove: () => setSelectedMonthKey("all"),
+      }
+      : null,
+    activeListLift !== "all"
+      ? {
+        key: "lift",
+        label: getFilterOptionLabel(liftFilterOptions, activeListLift) ?? activeListLift,
+        onRemove: () => setSelectedListLift("all"),
+      }
+      : null,
+  ].filter((chip): chip is { key: string; label: string; onRemove: () => void } => Boolean(chip));
+
+  function openFilterScreen(): void {
+    router.push("/(tabs)/history/filters");
+  }
+
   const renderItem = ({ item }: { item: HistoryItem }) => {
     const { day, weekday } = formatHistoryDate(item.completedAt ?? null);
     const weekLabel = getWeekLabel(item.weekIndex);
@@ -463,7 +584,10 @@ export default function HistoryScreen() {
             </View>
             <View style={styles.detailColumn}>
               <View style={styles.titleRow}>
-                <Text style={styles.liftName}>
+                <Text
+                  {...WORD_BREAK_TEXT_PROPS}
+                  style={styles.liftName}
+                >
                   {getLiftLabel(item.mainLiftKey)}
                 </Text>
                 <View style={styles.badges}>
@@ -489,45 +613,85 @@ export default function HistoryScreen() {
   };
 
   return (
-    <FlatList
-      contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.listContent}
-      data={items}
-      keyExtractor={(item) => item.sessionId}
-      renderItem={renderItem}
-      showsVerticalScrollIndicator={false}
-      style={styles.safe}
-      ListHeaderComponent={(
-        <View style={styles.listHeader}>
-          <View style={styles.chartSection}>
-            <LiftSummaryCards
-              items={items}
-              selectedLift={selectedLift}
-              unit={instance?.params.unit ?? "kg"}
-              onSelect={setSelectedLift}
-            />
+    <>
+      <FlatList
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={styles.listContent}
+        data={filteredItems}
+        keyExtractor={(item) => item.sessionId}
+        renderItem={renderItem}
+        showsVerticalScrollIndicator={false}
+        style={styles.safe}
+        ListHeaderComponent={(
+          <View style={styles.listHeader}>
+            <View style={styles.chartSection}>
+              <LiftSummaryCards
+                items={items}
+                selectedLift={selectedLift}
+                unit={instance?.params.unit ?? "kg"}
+                onSelect={setSelectedLift}
+              />
 
-            <LiftTrendCard
-              selectedLift={selectedLift}
-              items={items}
-              unit={instance?.params.unit ?? "kg"}
-            />
+              <LiftTrendCard
+                selectedLift={selectedLift}
+                items={items}
+                unit={instance?.params.unit ?? "kg"}
+              />
+            </View>
 
-            <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
+            {items.length > 0 ? (
+              <View style={styles.logSection}>
+                <View style={styles.logHeaderRow}>
+                  <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
+                  <Pressable style={styles.filterTrigger} onPress={openFilterScreen}>
+                    <Ionicons name="options-outline" size={16} color={colors.text} />
+                    <Text style={styles.filterTriggerText}>{t("history.filter.open")}</Text>
+                    {activeFilterCount > 0 ? (
+                      <View style={styles.filterTriggerCount}>
+                        <Text style={styles.filterTriggerCountText}>{activeFilterCount}</Text>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                </View>
+
+                {activeFilterChips.length > 0 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.activeFilterRow}
+                  >
+                    {activeFilterChips.map((chip) => (
+                      <Pressable key={chip.key} style={styles.activeFilterChip} onPress={chip.onRemove}>
+                        <Text style={styles.activeFilterChipText}>{chip.label}</Text>
+                        <Ionicons name="close" size={14} color={colors.text} />
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                ) : null}
+              </View>
+            ) : null}
           </View>
-        </View>
-      )}
-      ListEmptyComponent={(
-        <View style={styles.empty}>
-          <Text variant="body" style={styles.emptyText}>
-            {t("history.emptyTitle")}
-          </Text>
-          <Text variant="caption" style={styles.emptyText}>
-            {t("history.emptySubtitle")}
-          </Text>
-        </View>
-      )}
-    />
+        )}
+        ListEmptyComponent={(
+          <View style={styles.empty}>
+            <Text variant="body" style={styles.emptyText}>
+              {items.length === 0
+                ? t("history.emptyTitle")
+                : hasActiveFilters
+                  ? t("history.filteredEmptyTitle")
+                  : t("history.emptyTitle")}
+            </Text>
+            <Text variant="caption" style={styles.emptyText}>
+              {items.length === 0
+                ? t("history.emptySubtitle")
+                : hasActiveFilters
+                  ? t("history.filteredEmptySubtitle")
+                  : t("history.emptySubtitle")}
+            </Text>
+          </View>
+        )}
+      />
+    </>
   );
 }
 
@@ -559,6 +723,67 @@ const styles = StyleSheet.create({
   chartSection: {
     gap: spacing.md,
   },
+  logSection: {
+    gap: spacing.md,
+    paddingTop: spacing.xl,
+  },
+  logHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  filterTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: colors.surfaceGlass,
+  },
+  filterTriggerText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
+  filterTriggerCount: {
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+  },
+  filterTriggerCountText: {
+    color: colors.primaryForeground,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+  },
+  activeFilterRow: {
+    gap: spacing.sm,
+    paddingRight: spacing.sm,
+  },
+  activeFilterChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.28)",
+    backgroundColor: colors.primarySoft,
+  },
+  activeFilterChipText: {
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+  },
   summaryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -570,26 +795,30 @@ const styles = StyleSheet.create({
   summaryCard: {
     minHeight: 122,
     padding: spacing.lg,
+    justifyContent: "space-between",
+  },
+  summaryCardContent: {
     gap: spacing.md,
   },
   summaryCardSelected: {
     backgroundColor: colors.primarySoft,
     borderColor: "rgba(34, 197, 94, 0.34)",
   },
-  summaryCardTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: spacing.sm,
+  summaryCurrentPillSlot: {
+    minHeight: 22,
+    justifyContent: "center",
   },
   summaryLiftLabel: {
-    flex: 1,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
     lineHeight: 18,
   },
+  summaryValueGroup: {
+    gap: spacing.md,
+  },
   summaryCurrentPill: {
+    alignSelf: "flex-start",
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing["2xs"],
     borderRadius: borderRadius.full,

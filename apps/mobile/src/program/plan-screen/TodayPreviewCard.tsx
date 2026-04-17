@@ -1,9 +1,10 @@
+import { Ionicons } from "@expo/vector-icons";
 import type { SessionStubRecord } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
 import { Image } from "expo-image";
-import { View } from "react-native";
-import { Badge, Button, Card, Text } from "../../design";
-import { getLiftLabel, getSessionLabel, t, useLocale } from "../../i18n";
+import { Pressable, View } from "react-native";
+import { Card, Text, colors } from "../../design";
+import { formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { getLiftThumbnailSource } from "./utils";
 
@@ -13,6 +14,18 @@ interface PlanTodayPreviewCardProps {
   scheduledDayLabel?: string | null;
   unit: string;
   onStart: () => void;
+}
+
+function estimateWorkoutMinutes({
+  warmupCount,
+  workSetCount,
+  hasAmrap,
+}: {
+  warmupCount: number;
+  workSetCount: number;
+  hasAmrap: boolean;
+}): number {
+  return 6 + (warmupCount * 3) + (workSetCount * 8) + (hasAmrap ? 4 : 0);
 }
 
 export function PlanTodayPreviewCard({
@@ -28,22 +41,41 @@ export function PlanTodayPreviewCard({
   const warmupCount = prescription.sets.filter((setData) => setData.isWarmup).length;
   const workSets = prescription.sets.filter((setData) => !setData.isWarmup);
   const hasAmrap = workSets.some((setData) => setData.isAmrap);
+  const sessionLabel = t("session.weekAndSession", {
+    week: stub.weekIndex + 1,
+    session: getSessionLabel(stub.dayIndex),
+  });
+  const subtitle = scheduledDayLabel
+    ? `${scheduledDayLabel} · ${sessionLabel}`
+    : sessionLabel;
+  const estimatedMinutes = estimateWorkoutMinutes({
+    warmupCount,
+    workSetCount: workSets.length,
+    hasAmrap,
+  });
+  const infoPills = [
+    {
+      key: "duration",
+      icon: "time-outline",
+      label: t("plan.preview.estimatedDuration", { minutes: estimatedMinutes }),
+    },
+    {
+      key: "warmup",
+      icon: "barbell-outline",
+      label: warmupCount > 0
+        ? t("plan.preview.warmupSets", { count: warmupCount })
+        : t("plan.preview.workSetCount", { count: workSets.length }),
+    },
+    {
+      key: "sets",
+      icon: "layers-outline",
+      label: t("plan.preview.totalSets", { count: prescription.sets.length }),
+    },
+  ] as const;
 
   return (
     <Card highlighted style={styles.todayPreviewCard}>
       <View style={styles.todayPreviewHeader}>
-        <View style={styles.todayPreviewCopy}>
-          <Text variant="label">{t("plan.section.today")}</Text>
-          <Text style={styles.todayPreviewTitle}>
-            {getLiftLabel(stub.mainLiftKey)}
-          </Text>
-          <Text variant="caption">
-            {t("session.weekAndSession", {
-              week: stub.weekIndex + 1,
-              session: getSessionLabel(stub.dayIndex),
-            })}
-          </Text>
-        </View>
         {thumbnailSource ? (
           <View style={styles.todayPreviewImageFrame}>
             <Image
@@ -53,44 +85,67 @@ export function PlanTodayPreviewCard({
             />
           </View>
         ) : null}
-      </View>
-
-      <View style={styles.todayPreviewMeta}>
-        {scheduledDayLabel ? <Badge variant="planned" label={scheduledDayLabel} /> : null}
-        {hasAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
-        <Badge
-          variant="planned"
-          label={t("plan.preview.totalSets", { count: prescription.sets.length })}
-        />
-        {warmupCount > 0 ? (
-          <Badge
-            variant="planned"
-            label={t("plan.preview.warmupSets", { count: warmupCount })}
-          />
-        ) : null}
-      </View>
-
-      <View style={styles.todayPreviewSets}>
-        <Text style={styles.todayPreviewSetsLabel}>
-          {t("plan.preview.workSets")}
-        </Text>
-        <View style={styles.workSetList}>
-          {workSets.map((setData) => (
-            <View key={setData.setOrder} style={styles.workSetChip}>
-              <Text style={styles.workSetChipWeight}>
-                {String(setData.targetWeight)}
-                {unit}
-              </Text>
-              <Text variant="caption">
-                × {String(setData.targetReps)}
-                {setData.isAmrap ? "+" : ""}
-              </Text>
-            </View>
-          ))}
+        <View style={styles.todayPreviewCopy}>
+          <Text style={styles.todayPreviewTitle}>
+            {getLiftLabel(stub.mainLiftKey)}
+          </Text>
+          <Text style={styles.todayPreviewSubtitle}>{subtitle}</Text>
         </View>
       </View>
 
-      <Button title={t("plan.startTodayWorkout")} onPress={onStart} />
+      <View style={styles.todayPreviewSetGrid}>
+        {workSets.map((setData) => (
+          <View
+            key={setData.setOrder}
+            style={[
+              styles.todayPreviewSetCard,
+              setData.isAmrap ? styles.todayPreviewSetCardAccent : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.todayPreviewSetWeight,
+                setData.isAmrap ? styles.todayPreviewSetWeightAccent : null,
+              ]}
+            >
+              {formatNumber(setData.targetWeight)}
+              <Text style={styles.todayPreviewSetUnit}> {unit}</Text>
+            </Text>
+            <Text
+              style={[
+                styles.todayPreviewSetReps,
+                setData.isAmrap ? styles.todayPreviewSetRepsAccent : null,
+              ]}
+            >
+              × {formatNumber(setData.targetReps)}
+              {setData.isAmrap ? "+" : ""}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.todayPreviewInfoRow}>
+        {infoPills.map((pill) => (
+          <View key={pill.key} style={styles.todayPreviewInfoPill}>
+            <Ionicons name={pill.icon} size={16} color={colors.textSecondary} />
+            <Text numberOfLines={1} style={styles.todayPreviewInfoText}>
+              {pill.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Pressable
+        accessibilityRole="button"
+        onPress={onStart}
+        style={({ pressed }) => [
+          styles.todayPreviewCta,
+          pressed ? styles.todayPreviewCtaPressed : null,
+        ]}
+      >
+        <Text style={styles.todayPreviewCtaText}>{t("workout.startWorkout")}</Text>
+        <Ionicons name="arrow-forward" size={22} color={colors.primaryForeground} />
+      </Pressable>
     </Card>
   );
 }

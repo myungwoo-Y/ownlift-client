@@ -72,6 +72,7 @@ Reference these guidelines when:
 - `ui-safe-area-scroll` - Handle safe areas in ScrollViews
 - `ui-scrollview-content-inset` - Use contentInset for headers
 - `ui-menus` - Use native context menus
+- `ui-native-kit-widgets` - Prefer Native Kit for modals, headers, drawers, and similar chrome
 - `ui-native-modals` - Use native modals when possible
 - `ui-measure-views` - Use onLayout, not measure()
 - `ui-styling` - Use StyleSheet.create or Nativewind

@@ -24,6 +24,16 @@ export default function HistoryStackLayout() {
           title: t("history.title"),
         }}
       />
+      <Stack.Screen
+        name="filters"
+        options={{
+          headerLargeTitle: false,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colors.background },
+          presentation: "card",
+          title: t("history.filter.title"),
+        }}
+      />
     </Stack>
   );
 }

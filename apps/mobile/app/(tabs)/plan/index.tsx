@@ -6,17 +6,17 @@ import { ScrollView, View } from "react-native";
 import { useSharedValue } from "react-native-reanimated";
 import { Card, Section, Text, spacing } from "../../../src/design";
 import { formatNumber, getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
-import { loadSyncedPrescriptionForSession } from "../../../src/program/prescription-sync";
 import {
   FALLBACK_ROW_HEIGHT,
   REORDER_OVERLAP_THRESHOLD,
   TAB_BAR_SCROLL_INDICATOR_INSETS,
 } from "../../../src/program/plan-screen/constants";
-import { PlanTodayPreviewCard } from "../../../src/program/plan-screen/TodayPreviewCard";
-import { PlanUpcomingWeekCard } from "../../../src/program/plan-screen/UpcomingWeekCard";
 import { PlanWeekList } from "../../../src/program/plan-screen/PlanWeekList";
 import { styles } from "../../../src/program/plan-screen/styles";
+import { PlanTodayPreviewCard } from "../../../src/program/plan-screen/TodayPreviewCard";
+import { PlanUpcomingWeekCard } from "../../../src/program/plan-screen/UpcomingWeekCard";
 import { clamp, getReorderableSegmentStart } from "../../../src/program/plan-screen/utils";
+import { loadSyncedPrescriptionForSession } from "../../../src/program/prescription-sync";
 import { getScheduledDayForIndex } from "../../../src/program/schedule-policy";
 import { useProgramStore } from "../../../src/stores/program-store";
 

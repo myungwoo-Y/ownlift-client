@@ -57,8 +57,9 @@ Comprehensive performance optimization guide for React Native applications, desi
    - 9.5 [Use expo-image for Optimized Images](#95-use-expo-image-for-optimized-images)
    - 9.6 [Use Galeria for Image Galleries and Lightbox](#96-use-galeria-for-image-galleries-and-lightbox)
    - 9.7 [Use Native Menus for Dropdowns and Context Menus](#97-use-native-menus-for-dropdowns-and-context-menus)
-   - 9.8 [Use Native Modals Over JS-Based Bottom Sheets](#98-use-native-modals-over-js-based-bottom-sheets)
-   - 9.9 [Use Pressable Instead of Touchable Components](#99-use-pressable-instead-of-touchable-components)
+   - 9.8 [Use Native Kit for Shell Widgets](#98-use-native-kit-for-shell-widgets)
+   - 9.9 [Use Native Modals Over JS-Based Bottom Sheets](#99-use-native-modals-over-js-based-bottom-sheets)
+   - 9.10 [Use Pressable Instead of Touchable Components](#910-use-pressable-instead-of-touchable-components)
 10. [Design System](#10-design-system) — **MEDIUM**
    - 10.1 [Use Compound Components Over Polymorphic Children](#101-use-compound-components-over-polymorphic-children)
 11. [Monorepo](#11-monorepo) — **LOW**
@@ -2380,7 +2381,105 @@ function MenuWithSubmenu() {
 
 Reference: [https://zeego.dev/components/dropdown-menu](https://zeego.dev/components/dropdown-menu)
 
-### 9.8 Use Native Modals Over JS-Based Bottom Sheets
+### 9.8 Use Native Kit for Shell Widgets
+
+**Impact: HIGH (platform consistency, accessibility, native gestures)**
+
+For shell widgets such as modals, headers, drawers, sheets, tab bars, and
+menus, prefer the project's Native Kit primitives first. If Native Kit does not
+cover the use case, fall back to platform-native APIs like React Navigation's
+native stack/header and `formSheet` presentation before building a custom JS
+widget.
+
+These widgets sit on top of system gestures, safe areas, keyboard avoidance,
+back handling, and accessibility semantics. Hand-rolled JS chrome usually
+drifts from platform behavior and is harder to maintain.
+
+**Incorrect: custom JS shell widgets**
+
+```tsx
+function ProfileScreen() {
+  return (
+    <View style={{ flex: 1 }}>
+      <Animated.View style={styles.header}>
+        <Text style={styles.title}>Profile</Text>
+      </Animated.View>
+
+      {drawerOpen ? (
+        <Animated.View style={styles.drawer}>
+          <SettingsPanel />
+        </Animated.View>
+      ) : null}
+
+      {sheetOpen ? (
+        <Animated.View style={styles.sheet}>
+          <EditProfileForm />
+        </Animated.View>
+      ) : null}
+
+      <ProfileContent />
+    </View>
+  )
+}
+```
+
+**Correct: native header + native modal, native drawer when available**
+
+```tsx
+import { Stack } from 'expo-router'
+import { Modal, View } from 'react-native'
+
+export function ProfileLayout() {
+  return (
+    <Stack.Screen
+      options={{
+        title: 'Profile',
+        headerLargeTitleEnabled: true,
+        headerSearchBarOptions: {
+          placeholder: 'Search',
+        },
+      }}
+    />
+  )
+}
+
+function ProfileScreen() {
+  const [editorOpen, setEditorOpen] = useState(false)
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ProfileContent />
+      <Modal
+        visible={editorOpen}
+        presentationStyle='formSheet'
+        onRequestClose={() => setEditorOpen(false)}
+      >
+        <EditProfileForm />
+      </Modal>
+    </View>
+  )
+}
+```
+
+Use this fallback order for app chrome:
+
+- **First:** Native Kit primitives already adopted by the project
+- **Second:** platform-native APIs such as native stack headers, native tabs, or
+  native form sheets
+- **Last resort:** custom JS implementations only when no acceptable native
+  primitive exists
+
+For drawers and side panels specifically, prefer a Native Kit drawer or a
+navigator-provided drawer/split-view primitive over an absolutely positioned
+`Animated.View` overlay.
+
+Reference:
+
+- [React Navigation Native Stack](https://reactnavigation.org/docs/native-stack-navigator)
+- [React Native Modal](https://reactnative.dev/docs/modal)
+- [Expo Router Native Tabs](https://docs.expo.dev/router/advanced/native-tabs)
+
+### 9.9 Use Native Modals Over JS-Based Bottom Sheets
 
 **Impact: HIGH (native performance, gestures, accessibility)**
 
@@ -2457,7 +2556,7 @@ Native modals provide swipe-to-dismiss, proper keyboard avoidance, and
 
 accessibility out of the box.
 
-### 9.9 Use Pressable Instead of Touchable Components
+### 9.10 Use Pressable Instead of Touchable Components
 
 **Impact: LOW (modern API, more flexible)**
 

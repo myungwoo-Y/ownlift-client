@@ -67,6 +67,7 @@ optimized for agents and LLMs.
 - `ui-expo-image.md` - Use expo-image for optimized images
 - `ui-image-gallery.md` - Use Galeria for lightbox/galleries
 - `ui-menus.md` - Native dropdown and context menus with Zeego
+- `ui-native-kit-widgets.md` - Prefer Native Kit for modals, headers, drawers, and app chrome
 - `ui-native-modals.md` - Use native Modal with formSheet
 - `ui-pressable.md` - Use Pressable instead of TouchableOpacity
 - `ui-measure-views.md` - Measuring view dimensions

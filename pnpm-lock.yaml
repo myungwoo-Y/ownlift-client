@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  expo-updates-interface: 55.1.5
+
 importers:
 
   .:
@@ -3335,11 +3338,6 @@ packages:
     peerDependenciesMeta:
       react-native-web:
         optional: true
-
-  expo-updates-interface@55.1.3:
-    resolution: {integrity: sha512-UVVIiZqymQZJL+o/jh65kXOI97xdkbqBJJM0LMabaPMNLFnc6/WvOMOzmQs7SPyKb8+0PeBaFd7tj5DzF6JeQg==}
-    peerDependencies:
-      expo: '*'
 
   expo-updates-interface@55.1.5:
     resolution: {integrity: sha512-YOk9vhplWi0djoeqxMlEQgcDFeOGhnj4dWU0v1QvF5RqpqwLGdx780E0k3zL85xw6LXljVN78d6g8z51qIZu5g==}
@@ -9727,7 +9725,7 @@ snapshots:
       expo-dev-menu: 55.0.10(expo@55.0.4)
       expo-dev-menu-interface: 55.0.1(expo@55.0.4)
       expo-manifests: 55.0.9(expo@55.0.4)(typescript@5.9.3)
-      expo-updates-interface: 55.1.3(expo@55.0.4)
+      expo-updates-interface: 55.1.5(expo@55.0.4)
     transitivePeerDependencies:
       - supports-color
       - typescript
@@ -9930,10 +9928,6 @@ snapshots:
       react-native-web: 0.21.2(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
     transitivePeerDependencies:
       - supports-color
-
-  expo-updates-interface@55.1.3(expo@55.0.4):
-    dependencies:
-      expo: 55.0.4(@babel/core@7.29.0)(@expo/dom-webview@55.0.3)(@expo/metro-runtime@55.0.6)(expo-router@55.0.3)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.2(@babel/core@7.29.0)(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
 
   expo-updates-interface@55.1.5(expo@55.0.4):
     dependencies:
