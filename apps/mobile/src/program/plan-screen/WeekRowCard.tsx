@@ -2,7 +2,7 @@ import type { SessionStubRecord } from "@ownlift/db";
 import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { Badge, Card, Text } from "../../design";
+import { Badge, Card, colors, Text } from "../../design";
 import { getLiftLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { getLiftThumbnailSource } from "./utils";
@@ -48,6 +48,7 @@ export function WeekRowCard({
                 source={thumbnailSource}
                 contentFit="contain"
                 style={styles.thumbnailImage}
+                tintColor={colors.primary}
               />
             </View>
           ) : null}

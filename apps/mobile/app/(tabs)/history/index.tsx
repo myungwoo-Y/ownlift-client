@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.28)",
+    borderColor: "rgba(214, 255, 96, 0.28)",
     backgroundColor: colors.primarySoft,
   },
   activeFilterChipText: {

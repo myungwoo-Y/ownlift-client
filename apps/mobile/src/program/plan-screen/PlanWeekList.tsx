@@ -8,8 +8,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
 } from "react-native-reanimated";
-import { Text } from "../../design";
-import { t, useLocale } from "../../i18n";
+import { useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { WeekRowCard } from "./WeekRowCard";
 
@@ -204,9 +203,6 @@ export function PlanWeekList({
 
   return (
     <>
-      <Text variant="caption" style={styles.reorderHint}>
-        {t("plan.reorderHint")}
-      </Text>
       <View style={styles.weekList}>
         {orderedWeekStubs.map((stub, index) => {
           const isToday = todaySessionId === stub.sessionId;

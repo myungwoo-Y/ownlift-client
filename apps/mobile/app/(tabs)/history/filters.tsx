@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceGlass,
   },
   optionChipSelected: {
-    borderColor: "rgba(34, 197, 94, 0.28)",
+    borderColor: "rgba(214, 255, 96, 0.28)",
     backgroundColor: colors.primarySoft,
   },
   optionChipText: {

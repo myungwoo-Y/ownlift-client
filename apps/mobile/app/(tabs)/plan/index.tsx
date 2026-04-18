@@ -347,11 +347,7 @@ export default function PlanScreen() {
       showsVerticalScrollIndicator={false}
       style={styles.safe}
     >
-      <Text style={styles.screenMeta}>
-        {t("week.title", { week: state.currentWeek + 1 })}
-      </Text>
-
-      <Section title={t("plan.section.today")}>
+      <Section title={t("plan.section.today")} titleStyle={styles.sectionTitle}>
         {todayStub && todayPreview ? (
           <PlanTodayPreviewCard
             stub={todayStub}
@@ -374,7 +370,7 @@ export default function PlanScreen() {
         )}
       </Section>
 
-      <Section title={t("plan.section.thisWeek")}>
+      <Section title={t("plan.section.thisWeek")} titleStyle={styles.sectionTitle}>
         <PlanWeekList
           orderedWeekStubs={orderedWeekStubs}
           sessionSummaryBySessionId={weekSummaryBySessionId}
@@ -413,7 +409,7 @@ export default function PlanScreen() {
       </Section>
 
       {nextUpcomingStub ? (
-        <Section title={t("plan.section.upcoming")}>
+        <Section title={t("plan.section.upcoming")} titleStyle={styles.sectionTitle}>
           <PlanUpcomingWeekCard
             stub={nextUpcomingStub}
             onPress={() => {

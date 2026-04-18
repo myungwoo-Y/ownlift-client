@@ -47,6 +47,14 @@ export const styles = StyleSheet.create({
     lineHeight: 44,
     color: colors.text,
   },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    lineHeight: 28,
+    letterSpacing: 0,
+    textTransform: "none",
+    color: colors.text,
+  },
   todayPreviewCard: {
     gap: spacing.lg,
   },
@@ -75,8 +83,6 @@ export const styles = StyleSheet.create({
     borderRadius: 22,
     borderCurve: "continuous",
     overflow: "hidden",
-    padding: spacing.sm,
-    backgroundColor: colors.primarySoft,
   },
   todayPreviewImage: {
     width: "100%",
@@ -148,6 +154,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    marginTop: spacing.lg,
     gap: spacing.sm,
     borderRadius: borderRadius.full,
     borderCurve: "continuous",

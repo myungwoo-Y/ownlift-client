@@ -1,5 +1,5 @@
 export const colors = {
-  background: "#000000",
+  background: "#101010",
   backgroundDeep: "#0E131B",
   surface: "#1C1C1E",
   surfaceElevated: "#232326",
@@ -13,14 +13,14 @@ export const colors = {
   textSecondary: "#98989F",
   textTertiary: "#6C6C70",
 
-  primary: "#22C55E",
-  primarySoft: "rgba(34, 197, 94, 0.16)",
+  primary: "#D6FF60",
+  primarySoft: "rgba(214, 255, 96, 0.16)",
   primaryForeground: "#061018",
 
-  accent: "#22C55E",
+  accent: "#D6FF60",
   accentForeground: "#061018",
 
-  success: "#22C55E",
+  success: "#D6FF60",
   successForeground: "#061018",
 
   destructive: "#EF4444",

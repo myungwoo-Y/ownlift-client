@@ -81,6 +81,7 @@ export function PlanTodayPreviewCard({
             <Image
               source={thumbnailSource}
               contentFit="contain"
+              tintColor={colors.primary}
               style={styles.todayPreviewImage}
             />
           </View>
@@ -124,16 +125,6 @@ export function PlanTodayPreviewCard({
         ))}
       </View>
 
-      <View style={styles.todayPreviewInfoRow}>
-        {infoPills.map((pill) => (
-          <View key={pill.key} style={styles.todayPreviewInfoPill}>
-            <Ionicons name={pill.icon} size={16} color={colors.textSecondary} />
-            <Text numberOfLines={1} style={styles.todayPreviewInfoText}>
-              {pill.label}
-            </Text>
-          </View>
-        ))}
-      </View>
 
       <Pressable
         accessibilityRole="button"
