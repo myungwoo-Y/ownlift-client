@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { borderRadius, colors, spacing } from "../../design";
+import { borderRadius, colors, fontWeight, spacing } from "../../design";
 import { TAB_BAR_CLEARANCE } from "./constants";
 
 export const styles = StyleSheet.create({
@@ -63,74 +63,119 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: colors.surfaceGlass,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(20, 20, 22, 0.92)",
   },
   sectionIconButtonPressed: {
-    opacity: 0.92,
+    backgroundColor: "rgba(16, 16, 18, 0.96)",
     transform: [{ scale: 0.96 }],
   },
   todayPreviewCard: {
     position: "relative",
     overflow: "hidden",
-    minHeight: 176,
-    justifyContent: "flex-end",
-    borderRadius: 24,
+    minHeight: 148,
+    justifyContent: "center",
+    borderRadius: 22,
     borderCurve: "continuous",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: 52,
-    paddingRight: 72,
+    paddingRight: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: "rgba(214, 255, 96, 0.16)",
-    backgroundColor: colors.primarySoft,
-    boxShadow: "0px 20px 40px rgba(0, 0, 0, 0.24)",
+    borderColor: "rgba(6, 16, 24, 0.05)",
+    backgroundColor: "#CAE95A",
+    boxShadow: "0px 12px 24px rgba(6, 16, 24, 0.1)",
   },
   todayPreviewCardPressed: {
-    opacity: 0.96,
     transform: [{ scale: 0.988 }],
   },
-  todayPreviewBackground: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(214, 255, 96, 0.08)",
-  },
   todayPreviewContent: {
+    paddingLeft: spacing.lg,
+    paddingRight: 72,
     position: "relative",
-    zIndex: 1,
+    zIndex: 2,
   },
   todayPreviewCopy: {
+    paddingLeft: spacing.lg,
     gap: spacing.sm,
   },
-  todayPreviewMeta: {
-    fontSize: 12,
-    fontWeight: "600",
+  todayPreviewSectionSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
     color: colors.textSecondary,
   },
-  todayPreviewTitle: {
-    fontSize: 26,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: colors.text,
-  },
-  todayPreviewSummary: {
-    fontSize: 15,
-    lineHeight: 22,
+  todayPreviewMetaInline: {
+    paddingLeft: spacing.lg,
+    fontSize: 12,
     fontWeight: "600",
-    color: "rgba(245, 245, 247, 0.82)",
+    color: "rgba(6, 16, 24, 0.52)",
+  },
+  todayPreviewTitleRow: {
+    marginBottom: spacing.sm,
+  },
+  todayPreviewTitleIconFrame: {
+    flexShrink: 0,
+  },
+  todayPreviewTitleIcon: {
+    width: 52,
+    height: 52,
+    transform: [{ translateX: -8 }],
+    opacity: 0.88,
+  },
+  todayPreviewTitle: {
+    flex: 1,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: colors.primaryForeground,
+  },
+  todayPreviewSummaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  todayPreviewSummaryGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  todayPreviewSummaryItem: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  todayPreviewSummaryWeight: {
+    fontSize: 18,
+    lineHeight: 20,
+    fontWeight: fontWeight.medium,
+    color: colors.primaryForeground,
+  },
+  todayPreviewSummaryReps: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: fontWeight.medium,
+    color: "rgba(6, 16, 24, 0.64)",
+  },
+  todayPreviewSummarySeparator: {
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: "rgba(6, 16, 24, 0.3)",
   },
   todayPreviewPlayButton: {
     position: "absolute",
     right: spacing.lg,
-    bottom: spacing.lg,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    top: spacing["2xl"],
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderCurve: "continuous",
-    backgroundColor: colors.primary,
+    backgroundColor: "rgba(6, 16, 24, 0.88)",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 2,
-    boxShadow: "0px 8px 20px rgba(214, 255, 96, 0.2)",
+    zIndex: 3,
+    boxShadow: "0px 6px 14px rgba(6, 16, 24, 0.1)",
   },
   todayEmptyState: {
     gap: spacing.sm,
@@ -172,7 +217,7 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   weekCarouselCardToday: {
-    borderColor: "rgba(214, 255, 96, 0.52)",
+    borderColor: "rgba(214, 255, 96, 0.28)",
   },
   weekCarouselCardCompleted: {
     opacity: 0.76,
@@ -220,6 +265,9 @@ export const styles = StyleSheet.create({
   },
   weekCarouselThumbnailPress: {
     backgroundColor: colors.primarySoft,
+  },
+  weekCarouselThumbnailToday: {
+    backgroundColor: "rgba(214, 255, 96, 0.12)",
   },
   weekCarouselBody: {
     gap: spacing.sm,

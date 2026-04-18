@@ -121,7 +121,13 @@ export function PlanWeekCarousel({
           >
             <View style={styles.weekCarouselTopRow}>
               {thumbnailSource ? (
-                <View style={[styles.weekCarouselThumbnailFrame, palette.thumbnail]}>
+                <View
+                  style={[
+                    styles.weekCarouselThumbnailFrame,
+                    palette.thumbnail,
+                    isToday ? styles.weekCarouselThumbnailToday : null,
+                  ]}
+                >
                   <Image
                     source={thumbnailSource}
                     contentFit="contain"
@@ -131,6 +137,7 @@ export function PlanWeekCarousel({
                 </View>
               ) : <View />}
               <Badge
+                size="compact"
                 variant={isCompleted ? "completed" : isToday ? "today" : "planned"}
                 label={
                   isCompleted

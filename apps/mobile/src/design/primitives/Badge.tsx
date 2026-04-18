@@ -3,16 +3,18 @@ import { borderRadius, colors, fontSize, fontWeight, spacing } from "../tokens";
 import { Text } from "./Text";
 
 type BadgeVariant = "default" | "completed" | "today" | "planned" | "amrap" | "pr";
+type BadgeSize = "default" | "compact";
 
 interface BadgeProps {
   variant: BadgeVariant;
   label: string;
+  size?: BadgeSize;
 }
 
-export function Badge({ variant, label }: BadgeProps) {
+export function Badge({ variant, label, size = "default" }: BadgeProps) {
   return (
-    <View style={[styles.base, variantStyles[variant]]}>
-      <Text style={[styles.text, variantTextStyles[variant]]}>{label}</Text>
+    <View style={[styles.base, sizeStyles[size], variantStyles[variant]]}>
+      <Text style={[styles.text, textSizeStyles[size], variantTextStyles[variant]]}>{label}</Text>
     </View>
   );
 }
@@ -27,6 +29,21 @@ const styles = StyleSheet.create({
   text: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
+  },
+});
+
+const sizeStyles = StyleSheet.create({
+  default: {},
+  compact: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 3,
+  },
+});
+
+const textSizeStyles = StyleSheet.create({
+  default: {},
+  compact: {
+    fontSize: 10,
   },
 });
 

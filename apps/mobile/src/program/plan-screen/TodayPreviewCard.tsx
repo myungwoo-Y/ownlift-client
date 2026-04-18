@@ -1,40 +1,28 @@
 import { Ionicons } from "@expo/vector-icons";
 import type { SessionStubRecord } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
+import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
 import { Text, colors } from "../../design";
-import { formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../i18n";
+import { formatNumber, getLiftLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
+import { getLiftThumbnailSource } from "./utils";
 
 interface PlanTodayPreviewCardProps {
   stub: SessionStubRecord;
   prescription: PrescriptionData;
-  scheduledDayLabel?: string | null;
   onStart: () => void;
 }
 
 export function PlanTodayPreviewCard({
   stub,
   prescription,
-  scheduledDayLabel,
   onStart,
 }: PlanTodayPreviewCardProps) {
   useLocale();
 
+  const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
   const workSets = prescription.sets.filter((setData) => !setData.isWarmup);
-  const sessionLabel = t("session.weekAndSession", {
-    week: stub.weekIndex + 1,
-    session: getSessionLabel(stub.dayIndex),
-  });
-  const subtitle = scheduledDayLabel
-    ? `${scheduledDayLabel} · ${sessionLabel}`
-    : sessionLabel;
-  const workSetSummary = workSets
-    .map((setData) => {
-      const repsLabel = `${formatNumber(setData.targetReps)}${setData.isAmrap ? "+" : ""}`;
-      return `${formatNumber(setData.targetWeight)}×${repsLabel}`;
-    })
-    .join(" · ");
 
   return (
     <Pressable
@@ -46,22 +34,43 @@ export function PlanTodayPreviewCard({
         pressed ? styles.todayPreviewCardPressed : null,
       ]}
     >
-      <View style={styles.todayPreviewBackground} />
       <View style={styles.todayPreviewContent}>
-        <View style={styles.todayPreviewCopy}>
-          <Text numberOfLines={1} style={styles.todayPreviewMeta}>
-            {subtitle}
-          </Text>
+        {thumbnailSource ? (
+          <View>
+            <Image
+                source={thumbnailSource}
+                contentFit="contain"
+                style={styles.todayPreviewTitleIcon}
+                tintColor={colors.primaryForeground}
+              />
+          </View>
+        ) : null}
+        <View style={styles.todayPreviewTitleRow}>
           <Text numberOfLines={1} style={styles.todayPreviewTitle}>
             {getLiftLabel(stub.mainLiftKey)}
           </Text>
-          <Text numberOfLines={2} style={styles.todayPreviewSummary}>
-            {workSetSummary}
-          </Text>
+        </View>
+        <View style={styles.todayPreviewSummaryRow}>
+          {workSets.map((setData, index) => (
+            <View key={setData.setOrder} style={styles.todayPreviewSummaryGroup}>
+              <View style={styles.todayPreviewSummaryItem}>
+                <Text style={styles.todayPreviewSummaryWeight}>
+                  {formatNumber(setData.targetWeight)}
+                </Text>
+                <Text style={styles.todayPreviewSummaryReps}>
+                  × {formatNumber(setData.targetReps)}
+                  {setData.isAmrap ? "+" : ""}
+                </Text>
+              </View>
+              {index < workSets.length - 1 ? (
+                <Text style={styles.todayPreviewSummarySeparator}>·</Text>
+              ) : null}
+            </View>
+          ))}
         </View>
       </View>
       <View style={styles.todayPreviewPlayButton}>
-        <Ionicons name="play" size={18} color={colors.primaryForeground} />
+        <Ionicons name="play" size={18} color={colors.primary} />
       </View>
     </Pressable>
   );

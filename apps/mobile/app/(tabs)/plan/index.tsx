@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Card, Section, Text, colors } from "../../../src/design";
-import { getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
+import { getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
 import { TAB_BAR_SCROLL_INDICATOR_INSETS } from "../../../src/program/plan-screen/constants";
 import { PlanWeekCarousel } from "../../../src/program/plan-screen/PlanWeekCarousel";
 import { styles } from "../../../src/program/plan-screen/styles";
@@ -97,11 +97,11 @@ export default function PlanScreen() {
     const scheduledDay = getScheduledDayForIndex(index, instance.params.scheduledDays);
     return scheduledDay ? getWeekdayShortLabel(scheduledDay) : null;
   };
-  const todayStubIndex = todayStub
-    ? currentWeekStubs.findIndex((stub) => stub.sessionId === todayStub.sessionId)
-    : -1;
-  const todayPreviewScheduledDayLabel = todayStubIndex >= 0
-    ? getScheduledDayLabel(todayStubIndex)
+  const todayPreviewSessionLabel = todayStub
+    ? t("session.weekAndSession", {
+        week: todayStub.weekIndex + 1,
+        session: getSessionLabel(todayStub.dayIndex),
+      })
     : null;
   const upcomingStubs = stubs.filter(
     (stub) => stub.cycleIndex === state.currentCycle && stub.weekIndex > state.currentWeek,
@@ -118,12 +118,18 @@ export default function PlanScreen() {
     >
       <Section title={t("plan.section.today")} titleStyle={styles.sectionTitle}>
         {todayStub && todayPreview ? (
-          <PlanTodayPreviewCard
-            stub={todayStub}
-            prescription={todayPreview}
-            scheduledDayLabel={todayPreviewScheduledDayLabel}
-            onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
-          />
+          <>
+            {todayPreviewSessionLabel ? (
+              <Text style={styles.todayPreviewSectionSubtitle}>
+                {todayPreviewSessionLabel}
+              </Text>
+            ) : null}
+            <PlanTodayPreviewCard
+              stub={todayStub}
+              prescription={todayPreview}
+              onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
+            />
+          </>
         ) : (
           <Card>
             <View style={styles.todayEmptyState}>
