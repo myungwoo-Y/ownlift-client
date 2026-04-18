@@ -26,7 +26,7 @@ interface PlanWeekListProps {
   dragTranslateY: SharedValue<number>;
   reorderableSessionIds: ReadonlySet<string>;
   getScheduledDayLabel: (index: number) => string | null;
-  onPressStub: (stub: SessionStubRecord) => void;
+  onPressStub?: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
   onDragMove: (dy: number) => void;
   onDragEnd: () => void;
@@ -48,7 +48,7 @@ interface DraggableWeekRowProps {
   isAnyDragging: boolean;
   scheduledDayLabel?: string | null;
   dragStartTop: number;
-  onPress: (stub: SessionStubRecord) => void;
+  onPress?: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
   onDragMove: (dy: number) => void;
   onDragEnd: () => void;

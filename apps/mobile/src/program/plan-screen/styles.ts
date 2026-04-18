@@ -55,6 +55,21 @@ export const styles = StyleSheet.create({
     textTransform: "none",
     color: colors.text,
   },
+  sectionIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.lg,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: colors.surfaceGlass,
+  },
+  sectionIconButtonPressed: {
+    opacity: 0.92,
+    transform: [{ scale: 0.96 }],
+  },
   todayPreviewCard: {
     gap: spacing.lg,
   },
@@ -181,6 +196,121 @@ export const styles = StyleSheet.create({
   },
   reorderHint: {
     marginTop: -spacing.xs,
+  },
+  reorderIntroCard: {
+    gap: spacing.sm,
+  },
+  reorderIntroText: {
+    color: colors.textSecondary,
+  },
+  weekCarouselContent: {
+    gap: spacing.md,
+    paddingLeft: spacing["2xl"],
+    paddingRight: spacing["2xl"],
+  },
+  weekCarouselViewport: {
+    marginHorizontal: -spacing["2xl"],
+  },
+  weekCarouselCard: {
+    minHeight: 212,
+    justifyContent: "space-between",
+    gap: spacing["3xl"],
+    borderRadius: 28,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    padding: spacing.lg,
+    boxShadow: "0px 22px 44px rgba(0, 0, 0, 0.18)",
+  },
+  weekCarouselCardPressed: {
+    opacity: 0.95,
+    transform: [{ scale: 0.985 }],
+  },
+  weekCarouselCardToday: {
+    borderColor: "rgba(214, 255, 96, 0.52)",
+  },
+  weekCarouselCardCompleted: {
+    opacity: 0.76,
+  },
+  weekCarouselCardSquat: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(146, 180, 245, 0.12)",
+  },
+  weekCarouselCardBench: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(228, 134, 116, 0.12)",
+  },
+  weekCarouselCardDeadlift: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(117, 180, 194, 0.12)",
+  },
+  weekCarouselCardPress: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(157, 207, 100, 0.12)",
+  },
+  weekCarouselTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  weekCarouselThumbnailFrame: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderCurve: "continuous",
+    overflow: "hidden",
+    padding: spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  weekCarouselThumbnailSquat: {
+    backgroundColor: "rgba(146, 180, 245, 0.12)",
+  },
+  weekCarouselThumbnailBench: {
+    backgroundColor: "rgba(228, 134, 116, 0.12)",
+  },
+  weekCarouselThumbnailDeadlift: {
+    backgroundColor: "rgba(117, 180, 194, 0.12)",
+  },
+  weekCarouselThumbnailPress: {
+    backgroundColor: "rgba(157, 207, 100, 0.12)",
+  },
+  weekCarouselBody: {
+    gap: spacing.sm,
+  },
+  weekCarouselMetaLight: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(245, 245, 247, 0.62)",
+  },
+  weekCarouselMetaDark: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "rgba(245, 245, 247, 0.62)",
+  },
+  weekCarouselTitleLight: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    color: "#FAFAFB",
+  },
+  weekCarouselTitleDark: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: "800",
+    color: "#FAFAFB",
+  },
+  weekCarouselSummaryLight: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "rgba(245, 245, 247, 0.78)",
+  },
+  weekCarouselSummaryDark: {
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "500",
+    color: "rgba(245, 245, 247, 0.78)",
   },
   weekList: {
     position: "relative",

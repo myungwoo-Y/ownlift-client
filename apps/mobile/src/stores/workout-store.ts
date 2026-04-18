@@ -40,7 +40,7 @@ const MAIN_LIFT_LABELS: Record<string, string> = {
   squat: "Squat",
   bench: "Bench Press",
   deadlift: "Deadlift",
-  press: "Press",
+  press: "OHP",
 };
 
 interface WorkoutStore {

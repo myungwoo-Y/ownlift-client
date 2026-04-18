@@ -16,18 +16,6 @@ interface PlanTodayPreviewCardProps {
   onStart: () => void;
 }
 
-function estimateWorkoutMinutes({
-  warmupCount,
-  workSetCount,
-  hasAmrap,
-}: {
-  warmupCount: number;
-  workSetCount: number;
-  hasAmrap: boolean;
-}): number {
-  return 6 + (warmupCount * 3) + (workSetCount * 8) + (hasAmrap ? 4 : 0);
-}
-
 export function PlanTodayPreviewCard({
   stub,
   prescription,
@@ -38,9 +26,7 @@ export function PlanTodayPreviewCard({
   useLocale();
 
   const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
-  const warmupCount = prescription.sets.filter((setData) => setData.isWarmup).length;
   const workSets = prescription.sets.filter((setData) => !setData.isWarmup);
-  const hasAmrap = workSets.some((setData) => setData.isAmrap);
   const sessionLabel = t("session.weekAndSession", {
     week: stub.weekIndex + 1,
     session: getSessionLabel(stub.dayIndex),
@@ -48,30 +34,6 @@ export function PlanTodayPreviewCard({
   const subtitle = scheduledDayLabel
     ? `${scheduledDayLabel} · ${sessionLabel}`
     : sessionLabel;
-  const estimatedMinutes = estimateWorkoutMinutes({
-    warmupCount,
-    workSetCount: workSets.length,
-    hasAmrap,
-  });
-  const infoPills = [
-    {
-      key: "duration",
-      icon: "time-outline",
-      label: t("plan.preview.estimatedDuration", { minutes: estimatedMinutes }),
-    },
-    {
-      key: "warmup",
-      icon: "barbell-outline",
-      label: warmupCount > 0
-        ? t("plan.preview.warmupSets", { count: warmupCount })
-        : t("plan.preview.workSetCount", { count: workSets.length }),
-    },
-    {
-      key: "sets",
-      icon: "layers-outline",
-      label: t("plan.preview.totalSets", { count: prescription.sets.length }),
-    },
-  ] as const;
 
   return (
     <Card highlighted style={styles.todayPreviewCard}>

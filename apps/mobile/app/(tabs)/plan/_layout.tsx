@@ -22,6 +22,15 @@ export default function PlanStackLayout() {
           title: t("tab.plan"),
         }}
       />
+      <Stack.Screen
+        name="reorder"
+        options={{
+          headerLargeTitle: false,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: colors.background },
+          title: t("plan.editWeek"),
+        }}
+      />
     </Stack>
   );
 }

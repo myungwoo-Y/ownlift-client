@@ -2,7 +2,7 @@ export const colors = {
   background: "#101010",
   backgroundDeep: "#0E131B",
   surface: "#1C1C1E",
-  surfaceElevated: "#232326",
+  surfaceElevated: "#1C1C1C",
   surfaceMuted: "#2C2C2E",
   surfaceGlass: "rgba(28, 28, 30, 0.78)",
   surfaceGlassStrong: "rgba(28, 28, 30, 0.94)",
