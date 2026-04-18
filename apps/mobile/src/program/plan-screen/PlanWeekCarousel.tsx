@@ -1,5 +1,5 @@
 import type { SessionStubRecord } from "@ownlift/db";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { Badge, colors, spacing, Text } from "../../design";
@@ -72,6 +72,7 @@ export function PlanWeekCarousel({
   onPressStub,
 }: PlanWeekCarouselProps) {
   useLocale();
+  const scrollViewRef = useRef<ScrollView>(null);
   const { width: viewportWidth } = useWindowDimensions();
   const cardWidth = useMemo(
     () =>
@@ -85,9 +86,33 @@ export function PlanWeekCarousel({
   );
   const snapToInterval = cardWidth + spacing.md;
   const cardWidthStyle = useMemo(() => ({ width: cardWidth }), [cardWidth]);
+  const todaySessionIndex = useMemo(
+    () => weekStubs.findIndex((stub) => stub.sessionId === todaySessionId),
+    [todaySessionId, weekStubs],
+  );
+  const initialScrollOffset = useMemo(
+    () => ({
+      x: Math.max(todaySessionIndex, 0) * snapToInterval,
+      y: 0,
+    }),
+    [snapToInterval, todaySessionIndex],
+  );
+
+  useEffect(() => {
+    const scrollX = Math.max(todaySessionIndex, 0) * snapToInterval;
+    const frameId = requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({ x: scrollX, y: 0, animated: false });
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [snapToInterval, todaySessionIndex, weekStubs.length]);
 
   return (
     <ScrollView
+      ref={scrollViewRef}
+      contentOffset={initialScrollOffset}
       decelerationRate="fast"
       horizontal
       showsHorizontalScrollIndicator={false}
