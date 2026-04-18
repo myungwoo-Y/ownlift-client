@@ -122,7 +122,6 @@ export default function PlanScreen() {
             stub={todayStub}
             prescription={todayPreview}
             scheduledDayLabel={todayPreviewScheduledDayLabel}
-            unit={unit}
             onStart={() => router.push(`/workout/${todayStub.sessionId}?autostart=1`)}
           />
         ) : (
