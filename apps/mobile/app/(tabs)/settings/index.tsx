@@ -146,7 +146,6 @@ export default function SettingsScreen() {
 
       {/* Training Maxes */}
       <Section title={t("settings.section.trainingMax")}>
-        <Text variant="caption">{t("settings.trainingMaxHint")}</Text>
         <View style={styles.card}>
           {LIFTS.map((lift) => (
             <Pressable
@@ -315,7 +314,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    gap: spacing["2xl"],
+    gap: spacing["3xl"],
     paddingHorizontal: spacing["2xl"],
     paddingBottom: spacing["4xl"],
   },

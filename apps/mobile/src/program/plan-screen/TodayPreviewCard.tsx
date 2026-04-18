@@ -3,7 +3,7 @@ import type { SessionStubRecord } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
 import { Image } from "expo-image";
 import { Pressable, View } from "react-native";
-import { Card, Text, colors } from "../../design";
+import { Badge, Card, Text, colors } from "../../design";
 import { formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../i18n";
 import { styles } from "./styles";
 import { getLiftThumbnailSource } from "./utils";
@@ -34,10 +34,25 @@ export function PlanTodayPreviewCard({
   const subtitle = scheduledDayLabel
     ? `${scheduledDayLabel} · ${sessionLabel}`
     : sessionLabel;
+  const workSetSummary = t("plan.preview.workSetCount", { count: workSets.length });
 
   return (
     <Card highlighted style={styles.todayPreviewCard}>
       <View style={styles.todayPreviewHeader}>
+        <View style={styles.todayPreviewCopy}>
+          <View style={styles.todayPreviewBadgeRow}>
+            <Badge label={t("status.today")} variant="today" />
+            <View style={styles.todayPreviewMetaPill}>
+              <Text numberOfLines={1} style={styles.todayPreviewMetaPillText}>
+                {subtitle}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.todayPreviewTitle}>
+            {getLiftLabel(stub.mainLiftKey)}
+          </Text>
+          <Text style={styles.todayPreviewSubtitle}>{workSetSummary}</Text>
+        </View>
         {thumbnailSource ? (
           <View style={styles.todayPreviewImageFrame}>
             <Image
@@ -48,16 +63,10 @@ export function PlanTodayPreviewCard({
             />
           </View>
         ) : null}
-        <View style={styles.todayPreviewCopy}>
-          <Text style={styles.todayPreviewTitle}>
-            {getLiftLabel(stub.mainLiftKey)}
-          </Text>
-          <Text style={styles.todayPreviewSubtitle}>{subtitle}</Text>
-        </View>
       </View>
 
       <View style={styles.todayPreviewSetGrid}>
-        {workSets.map((setData) => (
+        {workSets.map((setData, index) => (
           <View
             key={setData.setOrder}
             style={[
@@ -67,13 +76,25 @@ export function PlanTodayPreviewCard({
           >
             <Text
               style={[
-                styles.todayPreviewSetWeight,
-                setData.isAmrap ? styles.todayPreviewSetWeightAccent : null,
+                styles.todayPreviewSetLabel,
+                setData.isAmrap ? styles.todayPreviewSetLabelAccent : null,
               ]}
             >
-              {formatNumber(setData.targetWeight)}
-              <Text style={styles.todayPreviewSetUnit}> {unit}</Text>
+              {setData.isAmrap ? t("badge.amrap") : t("workout.setLabel", { set: index + 1 })}
             </Text>
+            <View style={styles.todayPreviewSetValueRow}>
+              <Text
+                style={[
+                  styles.todayPreviewSetWeight,
+                  setData.isAmrap ? styles.todayPreviewSetWeightAccent : null,
+                ]}
+              >
+                {formatNumber(setData.targetWeight)}
+              </Text>
+              {unit ? (
+                <Text style={styles.todayPreviewSetUnit}>{unit}</Text>
+              ) : null}
+            </View>
             <Text
               style={[
                 styles.todayPreviewSetReps,
@@ -87,7 +108,6 @@ export function PlanTodayPreviewCard({
         ))}
       </View>
 
-
       <Pressable
         accessibilityRole="button"
         onPress={onStart}
@@ -97,7 +117,9 @@ export function PlanTodayPreviewCard({
         ]}
       >
         <Text style={styles.todayPreviewCtaText}>{t("workout.startWorkout")}</Text>
-        <Ionicons name="arrow-forward" size={22} color={colors.primaryForeground} />
+        <View style={styles.todayPreviewCtaIcon}>
+          <Ionicons name="arrow-forward" size={18} color={colors.primaryForeground} />
+        </View>
       </Pressable>
     </Card>
   );

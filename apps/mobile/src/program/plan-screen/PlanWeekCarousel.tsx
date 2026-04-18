@@ -28,7 +28,7 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: "#D88A7C",
+      tintColor: colors.primary,
     };
   }
 
@@ -39,7 +39,7 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: "#87BCCC",
+      tintColor: colors.primary,
     };
   }
 
@@ -50,7 +50,7 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: "#AED87D",
+      tintColor: colors.primary,
     };
   }
 
@@ -60,7 +60,7 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
     meta: styles.weekCarouselMetaLight,
     title: styles.weekCarouselTitleLight,
     summary: styles.weekCarouselSummaryLight,
-    tintColor: colors.text,
+    tintColor: colors.primary,
   };
 }
 
