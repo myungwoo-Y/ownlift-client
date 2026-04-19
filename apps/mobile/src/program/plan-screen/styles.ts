@@ -417,10 +417,6 @@ export const styles = StyleSheet.create({
   activitySummarySurface: {
     flexDirection: "row",
     alignItems: "stretch",
-    borderRadius: borderRadius.xl,
-    borderCurve: "continuous",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    overflow: "hidden",
   },
   activitySummaryItem: {
     flex: 1,
@@ -428,18 +424,24 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.lg,
     gap: spacing.lg,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   activitySummaryItemDivider: {
     borderRightWidth: 1,
     borderRightColor: "rgba(255, 255, 255, 0.08)",
   },
   activitySummaryMetaRow: {
+    display: 'flex',
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: 'center',
     gap: spacing.xs,
   },
   activitySummaryLabel: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: fontSize.sm,
     lineHeight: 18,
     fontWeight: "700",

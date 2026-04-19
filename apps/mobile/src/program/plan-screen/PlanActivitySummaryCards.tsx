@@ -30,7 +30,7 @@ function ActivityItem({
   isLast = false,
 }: ActivityItemProps) {
   return (
-    <View style={[styles.activitySummaryItem, !isLast ? styles.activitySummaryItemDivider : null]}>
+    <View style={styles.activitySummaryItem}>
       <View style={styles.activitySummaryMetaRow}>
         <Ionicons color={iconColor} name={iconName} size={18} />
         <Text numberOfLines={1} style={styles.activitySummaryLabel}>
@@ -47,6 +47,7 @@ function ActivityItem({
           {value}
         </Text>
       </View>
+      {!isLast && <View style={styles.activitySummaryItemDivider} />}
     </View>
   );
 }
