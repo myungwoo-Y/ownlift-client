@@ -1,10 +1,11 @@
 import type { MainLift } from "@ownlift/schemas";
 import { Image } from "expo-image";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { Pressable, View } from "react-native";
+import { LineChart, type lineDataItem } from "react-native-gifted-charts";
 import { Card, Text, colors } from "../../design";
-import { formatNumber, getLiftLabel, t } from "../../i18n";
+import { formatDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import { getLiftThumbnailSource } from "../../program/plan-screen/utils";
 import { LINE_CHART_HEIGHT, getLiftSurfaceStyle, styles } from "./styles";
 import type { HistoryItem, TrendPoint } from "./types";
@@ -108,29 +109,21 @@ function LiftSummaryCards({
                     contentFit="contain"
                     source={thumbnailSource}
                     style={styles.summaryThumbnailImage}
-                    tintColor={isSelected ? colors.primaryForeground : colors.primary}
+                    tintColor={colors.primary}
                   />
                 ) : null}
               </View>
 
               <View style={styles.summaryCardBody}>
                 <Text
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
                   numberOfLines={1}
-                  style={[
-                    styles.summaryLiftValue,
-                    isSelected ? styles.summaryLiftValueSelected : null,
-                  ]}
+                  style={styles.summaryLiftValue}
                 >
-                  {summary.latestPoint ? formatMeasurement(summary.latestPoint.value, unit) : "—"}
+                  {formatMeasurement(summary.latestPoint?.value ?? 0, unit)}
                 </Text>
 
                 <Text
-                  style={[
-                    styles.summaryLiftChange,
-                    changeStyle,
-                  ]}
+                  style={styles.summaryLiftChange}
                 >
                   {summary.change == null ? " " : formatChange(summary.change)}
                 </Text>
@@ -143,39 +136,50 @@ function LiftSummaryCards({
   );
 }
 
+type TrendChartDataItem = lineDataItem & {
+  trendPoint: TrendPoint;
+};
+
+function formatTrendAxisValue(label: string): string {
+  const value = Number(label);
+
+  if (!Number.isFinite(value)) return label;
+
+  return formatNumber(value, {
+    maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
+  });
+}
+
+function formatTrendPointDate(completedAt: string): string {
+  return formatDate(completedAt, { month: "short", day: "numeric" });
+}
+
 function LiftTrendChart({
   points,
+  selectedIndex,
+  onSelectIndex,
 }: {
   points: TrendPoint[];
+  selectedIndex: number;
+  onSelectIndex: (index: number) => void;
 }) {
   const [chartWidth, setChartWidth] = useState(0);
-
-  const values = points.map((point) => point.value);
+  const chartData = useMemo<TrendChartDataItem[]>(
+    () =>
+      points.map((point) => ({
+        label: point.label,
+        trendPoint: point,
+        value: point.value,
+      })),
+    [points],
+  );
+  const values = chartData.map((point) => point.value ?? 0);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const spread = maxValue - minValue;
   const padding = spread === 0 ? Math.max(maxValue * 0.05, 2) : spread * 0.18;
   const chartMin = Math.max(0, minValue - padding);
   const chartMax = maxValue + padding;
-  const chartRange = Math.max(chartMax - chartMin, 1);
-  const horizontalPadding = 16;
-  const verticalPadding = 12;
-  const usableWidth = Math.max(chartWidth - horizontalPadding * 2, 0);
-  const usableHeight = LINE_CHART_HEIGHT - verticalPadding * 2;
-
-  const positionedPoints = points.map((point, index) => {
-    const x = points.length === 1
-      ? chartWidth / 2
-      : horizontalPadding + (usableWidth * index) / (points.length - 1);
-    const y = verticalPadding + usableHeight * (1 - (point.value - chartMin) / chartRange);
-
-    return {
-      ...point,
-      x,
-      y,
-      isLatest: index === points.length - 1,
-    };
-  });
 
   return (
     <View style={styles.trendChart}>
@@ -188,73 +192,52 @@ function LiftTrendChart({
         }}
         style={styles.trendPlot}
       >
-        {[0, 0.5, 1].map((ratio) => (
-          <View
-            key={String(ratio)}
-            style={[
-              styles.trendGridline,
-              { top: ratio * (LINE_CHART_HEIGHT - 1) },
-            ]}
+        {chartWidth > 0 ? (
+          <LineChart
+            adjustToWidth
+            color={colors.accent}
+            data={chartData}
+            dataPointsColor="rgba(214, 255, 96, 0.36)"
+            dataPointsRadius={4}
+            disableScroll
+            endSpacing={12}
+            focusEnabled
+            focusedDataPointColor={colors.accent}
+            focusedDataPointIndex={selectedIndex}
+            focusedDataPointRadius={6}
+            formatYLabel={formatTrendAxisValue}
+            height={LINE_CHART_HEIGHT}
+            initialSpacing={12}
+            labelsExtraHeight={10}
+            maxValue={Math.max(chartMax - chartMin, 1)}
+            noOfSections={2}
+            onFocus={(_: TrendChartDataItem, index: number) => {
+              onSelectIndex(index);
+            }}
+            parentWidth={chartWidth}
+            rulesColor="rgba(255, 255, 255, 0.06)"
+            rulesThickness={1}
+            showStripOnFocus
+            stripColor="rgba(214, 255, 96, 0.24)"
+            stripStrokeDashArray={[4, 4]}
+            stripWidth={1}
+            thickness={3}
+            unFocusOnPressOut={false}
+            xAxisColor="transparent"
+            xAxisLabelTextStyle={styles.chartAxisLabel}
+            xAxisLabelsHeight={20}
+            xAxisLabelsVerticalShift={8}
+            xAxisTextNumberOfLines={1}
+            yAxisColor="transparent"
+            yAxisLabelWidth={44}
+            yAxisOffset={chartMin}
+            yAxisTextStyle={styles.chartAxisLabel}
           />
-        ))}
-
-        <View style={[styles.trendAxisValue, styles.trendAxisValueTop]}>
-          <Text variant="caption">{formatNumber(maxValue, { maximumFractionDigits: 1 })}</Text>
-        </View>
-        <View style={[styles.trendAxisValue, styles.trendAxisValueBottom]}>
-          <Text variant="caption">{formatNumber(minValue, { maximumFractionDigits: 1 })}</Text>
-        </View>
-
-        {positionedPoints.slice(0, -1).map((point, index) => {
-          const nextPoint = positionedPoints[index + 1];
-          const deltaX = nextPoint.x - point.x;
-          const deltaY = nextPoint.y - point.y;
-          const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
-          const angle = Math.atan2(deltaY, deltaX);
-
-          return (
-            <View
-              key={`${point.sessionId}-${nextPoint.sessionId}`}
-              style={[
-                styles.trendSegment,
-                {
-                  left: point.x,
-                  top: point.y - 1,
-                  width: distance,
-                  transform: [{ rotateZ: `${angle}rad` }],
-                  transformOrigin: "left center",
-                },
-              ]}
-            />
-          );
-        })}
-
-        {positionedPoints.map((point) => {
-          const pointSize = point.isLatest ? 14 : 10;
-
-          return (
-            <View
-              key={point.sessionId}
-              style={[
-                styles.trendPoint,
-                point.isLatest && styles.trendPointLatest,
-                {
-                  left: point.x - pointSize / 2,
-                  top: point.y - pointSize / 2,
-                  width: pointSize,
-                  height: pointSize,
-                  borderRadius: pointSize / 2,
-                },
-              ]}
-            />
-          );
-        })}
+        ) : null}
       </View>
-
-      <View style={styles.trendAxisLabels}>
-        <Text variant="caption">{points[0]?.label}</Text>
-        <Text variant="caption">{points[points.length - 1]?.label}</Text>
-      </View>
+      <Text style={styles.chartInteractionHint} variant="caption">
+        {t("history.chartTapHint")}
+      </Text>
     </View>
   );
 }
@@ -268,10 +251,27 @@ function LiftTrendCard({
   items: HistoryItem[];
   unit: string;
 }) {
-  const trendPoints = buildTrendPoints(items, selectedLift);
+  const trendPoints = useMemo(
+    () => buildTrendPoints(items, selectedLift),
+    [items, selectedLift],
+  );
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState(Math.max(trendPoints.length - 1, 0));
   const latestPoint = trendPoints[trendPoints.length - 1];
-  const previousPoint = trendPoints[trendPoints.length - 2] ?? null;
-  const change = latestPoint && previousPoint ? latestPoint.value - previousPoint.value : null;
+
+  useEffect(() => {
+    setSelectedTrendIndex(Math.max(trendPoints.length - 1, 0));
+  }, [trendPoints]);
+
+  const selectedPoint = trendPoints[selectedTrendIndex] ?? latestPoint ?? null;
+  const selectedPreviousPoint = selectedTrendIndex > 0
+    ? trendPoints[selectedTrendIndex - 1] ?? null
+    : null;
+  const change = selectedPoint && selectedPreviousPoint
+    ? selectedPoint.value - selectedPreviousPoint.value
+    : null;
+  const selectedValueLabel = selectedTrendIndex === trendPoints.length - 1
+    ? t("history.latestE1rm")
+    : t("history.selectedE1rm");
 
   return (
     <Card style={[styles.chartCard, getLiftSurfaceStyle(selectedLift)]}>
@@ -303,11 +303,17 @@ function LiftTrendCard({
             ) : null}
           </View>
         </View>
-        {latestPoint ? (
-          <MetricPill
-            label={t("history.latestE1rm")}
-            value={formatMeasurement(latestPoint.value, unit)}
-          />
+        {selectedPoint ? (
+          <View style={styles.metricStack}>
+            <MetricPill
+              label={selectedValueLabel}
+              value={formatMeasurement(selectedPoint.value, unit)}
+            />
+            <MetricPill
+              label={t("history.sessionDate")}
+              value={formatTrendPointDate(selectedPoint.completedAt)}
+            />
+          </View>
         ) : null}
       </View>
 
@@ -317,7 +323,11 @@ function LiftTrendCard({
           title={t("history.e1rmEmptyTitle")}
         />
       ) : (
-        <LiftTrendChart points={trendPoints} />
+        <LiftTrendChart
+          onSelectIndex={setSelectedTrendIndex}
+          points={trendPoints}
+          selectedIndex={selectedTrendIndex}
+        />
       )}
     </Card>
   );

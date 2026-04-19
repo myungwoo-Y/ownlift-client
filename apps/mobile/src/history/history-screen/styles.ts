@@ -114,7 +114,7 @@ export const styles = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
   summaryCard: {
-    minHeight: 156,
+    minHeight: 136,
     padding: spacing.lg,
     justifyContent: "space-between",
     borderRadius: 28,
@@ -141,25 +141,26 @@ export const styles = StyleSheet.create({
   },
   summaryLiftLabel: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: fontWeight.semibold,
     color: "rgba(245, 245, 247, 0.7)",
     lineHeight: 16,
   },
   summaryLiftLabelSelected: {
     color: colors.text,
+    fontWeight: fontWeight.bold
   },
   summaryLiftValue: {
-    fontSize: 24,
-    lineHeight: 28,
-    fontWeight: fontWeight.extrabold,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: fontWeight.semibold,
     color: colors.text,
   },
   summaryLiftValueSelected: {
     color: "#FAFAFB",
   },
   summaryLiftChange: {
-    fontSize: fontSize.sm,
+    fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
   },
   summaryChangePositive: {
@@ -223,6 +224,10 @@ export const styles = StyleSheet.create({
     fontWeight: fontWeight.extrabold,
     color: colors.text,
   },
+  metricStack: {
+    alignItems: "stretch",
+    gap: spacing.sm,
+  },
   chartEmpty: {
     minHeight: 148,
     alignItems: "center",
@@ -252,6 +257,15 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.05)",
+  },
+  chartAxisLabel: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+  },
+  chartInteractionHint: {
+    color: colors.textSecondary,
+    lineHeight: 16,
+    paddingHorizontal: spacing.xs,
   },
   trendGridline: {
     position: "absolute",

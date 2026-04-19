@@ -2,12 +2,13 @@ import { getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { FlatList, View } from "react-native";
 import { useHistoryFilterStore } from "../../../src/history/history-filter-store";
 import { HistoryEmptyState } from "../../../src/history/history-screen/HistoryEmptyState";
-import { HistoryFlatList } from "../../../src/history/history-screen/HistoryFlatList";
 import { HistoryListHeader } from "../../../src/history/history-screen/HistoryListHeader";
 import { HistoryListItem } from "../../../src/history/history-screen/HistoryListItem";
 import { HistorySummarySection } from "../../../src/history/history-screen/HistorySummarySection";
+import { styles } from "../../../src/history/history-screen/styles";
 import type { ActiveFilterChip, HistoryItem } from "../../../src/history/history-screen/types";
 import {
   buildLiftFilterOptions,
@@ -154,35 +155,55 @@ export default function HistoryScreen() {
 
   const keyExtractor = useCallback((item: HistoryItem) => item.sessionId, []);
   const hasItems = items.length > 0;
-
-  return (
-    <HistoryFlatList
-      data={filteredItems}
-      keyExtractor={keyExtractor}
-      renderItem={renderItem}
-    >
-      <HistoryFlatList.Header>
-        <HistoryListHeader
-          activeFilterChips={activeFilterChips}
-          activeFilterCount={activeFilterCount}
-          hasItems={hasItems}
-          onOpenFilters={handleOpenFilters}
-        >
-          <HistorySummarySection
-            items={items}
-            onSelectLift={setSelectedLift}
-            selectedLift={selectedLift}
-            unit={unitLabel}
-          />
-        </HistoryListHeader>
-      </HistoryFlatList.Header>
-
-      <HistoryFlatList.Empty>
+  const listHeader = useMemo(
+    () => (
+      <HistoryListHeader
+        activeFilterChips={activeFilterChips}
+        activeFilterCount={activeFilterCount}
+        hasItems={hasItems}
+        onOpenFilters={handleOpenFilters}
+      >
+        <HistorySummarySection
+          items={items}
+          onSelectLift={setSelectedLift}
+          selectedLift={selectedLift}
+          unit={unitLabel}
+        />
+      </HistoryListHeader>
+    ),
+    [
+      activeFilterChips,
+      activeFilterCount,
+      handleOpenFilters,
+      hasItems,
+      items,
+      selectedLift,
+      unitLabel,
+    ],
+  );
+  const emptyState = useMemo(
+    () => (
+      <View style={styles.empty}>
         <HistoryEmptyState
           hasActiveFilters={hasActiveFilters}
           itemCount={items.length}
         />
-      </HistoryFlatList.Empty>
-    </HistoryFlatList>
+      </View>
+    ),
+    [hasActiveFilters, items.length],
+  );
+
+  return (
+    <FlatList
+      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={styles.listContent}
+      data={filteredItems}
+      keyExtractor={keyExtractor}
+      ListEmptyComponent={emptyState}
+      ListHeaderComponent={listHeader}
+      renderItem={renderItem}
+      showsVerticalScrollIndicator={false}
+      style={styles.safe}
+    />
   );
 }

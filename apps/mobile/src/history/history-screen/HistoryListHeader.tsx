@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import type { ReactNode } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Text, colors } from "../../design";
 import { t } from "../../i18n";
@@ -26,9 +26,6 @@ export function HistoryListHeader({
       <View style={styles.chartSection}>
         <View style={styles.chartSectionHeader}>
           <Text style={styles.sectionTitle}>{t("history.allLiftTrendTitle")}</Text>
-          <Text style={styles.sectionHelper} variant="caption">
-            {t("history.allLiftTrendHelper")}
-          </Text>
         </View>
 
         {children}
