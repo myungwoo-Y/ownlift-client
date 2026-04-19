@@ -4,6 +4,7 @@ import type { SessionStubRecord, SetLogRecord } from "@ownlift/db";
 import { getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect, useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { useCallback, useEffect, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
@@ -11,6 +12,7 @@ import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text 
 import { useHistoryFilterStore, type HistoryFilterOption } from "../../../src/history/history-filter-store";
 import { buildMockHistoryItems } from "../../../src/history/mock-history";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../../src/i18n";
+import { getLiftThumbnailSource } from "../../../src/program/plan-screen/utils";
 import { useProgramStore } from "../../../src/stores/program-store";
 
 interface HistoryItem extends SessionStubRecord {
@@ -46,6 +48,13 @@ const LINE_CHART_HEIGHT = 152;
 const WORD_BREAK_TEXT_PROPS = {
   lineBreakStrategyIOS: "hangul-word" as const,
 };
+
+function getLiftSurfaceStyle(lift: MainLift) {
+  if (lift === "bench") return styles.liftSurfaceBench;
+  if (lift === "deadlift") return styles.liftSurfaceDeadlift;
+  if (lift === "press") return styles.liftSurfacePress;
+  return styles.liftSurfaceSquat;
+}
 
 function getHistoryItemDate(item: HistoryItem): string | null {
   return item.completedAt ?? item.scheduledDate ?? null;
@@ -234,6 +243,8 @@ function LiftSummaryCards({
       {SUMMARY_LIFTS.map((lift) => {
         const summary = buildLiftSummary(items, lift);
         const isSelected = selectedLift === lift;
+        const liftSurfaceStyle = getLiftSurfaceStyle(lift);
+        const thumbnailSource = getLiftThumbnailSource(lift);
         const changeStyle = summary.change == null
           ? styles.summaryChangePlaceholder
           : summary.change > 0
@@ -245,30 +256,40 @@ function LiftSummaryCards({
         return (
           <Pressable
             key={lift}
-            style={styles.summaryCardPressable}
+            style={({ pressed }) => [
+              styles.summaryCardPressable,
+              pressed ? styles.cardPressablePressed : null,
+            ]}
             onPress={() => onSelect(lift)}
           >
-            <Card style={[styles.summaryCard, isSelected && styles.summaryCardSelected]}>
-              <View style={styles.summaryCardContent}>
+            <Card style={[styles.summaryCard, liftSurfaceStyle, isSelected && styles.summaryCardSelected]}>
+              <View style={styles.summaryCardTopRow}>
                 <Text
                   {...WORD_BREAK_TEXT_PROPS}
-                  style={styles.summaryLiftLabel}
+                  style={[
+                    styles.summaryLiftLabel,
+                    isSelected ? styles.summaryLiftLabelSelected : null,
+                  ]}
                   numberOfLines={2}
                 >
                   {getLiftLabel(lift)}
                 </Text>
-                <View style={styles.summaryCurrentPillSlot}>
-                  {isSelected ? (
-                    <View style={styles.summaryCurrentPill}>
-                      <Text style={styles.summaryCurrentPillText}>CURRENT</Text>
-                    </View>
-                  ) : null}
-                </View>
+                {thumbnailSource ? (
+                  <Image
+                    source={thumbnailSource}
+                    contentFit="contain"
+                    style={styles.summaryThumbnailImage}
+                    tintColor={isSelected ? colors.primaryForeground : colors.primary}
+                  />
+                ) : null}
               </View>
 
-              <View style={styles.summaryValueGroup}>
+              <View style={styles.summaryCardBody}>
                 <Text
-                  style={styles.summaryLiftValue}
+                  style={[
+                    styles.summaryLiftValue,
+                    isSelected ? styles.summaryLiftValueSelected : null,
+                  ]}
                   adjustsFontSizeToFit
                   minimumFontScale={0.8}
                   numberOfLines={1}
@@ -276,7 +297,12 @@ function LiftSummaryCards({
                   {summary.latestPoint ? formatMeasurement(summary.latestPoint.value, unit) : "—"}
                 </Text>
 
-                <Text style={[styles.summaryLiftChange, changeStyle]}>
+                <Text
+                  style={[
+                    styles.summaryLiftChange,
+                    changeStyle,
+                  ]}
+                >
                   {summary.change == null ? " " : formatChange(summary.change)}
                 </Text>
               </View>
@@ -416,32 +442,45 @@ function LiftTrendCard({
   const latestPoint = trendPoints[trendPoints.length - 1];
   const previousPoint = trendPoints[trendPoints.length - 2] ?? null;
   const change = latestPoint && previousPoint ? latestPoint.value - previousPoint.value : null;
+  const thumbnailSource = getLiftThumbnailSource(selectedLift);
 
   return (
-    <Card style={styles.chartCard}>
+    <Card style={[styles.chartCard, getLiftSurfaceStyle(selectedLift)]}>
       <View style={styles.chartCardHeader}>
-        <View style={styles.chartCardCopy}>
-          <Text
-            {...WORD_BREAK_TEXT_PROPS}
-            style={styles.chartTitle}
-          >
-            {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
-          </Text>
-          <Text variant="caption">{t("history.e1rmHelper")}</Text>
-          {change != null ? (
-            <Text
-              style={[
-                styles.chartChange,
-                change > 0
-                  ? styles.summaryChangePositive
-                  : change < 0
-                    ? styles.summaryChangeNegative
-                    : styles.summaryChangeNeutral,
-              ]}
-            >
-              {formatChange(change)}
-            </Text>
+        <View style={styles.chartCardLead}>
+          {thumbnailSource ? (
+            <Image
+              source={thumbnailSource}
+              contentFit="contain"
+              style={styles.summaryThumbnailImage}
+              tintColor={colors.primary}
+            />
           ) : null}
+          <View style={styles.chartCardCopy}>
+            <Text
+              {...WORD_BREAK_TEXT_PROPS}
+              style={styles.chartTitle}
+            >
+              {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
+            </Text>
+            <Text variant="caption" style={styles.sectionHelper}>
+              {t("history.e1rmHelper")}
+            </Text>
+            {change != null ? (
+              <Text
+                style={[
+                  styles.chartChange,
+                  change > 0
+                    ? styles.summaryChangePositive
+                    : change < 0
+                      ? styles.summaryChangeNegative
+                      : styles.summaryChangeNeutral,
+                ]}
+              >
+                {formatChange(change)}
+              </Text>
+            ) : null}
+          </View>
         </View>
         {latestPoint ? (
           <MetricPill
@@ -533,6 +572,7 @@ export default function HistoryScreen() {
   const activeListLift = liftFilterOptions.some((option) => option.key === selectedListLift)
     ? selectedListLift
     : "all";
+  const unitLabel = instance?.params.unit ?? "kg";
   const filteredItems = items.filter((item) => {
     const itemMonthKey = getHistoryMonthKey(getHistoryItemDate(item));
     const matchesMonth = activeMonthKey === "all" || itemMonthKey === activeMonthKey;
@@ -563,10 +603,12 @@ export default function HistoryScreen() {
   }
 
   const renderItem = ({ item }: { item: HistoryItem }) => {
-    const { day, weekday } = formatHistoryDate(item.completedAt ?? null);
+    const { day, weekday } = formatHistoryDate(getHistoryItemDate(item));
     const weekLabel = getWeekLabel(item.weekIndex);
     const sessionLabel = getSessionLabel(item.dayIndex);
     const isInteractive = !item.isMock;
+    const thumbnailSource = getLiftThumbnailSource(item.mainLiftKey);
+    const dateLabel = [day, weekday].filter(Boolean).join(" · ");
 
     return (
       <Pressable
@@ -575,35 +617,64 @@ export default function HistoryScreen() {
           if (!isInteractive) return;
           router.push(`/session/${item.sessionId}`);
         }}
+        style={({ pressed }) => [
+          pressed && isInteractive ? styles.cardPressablePressed : null,
+        ]}
       >
-        <Card style={styles.historyCard}>
+        <Card style={[styles.historyCard, getLiftSurfaceStyle(item.mainLiftKey)]}>
           <View style={styles.historyItem}>
-            <View style={styles.dateColumn}>
-              <Text style={styles.dateDay}>{day}</Text>
-              <Text variant="caption">{weekday}</Text>
-            </View>
+            {thumbnailSource ? (
+              <View style={styles.historyThumbnailFrame}>
+                <Image
+                  source={thumbnailSource}
+                  contentFit="contain"
+                  style={styles.historyThumbnailImage}
+                  tintColor={colors.primary}
+                />
+              </View>
+            ) : null}
             <View style={styles.detailColumn}>
               <View style={styles.titleRow}>
-                <Text
-                  {...WORD_BREAK_TEXT_PROPS}
-                  style={styles.liftName}
-                >
-                  {getLiftLabel(item.mainLiftKey)}
-                </Text>
+                <View style={styles.titleCopy}>
+                  <Text
+                    {...WORD_BREAK_TEXT_PROPS}
+                    style={styles.historyLiftName}
+                  >
+                    {getLiftLabel(item.mainLiftKey)}
+                  </Text>
+                  {dateLabel ? (
+                    <Text variant="caption" style={styles.historyDateMeta}>
+                      {dateLabel}
+                    </Text>
+                  ) : null}
+                </View>
                 <View style={styles.badges}>
                   <Badge variant="completed" label={t("status.completed")} />
                 </View>
               </View>
-              <Text variant="caption">
+              <Text variant="caption" style={styles.historySessionMeta}>
                 {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
               </Text>
-              {item.totalVolume != null ? (
-                <Text variant="caption">
-                  {t("history.volume", {
-                    volume: formatNumber(item.totalVolume),
-                    unit: instance?.params.unit ?? "kg",
-                  })}
-                </Text>
+              {item.totalVolume != null || item.estimatedOneRepMax != null ? (
+                <View style={styles.historyMetricRow}>
+                  {item.totalVolume != null ? (
+                    <View style={[styles.historyMetricChip, styles.historyMetricChipPrimary]}>
+                      <Text style={styles.historyMetricText}>
+                        {t("history.volume", {
+                          volume: formatNumber(item.totalVolume),
+                          unit: unitLabel,
+                        })}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {item.estimatedOneRepMax != null ? (
+                    <View style={styles.historyMetricChip}>
+                      <Text style={styles.historyMetricText}>
+                        {`e1RM ${formatMeasurement(item.estimatedOneRepMax, unitLabel)}`}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
               ) : null}
             </View>
           </View>
@@ -625,25 +696,37 @@ export default function HistoryScreen() {
         ListHeaderComponent={(
           <View style={styles.listHeader}>
             <View style={styles.chartSection}>
+              <View style={styles.chartSectionHeader}>
+                <Text style={styles.sectionTitle}>{t("history.allLiftTrendTitle")}</Text>
+                <Text variant="caption" style={styles.sectionHelper}>
+                  {t("history.allLiftTrendHelper")}
+                </Text>
+              </View>
               <LiftSummaryCards
                 items={items}
                 selectedLift={selectedLift}
-                unit={instance?.params.unit ?? "kg"}
+                unit={unitLabel}
                 onSelect={setSelectedLift}
               />
 
               <LiftTrendCard
                 selectedLift={selectedLift}
                 items={items}
-                unit={instance?.params.unit ?? "kg"}
+                unit={unitLabel}
               />
             </View>
 
             {items.length > 0 ? (
               <View style={styles.logSection}>
                 <View style={styles.logHeaderRow}>
-                  <Text variant="sectionHeader">{t("history.logSectionTitle")}</Text>
-                  <Pressable style={styles.filterTrigger} onPress={openFilterScreen}>
+                  <Text style={styles.sectionTitle}>{t("history.completedWorkouts")}</Text>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.filterTrigger,
+                      pressed ? styles.filterTriggerPressed : null,
+                    ]}
+                    onPress={openFilterScreen}
+                  >
                     <Ionicons name="options-outline" size={16} color={colors.text} />
                     <Text style={styles.filterTriggerText}>{t("history.filter.open")}</Text>
                     {activeFilterCount > 0 ? (
@@ -661,7 +744,14 @@ export default function HistoryScreen() {
                     contentContainerStyle={styles.activeFilterRow}
                   >
                     {activeFilterChips.map((chip) => (
-                      <Pressable key={chip.key} style={styles.activeFilterChip} onPress={chip.onRemove}>
+                      <Pressable
+                        key={chip.key}
+                        style={({ pressed }) => [
+                          styles.activeFilterChip,
+                          pressed ? styles.activeFilterChipPressed : null,
+                        ]}
+                        onPress={chip.onRemove}
+                      >
                         <Text style={styles.activeFilterChipText}>{chip.label}</Text>
                         <Ionicons name="close" size={14} color={colors.text} />
                       </Pressable>
@@ -674,20 +764,22 @@ export default function HistoryScreen() {
         )}
         ListEmptyComponent={(
           <View style={styles.empty}>
-            <Text variant="body" style={styles.emptyText}>
-              {items.length === 0
-                ? t("history.emptyTitle")
-                : hasActiveFilters
-                  ? t("history.filteredEmptyTitle")
-                  : t("history.emptyTitle")}
-            </Text>
-            <Text variant="caption" style={styles.emptyText}>
-              {items.length === 0
-                ? t("history.emptySubtitle")
-                : hasActiveFilters
-                  ? t("history.filteredEmptySubtitle")
-                  : t("history.emptySubtitle")}
-            </Text>
+            <Card style={styles.emptyCard}>
+              <Text variant="body" style={styles.emptyText}>
+                {items.length === 0
+                  ? t("history.emptyTitle")
+                  : hasActiveFilters
+                    ? t("history.filteredEmptyTitle")
+                    : t("history.emptyTitle")}
+              </Text>
+              <Text variant="caption" style={styles.emptyText}>
+                {items.length === 0
+                  ? t("history.emptySubtitle")
+                  : hasActiveFilters
+                    ? t("history.filteredEmptySubtitle")
+                    : t("history.emptySubtitle")}
+              </Text>
+            </Card>
           </View>
         )}
       />
@@ -706,30 +798,31 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   listHeader: {
-    gap: spacing.lg,
+    gap: spacing["2xl"],
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  header: {
+  chartSectionHeader: {
     gap: spacing.xs,
   },
-  headerEyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.textTertiary,
+  sectionTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    lineHeight: 24,
+    color: colors.text,
+  },
+  sectionHelper: {
+    lineHeight: 18,
   },
   chartSection: {
-    gap: spacing.md,
+    gap: spacing.lg,
   },
   logSection: {
     gap: spacing.md,
-    paddingTop: spacing.xl,
   },
   logHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.md,
   },
@@ -739,11 +832,16 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    minHeight: 38,
+    borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: colors.surfaceGlass,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(20, 20, 22, 0.92)",
+  },
+  filterTriggerPressed: {
+    backgroundColor: "rgba(16, 16, 18, 0.96)",
+    transform: [{ scale: 0.97 }],
   },
   filterTriggerText: {
     color: colors.text,
@@ -774,10 +872,13 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: "rgba(214, 255, 96, 0.28)",
-    backgroundColor: colors.primarySoft,
+    backgroundColor: "rgba(214, 255, 96, 0.12)",
+  },
+  activeFilterChipPressed: {
+    transform: [{ scale: 0.98 }],
   },
   activeFilterChipText: {
     color: colors.text,
@@ -792,50 +893,53 @@ const styles = StyleSheet.create({
   summaryCardPressable: {
     width: "48%",
   },
+  cardPressablePressed: {
+    transform: [{ scale: 0.985 }],
+  },
   summaryCard: {
-    minHeight: 122,
+    minHeight: 156,
     padding: spacing.lg,
     justifyContent: "space-between",
+    borderRadius: 28,
+    borderCurve: "continuous",
+    boxShadow: "0px 22px 44px rgba(0, 0, 0, 0.18)",
   },
-  summaryCardContent: {
+  summaryCardTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: spacing.md,
+  },
+  summaryThumbnailImage: {
+    width: 40,
+    height: 40,
+    flexShrink: 0,
+  },
+  summaryCardBody: {
+    gap: spacing.sm,
   },
   summaryCardSelected: {
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(34, 197, 94, 0.34)",
-  },
-  summaryCurrentPillSlot: {
-    minHeight: 22,
-    justifyContent: "center",
+    backgroundColor: "rgba(214, 255, 96, 0.08)",
+    borderColor: "rgba(214, 255, 96, 0.28)",
   },
   summaryLiftLabel: {
-    fontSize: fontSize.sm,
+    flex: 1,
+    fontSize: 12,
     fontWeight: fontWeight.semibold,
-    color: colors.textSecondary,
-    lineHeight: 18,
+    color: "rgba(245, 245, 247, 0.7)",
+    lineHeight: 16,
   },
-  summaryValueGroup: {
-    gap: spacing.md,
-  },
-  summaryCurrentPill: {
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing["2xs"],
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.22)",
-    backgroundColor: "rgba(34, 197, 94, 0.08)",
-  },
-  summaryCurrentPillText: {
-    fontSize: 9,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.6,
-    color: colors.success,
+  summaryLiftLabelSelected: {
+    color: colors.text,
   },
   summaryLiftValue: {
-    fontSize: fontSize.xl,
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: fontWeight.extrabold,
     color: colors.text,
+  },
+  summaryLiftValueSelected: {
+    color: "#FAFAFB",
   },
   summaryLiftChange: {
     fontSize: fontSize.sm,
@@ -854,7 +958,11 @@ const styles = StyleSheet.create({
     color: colors.transparent,
   },
   chartCard: {
-    gap: spacing.lg,
+    gap: spacing.xl,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    padding: spacing.lg,
+    boxShadow: "0px 22px 44px rgba(0, 0, 0, 0.18)",
   },
   chartCardHeader: {
     flexDirection: "row",
@@ -862,13 +970,20 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: spacing.md,
   },
+  chartCardLead: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.md,
+  },
   chartCardCopy: {
     flex: 1,
     gap: spacing.xs,
   },
   chartTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: fontWeight.extrabold,
     color: colors.text,
   },
   chartChange: {
@@ -882,8 +997,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.28)",
-    backgroundColor: colors.primarySoft,
+    borderColor: "rgba(214, 255, 96, 0.24)",
+    backgroundColor: "rgba(214, 255, 96, 0.12)",
     gap: 2,
   },
   metricValue: {
@@ -917,7 +1032,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.05)",
   },
@@ -964,32 +1079,78 @@ const styles = StyleSheet.create({
   },
   historyCard: {
     padding: spacing.lg,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    boxShadow: "0px 18px 38px rgba(0, 0, 0, 0.18)",
   },
   historyItem: {
     flexDirection: "row",
-    gap: spacing.lg,
+    alignItems: "center",
+    gap: spacing.md,
   },
-  dateColumn: {
-    width: 72,
-    gap: 2,
+  historyThumbnailFrame: {
+    width: 68,
+    height: 68,
+    borderRadius: 18,
+    borderCurve: "continuous",
+    backgroundColor: colors.primarySoft,
+    padding: spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  dateDay: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: colors.text,
+  historyThumbnailImage: {
+    width: "100%",
+    height: "100%",
   },
   detailColumn: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
+    gap: spacing.sm,
   },
-  liftName: {
-    fontSize: 17,
-    fontWeight: "700",
+  titleCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  historyLiftName: {
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: "800",
+    color: colors.text,
+  },
+  historyDateMeta: {
+    color: "rgba(245, 245, 247, 0.68)",
+  },
+  historySessionMeta: {
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  historyMetricRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+  historyMetricChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  },
+  historyMetricChipPrimary: {
+    borderColor: "rgba(214, 255, 96, 0.2)",
+    backgroundColor: "rgba(214, 255, 96, 0.12)",
+  },
+  historyMetricText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.medium,
     color: colors.text,
   },
   badges: {
@@ -997,11 +1158,32 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   empty: {
-    alignItems: "center",
+    paddingVertical: spacing["2xl"],
+  },
+  emptyCard: {
     gap: spacing.sm,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    alignItems: "center",
     paddingVertical: spacing["3xl"],
   },
   emptyText: {
     textAlign: "center",
+  },
+  liftSurfaceSquat: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(146, 180, 245, 0.12)",
+  },
+  liftSurfaceBench: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(228, 134, 116, 0.12)",
+  },
+  liftSurfaceDeadlift: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(117, 180, 194, 0.12)",
+  },
+  liftSurfacePress: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(157, 207, 100, 0.12)",
   },
 });

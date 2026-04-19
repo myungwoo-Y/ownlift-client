@@ -6,10 +6,12 @@ import { Pressable, ScrollView, View } from "react-native";
 import { Card, Section, Text, colors } from "../../../src/design";
 import { getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
 import { TAB_BAR_SCROLL_INDICATOR_INSETS } from "../../../src/program/plan-screen/constants";
+import { PlanActivitySummaryCards } from "../../../src/program/plan-screen/PlanActivitySummaryCards";
 import { PlanWeekCarousel } from "../../../src/program/plan-screen/PlanWeekCarousel";
 import { styles } from "../../../src/program/plan-screen/styles";
 import { PlanTodayPreviewCard } from "../../../src/program/plan-screen/TodayPreviewCard";
 import { PlanUpcomingWeekCard } from "../../../src/program/plan-screen/UpcomingWeekCard";
+import { usePlanActivitySummary } from "../../../src/program/plan-screen/usePlanActivitySummary";
 import { useWeekPrescriptionSummaries } from "../../../src/program/plan-screen/useWeekPrescriptionSummaries";
 import { loadSyncedPrescriptionForSession } from "../../../src/program/prescription-sync";
 import { getScheduledDayForIndex } from "../../../src/program/schedule-policy";
@@ -76,6 +78,11 @@ export default function PlanScreen() {
     instance,
     weekStubs: currentWeekStubs,
     unit,
+  });
+  const activitySummary = usePlanActivitySummary({
+    instance,
+    currentWeekStubs,
+    stubs,
   });
 
   if (isLoading || !instance) {
@@ -177,10 +184,13 @@ export default function PlanScreen() {
         />
       </Section>
 
+      <Section title={t("plan.section.activity")} titleStyle={styles.sectionTitle}>
+        <PlanActivitySummaryCards summary={activitySummary} />
+      </Section>
+
       {nextUpcomingStub ? (
         <Section title={t("plan.section.upcoming")} titleStyle={styles.sectionTitle}>
           <PlanUpcomingWeekCard
-            stub={nextUpcomingStub}
             onPress={() => {
               router.push("/upcoming");
             }}

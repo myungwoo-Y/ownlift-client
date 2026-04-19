@@ -28,7 +28,7 @@ function FilterOptionSection({
   onSelect: (key: string) => void;
 }) {
   return (
-    <Section title={title}>
+    <Section title={title} titleStyle={styles.sectionTitle}>
       <Card style={styles.card}>
         <View style={styles.optionGrid}>
           {options.map((option) => {
@@ -37,7 +37,11 @@ function FilterOptionSection({
             return (
               <Pressable
                 key={option.key}
-                style={[styles.optionChip, isSelected && styles.optionChipSelected]}
+                style={({ pressed }) => [
+                  styles.optionChip,
+                  isSelected && styles.optionChipSelected,
+                  pressed ? styles.optionChipPressed : null,
+                ]}
                 onPress={() => onSelect(option.key)}
               >
                 <Text style={[styles.optionChipText, isSelected && styles.optionChipTextSelected]}>
@@ -152,9 +156,21 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: spacing.sm,
+    paddingTop: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold,
+    lineHeight: 24,
+    color: colors.text,
   },
   card: {
     gap: spacing.md,
+    borderRadius: 28,
+    borderCurve: "continuous",
+    backgroundColor: colors.surfaceElevated,
+    borderColor: "rgba(255, 255, 255, 0.05)",
+    boxShadow: "0px 18px 36px rgba(0, 0, 0, 0.18)",
   },
   optionGrid: {
     flexDirection: "row",
@@ -164,14 +180,18 @@ const styles = StyleSheet.create({
   optionChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
+    minHeight: 40,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: colors.surfaceGlass,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  },
+  optionChipPressed: {
+    transform: [{ scale: 0.98 }],
   },
   optionChipSelected: {
     borderColor: "rgba(214, 255, 96, 0.28)",
-    backgroundColor: colors.primarySoft,
+    backgroundColor: "rgba(214, 255, 96, 0.12)",
   },
   optionChipText: {
     color: colors.textSecondary,
@@ -190,7 +210,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.05)",
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   actionButton: {
     flex: 1,

@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { borderRadius, colors, fontWeight, spacing } from "../../design";
+import { borderRadius, colors, fontSize, fontWeight, spacing } from "../../design";
 import { TAB_BAR_CLEARANCE } from "./constants";
 
 export const styles = StyleSheet.create({
@@ -411,18 +411,61 @@ export const styles = StyleSheet.create({
     fontWeight: "800",
     color: colors.text,
   },
-  upcomingHeader: {
+  activitySummaryCard: {
+    padding: spacing.md,
+  },
+  activitySummarySurface: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    overflow: "hidden",
+  },
+  activitySummaryItem: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.lg,
+    gap: spacing.lg,
+  },
+  activitySummaryItemDivider: {
+    borderRightWidth: 1,
+    borderRightColor: "rgba(255, 255, 255, 0.08)",
+  },
+  activitySummaryMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
+  },
+  activitySummaryLabel: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  activitySummaryValueRow: {
+    minHeight: 36,
+    justifyContent: "flex-end",
+  },
+  activitySummaryValue: {
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: "800",
+    color: colors.text,
   },
   upcomingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: spacing.md,
   },
   upcomingTitle: {
     fontSize: 17,
     fontWeight: "700",
     color: colors.text,
+    flex: 1,
   },
   chevron: {
     fontSize: 24,
