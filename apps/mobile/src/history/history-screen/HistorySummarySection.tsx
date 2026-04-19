@@ -235,9 +235,6 @@ function LiftTrendChart({
           />
         ) : null}
       </View>
-      <Text style={styles.chartInteractionHint} variant="caption">
-        {t("history.chartTapHint")}
-      </Text>
     </View>
   );
 }
