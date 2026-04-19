@@ -203,9 +203,8 @@ export const styles = StyleSheet.create({
     marginHorizontal: -spacing["2xl"],
   },
   weekCarouselCard: {
-    minHeight: 212,
     justifyContent: "space-between",
-    gap: spacing["3xl"],
+    gap: spacing["2xl"],
     borderRadius: 28,
     borderCurve: "continuous",
     borderWidth: 1,
@@ -247,27 +246,8 @@ export const styles = StyleSheet.create({
   weekCarouselThumbnailFrame: {
     width: 48,
     height: 48,
-    borderRadius: 16,
-    borderCurve: "continuous",
-    overflow: "hidden",
-    padding: spacing.xs,
     alignItems: "center",
     justifyContent: "center",
-  },
-  weekCarouselThumbnailSquat: {
-    backgroundColor: colors.primarySoft,
-  },
-  weekCarouselThumbnailBench: {
-    backgroundColor: colors.primarySoft,
-  },
-  weekCarouselThumbnailDeadlift: {
-    backgroundColor: colors.primarySoft,
-  },
-  weekCarouselThumbnailPress: {
-    backgroundColor: colors.primarySoft,
-  },
-  weekCarouselThumbnailToday: {
-    backgroundColor: "rgba(214, 255, 96, 0.12)",
   },
   weekCarouselBody: {
     gap: spacing.sm,

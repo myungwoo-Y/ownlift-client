@@ -1,7 +1,7 @@
 import type { SessionStubRecord } from "@ownlift/db";
-import { useEffect, useMemo, useRef } from "react";
 import { Image } from "expo-image";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { useEffect, useMemo, useRef } from "react";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { Badge, colors, spacing, Text } from "../../design";
 import {
   getLiftLabel,
@@ -24,7 +24,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "bench") {
     return {
       card: styles.weekCarouselCardBench,
-      thumbnail: styles.weekCarouselThumbnailBench,
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
@@ -35,7 +34,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "deadlift") {
     return {
       card: styles.weekCarouselCardDeadlift,
-      thumbnail: styles.weekCarouselThumbnailDeadlift,
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
@@ -46,7 +44,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "press") {
     return {
       card: styles.weekCarouselCardPress,
-      thumbnail: styles.weekCarouselThumbnailPress,
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
@@ -56,7 +53,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
 
   return {
     card: styles.weekCarouselCardSquat,
-    thumbnail: styles.weekCarouselThumbnailSquat,
     meta: styles.weekCarouselMetaLight,
     title: styles.weekCarouselTitleLight,
     summary: styles.weekCarouselSummaryLight,
@@ -149,8 +145,6 @@ export function PlanWeekCarousel({
                 <View
                   style={[
                     styles.weekCarouselThumbnailFrame,
-                    palette.thumbnail,
-                    isToday ? styles.weekCarouselThumbnailToday : null,
                   ]}
                 >
                   <Image

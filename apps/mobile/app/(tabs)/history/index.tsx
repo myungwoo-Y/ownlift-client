@@ -3,12 +3,12 @@ import { calcE1RM } from "@ownlift/core";
 import type { SessionStubRecord, SetLogRecord } from "@ownlift/db";
 import { getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
-import { useFocusEffect, useRouter } from "expo-router";
 import { Image } from "expo-image";
+import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { FlatList, Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Badge, Card, borderRadius, colors, fontSize, fontWeight, spacing, Text } from "../../../src/design";
+import { Badge, borderRadius, Card, colors, fontSize, fontWeight, spacing, Text } from "../../../src/design";
 import { useHistoryFilterStore, type HistoryFilterOption } from "../../../src/history/history-filter-store";
 import { buildMockHistoryItems } from "../../../src/history/mock-history";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t, useLocale } from "../../../src/i18n";
@@ -442,20 +442,11 @@ function LiftTrendCard({
   const latestPoint = trendPoints[trendPoints.length - 1];
   const previousPoint = trendPoints[trendPoints.length - 2] ?? null;
   const change = latestPoint && previousPoint ? latestPoint.value - previousPoint.value : null;
-  const thumbnailSource = getLiftThumbnailSource(selectedLift);
 
   return (
     <Card style={[styles.chartCard, getLiftSurfaceStyle(selectedLift)]}>
       <View style={styles.chartCardHeader}>
         <View style={styles.chartCardLead}>
-          {thumbnailSource ? (
-            <Image
-              source={thumbnailSource}
-              contentFit="contain"
-              style={styles.summaryThumbnailImage}
-              tintColor={colors.primary}
-            />
-          ) : null}
           <View style={styles.chartCardCopy}>
             <Text
               {...WORD_BREAK_TEXT_PROPS}
