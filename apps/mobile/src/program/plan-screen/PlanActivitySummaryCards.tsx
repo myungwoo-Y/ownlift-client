@@ -30,25 +30,28 @@ function ActivityItem({
   isLast = false,
 }: ActivityItemProps) {
   return (
-    <View style={styles.activitySummaryItem}>
-      <View style={styles.activitySummaryMetaRow}>
-        <Ionicons color={iconColor} name={iconName} size={18} />
-        <Text numberOfLines={1} style={styles.activitySummaryLabel}>
-          {label}
-        </Text>
-      </View>
-      <View style={styles.activitySummaryValueRow}>
-        <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.7}
-          numberOfLines={1}
-          style={styles.activitySummaryValue}
-        >
-          {value}
-        </Text>
+    <View style={styles.activitySummaryItemContainer}>
+      <View style={styles.activitySummaryItem}>
+        <View style={styles.activitySummaryMetaRow}>
+          <Ionicons color={iconColor} name={iconName} size={18} />
+          <Text numberOfLines={1} style={styles.activitySummaryLabel}>
+            {label}
+          </Text>
+        </View>
+        <View style={styles.activitySummaryValueRow}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            numberOfLines={1}
+            style={styles.activitySummaryValue}
+          >
+            {value}
+          </Text>
+        </View>
       </View>
       {!isLast && <View style={styles.activitySummaryItemDivider} />}
     </View>
+
   );
 }
 

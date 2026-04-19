@@ -418,12 +418,17 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
   },
+  activitySummaryItemContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
   activitySummaryItem: {
     flex: 1,
     minWidth: 0,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.lg,
-    gap: spacing.lg,
+    gap: spacing.xs,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
@@ -432,6 +437,7 @@ export const styles = StyleSheet.create({
   activitySummaryItemDivider: {
     borderRightWidth: 1,
     borderRightColor: "rgba(255, 255, 255, 0.08)",
+    height: 62,
   },
   activitySummaryMetaRow: {
     display: 'flex',
@@ -452,9 +458,9 @@ export const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   activitySummaryValue: {
-    fontSize: 22,
-    lineHeight: 26,
-    fontWeight: "800",
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: fontWeight.bold,
     color: colors.text,
   },
   upcomingRow: {
@@ -464,7 +470,7 @@ export const styles = StyleSheet.create({
     gap: spacing.md,
   },
   upcomingTitle: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: colors.text,
     flex: 1,
