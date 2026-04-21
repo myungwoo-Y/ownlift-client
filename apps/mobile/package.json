@@ -14,6 +14,9 @@
     "build-run:ios": "expo run:ios",
     "build:cloud:ios": "eas build --profile development --platform ios",
     "build:cloud:android": "eas build --profile development --platform android",
+    "build:testflight:ios": "eas build --platform ios --profile production",
+    "submit:testflight:ios": "eas submit --platform ios --profile production --latest",
+    "release:testflight:ios": "eas build --platform ios --profile production --auto-submit",
     "web": "expo start --web",
     "lint": "expo lint"
   },
