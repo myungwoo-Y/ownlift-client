@@ -34,6 +34,40 @@ export const styles = StyleSheet.create({
   chartSection: {
     gap: spacing.lg,
   },
+  trendSection: {
+    gap: spacing.md,
+  },
+  trendRangeTabs: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing["2xs"],
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+  },
+  trendRangeTab: {
+    flex: 1,
+    minHeight: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: borderRadius.full,
+  },
+  trendRangeTabSelected: {
+    backgroundColor: colors.accent,
+  },
+  trendRangeTabPressed: {
+    opacity: 0.92,
+  },
+  trendRangeTabText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.medium,
+  },
+  trendRangeTabTextSelected: {
+    color: colors.primaryForeground,
+    fontWeight: fontWeight.semibold,
+  },
   logSection: {
     gap: spacing.md,
   },
@@ -208,25 +242,22 @@ export const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
   },
-  metricPill: {
-    minWidth: 88,
-    alignSelf: "flex-start",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(214, 255, 96, 0.24)",
-    backgroundColor: "rgba(214, 255, 96, 0.12)",
-    gap: 2,
+  chartChangePlaceholder: {
+    minHeight: 18,
+    minWidth: 32,
   },
-  metricValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.extrabold,
-    color: colors.text,
+  chartMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
-  metricStack: {
-    alignItems: "stretch",
-    gap: spacing.sm,
+  chartSelectionSummary: {
+    flex: 1,
+    color: colors.accent,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 18,
+    textAlign: "right",
   },
   chartEmpty: {
     minHeight: 148,
@@ -250,7 +281,7 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   trendPlot: {
-    height: LINE_CHART_HEIGHT,
+    height: LINE_CHART_HEIGHT + 52,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     overflow: "hidden",
@@ -261,6 +292,7 @@ export const styles = StyleSheet.create({
   chartAxisLabel: {
     color: colors.textSecondary,
     fontSize: fontSize.xs,
+    lineHeight: 14,
   },
   chartInteractionHint: {
     color: colors.textSecondary,

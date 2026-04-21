@@ -200,7 +200,11 @@ export default function WorkoutScreen() {
     };
   }, [activateWorkout, canStartTodayWorkout, instance, instanceId, mode, previewPrescription, sessionId, sessionStatus, shouldAutostart, stub]);
 
-  const currentSetId = isWorkoutActive ? sets.find((item) => !item.isCompleted)?.id ?? null : null;
+  const currentSet = isWorkoutActive
+    ? sets.find((item) => !item.isCompleted) ?? null
+    : null;
+  const currentSetId = currentSet?.id ?? null;
+  const shouldAutoFocusCurrentSet = isWorkoutActive && currentSet?.isAmrap === true;
 
   useEffect(() => {
     if (restSecondsRemaining <= 0 || isRestTimerPaused) {
@@ -217,7 +221,7 @@ export default function WorkoutScreen() {
   }, [isRestTimerPaused, restSecondsRemaining]);
 
   useEffect(() => {
-    if (!isWorkoutActive || !currentSetId) return;
+    if (!shouldAutoFocusCurrentSet || !currentSetId) return;
 
     const timeout = setTimeout(() => {
       repsInputRefs.current.get(currentSetId)?.focus();
@@ -226,7 +230,7 @@ export default function WorkoutScreen() {
     return () => {
       clearTimeout(timeout);
     };
-  }, [currentSetId, isWorkoutActive]);
+  }, [currentSetId, shouldAutoFocusCurrentSet]);
 
   const startRestTimer = (seconds: number) => {
     setRestSecondsRemaining(seconds);
@@ -332,15 +336,6 @@ export default function WorkoutScreen() {
       }
     }
 
-    if (!setData.isCompleted) {
-      const currentIndex = sets.findIndex((item) => item.id === setData.id);
-      const nextSet = sets.slice(currentIndex + 1).find((item) => !item.isCompleted);
-      if (nextSet) {
-        setTimeout(() => {
-          repsInputRefs.current.get(nextSet.id)?.focus();
-        }, 50);
-      }
-    }
   };
 
   const confirmComplete = () => {

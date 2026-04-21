@@ -13,7 +13,11 @@ import {
   spacing,
   Text,
 } from "../../../src/design";
-import { useHistoryFilterStore, type HistoryFilterOption, type HistoryListLiftFilter } from "../../../src/history/history-filter-store";
+import {
+  useHistoryFilterStore,
+  type HistoryFilterOption,
+  type HistoryListLiftFilter,
+} from "../../../src/history/history-filter-store";
 import { t, useLocale } from "../../../src/i18n";
 
 function FilterOptionSection({
@@ -91,72 +95,170 @@ export default function HistoryFilterScreen() {
   function handleApply(): void {
     setSelectedMonthKey(draftMonthKey);
     setSelectedListLift(draftListLift);
-    router.back();
+    handleClose();
+  }
+
+  function handleClose(): void {
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/history");
   }
 
   return (
-    <SafeAreaView edges={["bottom"]} style={styles.safe}>
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-        style={styles.scroll}
-      >
-        <View style={styles.header}>
-          <Text variant="body">{t("history.filter.helper")}</Text>
+    <View style={styles.overlay}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={handleClose}
+        style={styles.backdrop}
+      />
+
+      <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{t("history.filter.title")}</Text>
+              <Text style={styles.helper} variant="body">
+                {t("history.filter.helper")}
+              </Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleClose}
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed ? styles.closeButtonPressed : null,
+              ]}
+            >
+              <Text style={styles.closeButtonText}>{t("common.cancel")}</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.container}
+            showsVerticalScrollIndicator={false}
+            style={styles.scroll}
+          >
+            <FilterOptionSection
+              title={t("history.filter.period")}
+              options={resolvedMonthOptions}
+              selectedKey={draftMonthKey}
+              onSelect={setDraftMonthKey}
+            />
+
+            <FilterOptionSection
+              title={t("history.filter.exercise")}
+              options={resolvedLiftOptions}
+              selectedKey={draftListLift}
+              onSelect={(key) => setDraftListLift(key as HistoryListLiftFilter)}
+            />
+          </ScrollView>
+
+          <View style={styles.actions}>
+            <Button
+              title={t("history.filter.reset")}
+              variant="ghost"
+              size="md"
+              onPress={handleReset}
+              style={styles.actionButton}
+            />
+            <Button
+              title={t("history.filter.apply")}
+              size="md"
+              onPress={handleApply}
+              style={styles.actionButton}
+            />
+          </View>
         </View>
-
-        <FilterOptionSection
-          title={t("history.filter.period")}
-          options={resolvedMonthOptions}
-          selectedKey={draftMonthKey}
-          onSelect={setDraftMonthKey}
-        />
-
-        <FilterOptionSection
-          title={t("history.filter.exercise")}
-          options={resolvedLiftOptions}
-          selectedKey={draftListLift}
-          onSelect={(key) => setDraftListLift(key as HistoryListLiftFilter)}
-        />
-      </ScrollView>
-
-      <View style={styles.actions}>
-        <Button
-          title={t("history.filter.reset")}
-          variant="ghost"
-          size="md"
-          onPress={handleReset}
-          style={styles.actionButton}
-        />
-        <Button
-          title={t("history.filter.apply")}
-          size="md"
-          onPress={handleApply}
-          style={styles.actionButton}
-        />
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  overlay: {
     flex: 1,
-    backgroundColor: colors.background,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(4, 5, 8, 0.38)",
   },
-  scroll: {
-    flex: 1,
-    backgroundColor: colors.background,
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
-  container: {
-    padding: spacing["2xl"],
-    paddingBottom: spacing["2xl"],
-    gap: spacing["2xl"],
+  safeArea: {
+    width: "100%",
+  },
+  sheet: {
+    maxHeight: "84%",
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    borderCurve: "continuous",
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+    backgroundColor: colors.surfaceGlassStrong,
+    boxShadow: "0px -18px 44px rgba(0, 0, 0, 0.28)",
+    overflow: "hidden",
+  },
+  handle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    marginTop: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
   },
   header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    paddingHorizontal: spacing["2xl"],
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  headerCopy: {
+    flex: 1,
     gap: spacing.sm,
-    paddingTop: spacing.sm,
+  },
+  title: {
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    lineHeight: 28,
+  },
+  helper: {
+    color: colors.textSecondary,
+    lineHeight: 20,
+  },
+  closeButton: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    justifyContent: "center",
+    borderRadius: borderRadius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
+  },
+  closeButtonPressed: {
+    opacity: 0.82,
+  },
+  closeButtonText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  scroll: {
+    flexGrow: 0,
+  },
+  container: {
+    paddingHorizontal: spacing["2xl"],
+    paddingBottom: spacing["2xl"],
+    gap: spacing["2xl"],
   },
   sectionTitle: {
     fontSize: fontSize.xl,
@@ -210,7 +312,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.05)",
-    backgroundColor: colors.surface,
+    backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
   actionButton: {
     flex: 1,

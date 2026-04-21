@@ -27,11 +27,10 @@ export default function HistoryStackLayout() {
       <Stack.Screen
         name="filters"
         options={{
-          headerLargeTitle: false,
-          headerShadowVisible: false,
-          headerStyle: { backgroundColor: colors.background },
-          presentation: "card",
-          title: t("history.filter.title"),
+          animation: "slide_from_bottom",
+          contentStyle: { backgroundColor: "transparent" },
+          headerShown: false,
+          presentation: "transparentModal",
         }}
       />
     </Stack>

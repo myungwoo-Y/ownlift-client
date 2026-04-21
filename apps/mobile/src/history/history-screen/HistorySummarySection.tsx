@@ -43,21 +43,6 @@ function ChartEmptyState({
   );
 }
 
-function MetricPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.metricPill}>
-      <Text variant="label">{label}</Text>
-      <Text style={styles.metricValue}>{value}</Text>
-    </View>
-  );
-}
-
 function LiftSummaryCards({
   items,
   selectedLift,
@@ -75,13 +60,6 @@ function LiftSummaryCards({
         const summary = buildLiftSummary(items, lift);
         const isSelected = selectedLift === lift;
         const thumbnailSource = getLiftThumbnailSource(lift);
-        const changeStyle = summary.change == null
-          ? styles.summaryChangePlaceholder
-          : summary.change > 0
-            ? styles.summaryChangePositive
-            : summary.change < 0
-              ? styles.summaryChangeNegative
-              : styles.summaryChangeNeutral;
 
         return (
           <Pressable
@@ -140,6 +118,17 @@ type TrendChartDataItem = lineDataItem & {
   trendPoint: TrendPoint;
 };
 
+const TREND_CHART_Y_AXIS_LABEL_WIDTH = 44;
+const TREND_CHART_RIGHT_INSET = 20;
+const TREND_RANGE_OPTIONS = [
+  { key: "week", label: "W", dayWindow: 7 },
+  { key: "month", label: "M", dayWindow: 30 },
+  { key: "year", label: "Y", dayWindow: 365 },
+  { key: "all", label: "A", dayWindow: null },
+] as const;
+
+type TrendRangeKey = (typeof TREND_RANGE_OPTIONS)[number]["key"];
+
 function formatTrendAxisValue(label: string): string {
   const value = Number(label);
 
@@ -150,8 +139,85 @@ function formatTrendAxisValue(label: string): string {
   });
 }
 
-function formatTrendPointDate(completedAt: string): string {
-  return formatDate(completedAt, { month: "short", day: "numeric" });
+function formatTrendPointSummary(point: TrendPoint, unit: string): string {
+  return `${formatDate(point.completedAt, { month: "long", day: "numeric" })} / ${formatMeasurement(point.value, unit)}`;
+}
+
+function filterTrendPointsByRange(points: TrendPoint[], range: TrendRangeKey): TrendPoint[] {
+  if (range === "all" || points.length === 0) return points;
+
+  const anchor = new Date(points[points.length - 1]?.completedAt ?? "");
+  const dayWindow = TREND_RANGE_OPTIONS.find((option) => option.key === range)?.dayWindow;
+
+  if (Number.isNaN(anchor.getTime()) || dayWindow == null) return points;
+
+  const cutoff = new Date(anchor);
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - (dayWindow - 1));
+
+  return points.filter((point) => {
+    const completedAt = new Date(point.completedAt);
+    if (Number.isNaN(completedAt.getTime())) return false;
+    return completedAt >= cutoff;
+  });
+}
+
+function formatTrendXAxisLabel(completedAt: string): string {
+  return formatDate(completedAt, { month: "numeric", day: "numeric" });
+}
+
+function buildTrendChartData(points: TrendPoint[]): TrendChartDataItem[] {
+  const maxVisibleLabels = 6;
+  const labelStep = points.length <= maxVisibleLabels ? 1 : Math.ceil(points.length / maxVisibleLabels);
+
+  return points.map((point, index) => {
+    const shouldShowLabel = index === 0
+      || index === points.length - 1
+      || index % labelStep === 0;
+
+    return {
+      label: shouldShowLabel ? formatTrendXAxisLabel(point.completedAt) : "",
+      trendPoint: point,
+      value: point.value,
+    };
+  });
+}
+
+function TrendRangeTabs({
+  selectedRange,
+  onSelectRange,
+}: {
+  selectedRange: TrendRangeKey;
+  onSelectRange: (range: TrendRangeKey) => void;
+}) {
+  return (
+    <View style={styles.trendRangeTabs}>
+      {TREND_RANGE_OPTIONS.map((option) => {
+        const isSelected = option.key === selectedRange;
+
+        return (
+          <Pressable
+            key={option.key}
+            onPress={() => onSelectRange(option.key)}
+            style={({ pressed }) => [
+              styles.trendRangeTab,
+              isSelected ? styles.trendRangeTabSelected : null,
+              pressed ? styles.trendRangeTabPressed : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.trendRangeTabText,
+                isSelected ? styles.trendRangeTabTextSelected : null,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
 }
 
 function LiftTrendChart({
@@ -164,15 +230,7 @@ function LiftTrendChart({
   onSelectIndex: (index: number) => void;
 }) {
   const [chartWidth, setChartWidth] = useState(0);
-  const chartData = useMemo<TrendChartDataItem[]>(
-    () =>
-      points.map((point) => ({
-        label: point.label,
-        trendPoint: point,
-        value: point.value,
-      })),
-    [points],
-  );
+  const chartData = useMemo<TrendChartDataItem[]>(() => buildTrendChartData(points), [points]);
   const values = chartData.map((point) => point.value ?? 0);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
@@ -180,6 +238,10 @@ function LiftTrendChart({
   const padding = spread === 0 ? Math.max(maxValue * 0.05, 2) : spread * 0.18;
   const chartMin = Math.max(0, minValue - padding);
   const chartMax = maxValue + padding;
+  const chartViewportWidth = Math.max(
+    chartWidth - TREND_CHART_Y_AXIS_LABEL_WIDTH - TREND_CHART_RIGHT_INSET,
+    0,
+  );
 
   return (
     <View style={styles.trendChart}>
@@ -192,7 +254,7 @@ function LiftTrendChart({
         }}
         style={styles.trendPlot}
       >
-        {chartWidth > 0 ? (
+        {chartViewportWidth > 0 ? (
           <LineChart
             adjustToWidth
             color={colors.accent}
@@ -200,15 +262,16 @@ function LiftTrendChart({
             dataPointsColor="rgba(214, 255, 96, 0.36)"
             dataPointsRadius={4}
             disableScroll
-            endSpacing={12}
+            endSpacing={30}
             focusEnabled
             focusedDataPointColor={colors.accent}
             focusedDataPointIndex={selectedIndex}
             focusedDataPointRadius={6}
             formatYLabel={formatTrendAxisValue}
             height={LINE_CHART_HEIGHT}
-            initialSpacing={12}
-            labelsExtraHeight={10}
+            hideOrigin
+            initialSpacing={18}
+            labelsExtraHeight={14}
             maxValue={Math.max(chartMax - chartMin, 1)}
             noOfSections={2}
             onFocus={(_: TrendChartDataItem, index: number) => {
@@ -223,14 +286,17 @@ function LiftTrendChart({
             stripWidth={1}
             thickness={3}
             unFocusOnPressOut={false}
-            xAxisColor="transparent"
+            width={chartViewportWidth}
+            xAxisColor="rgba(255, 255, 255, 0.14)"
             xAxisLabelTextStyle={styles.chartAxisLabel}
-            xAxisLabelsHeight={20}
-            xAxisLabelsVerticalShift={8}
+            xAxisLabelsHeight={24}
+            xAxisLabelsVerticalShift={12}
             xAxisTextNumberOfLines={1}
-            yAxisColor="transparent"
-            yAxisLabelWidth={44}
+            xAxisThickness={1}
+            yAxisColor="rgba(255, 255, 255, 0.14)"
+            yAxisLabelWidth={TREND_CHART_Y_AXIS_LABEL_WIDTH}
             yAxisOffset={chartMin}
+            yAxisThickness={1}
             yAxisTextStyle={styles.chartAxisLabel}
           />
         ) : null}
@@ -240,81 +306,61 @@ function LiftTrendChart({
 }
 
 function LiftTrendCard({
+  points,
   selectedLift,
-  items,
   unit,
 }: {
+  points: TrendPoint[];
   selectedLift: MainLift;
-  items: HistoryItem[];
   unit: string;
 }) {
-  const trendPoints = useMemo(
-    () => buildTrendPoints(items, selectedLift),
-    [items, selectedLift],
-  );
-  const [selectedTrendIndex, setSelectedTrendIndex] = useState(Math.max(trendPoints.length - 1, 0));
-  const latestPoint = trendPoints[trendPoints.length - 1];
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState(Math.max(points.length - 1, 0));
+  const latestPoint = points[points.length - 1];
 
   useEffect(() => {
-    setSelectedTrendIndex(Math.max(trendPoints.length - 1, 0));
-  }, [trendPoints]);
+    setSelectedTrendIndex(Math.max(points.length - 1, 0));
+  }, [points]);
 
-  const selectedPoint = trendPoints[selectedTrendIndex] ?? latestPoint ?? null;
+  const selectedPoint = points[selectedTrendIndex] ?? latestPoint ?? null;
   const selectedPreviousPoint = selectedTrendIndex > 0
-    ? trendPoints[selectedTrendIndex - 1] ?? null
+    ? points[selectedTrendIndex - 1] ?? null
     : null;
   const change = selectedPoint && selectedPreviousPoint
     ? selectedPoint.value - selectedPreviousPoint.value
     : null;
-  const selectedValueLabel = selectedTrendIndex === trendPoints.length - 1
-    ? t("history.latestE1rm")
-    : t("history.selectedE1rm");
 
   return (
     <Card style={[styles.chartCard, getLiftSurfaceStyle(selectedLift)]}>
-      <View style={styles.chartCardHeader}>
-        <View style={styles.chartCardLead}>
-          <View style={styles.chartCardCopy}>
-            <Text
-              {...WORD_BREAK_TEXT_PROPS}
-              style={styles.chartTitle}
-            >
-              {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
-            </Text>
-            <Text style={styles.sectionHelper} variant="caption">
-              {t("history.e1rmHelper")}
-            </Text>
-            {change != null ? (
-              <Text
-                style={[
-                  styles.chartChange,
-                  change > 0
-                    ? styles.summaryChangePositive
-                    : change < 0
-                      ? styles.summaryChangeNegative
-                      : styles.summaryChangeNeutral,
-                ]}
-              >
-                {formatChange(change)}
-              </Text>
-            ) : null}
-          </View>
-        </View>
+      <View style={styles.chartMetaRow}>
+        {change != null ? (
+          <Text
+            style={[
+              styles.chartChange,
+              change > 0
+                ? styles.summaryChangePositive
+                : change < 0
+                  ? styles.summaryChangeNegative
+                  : styles.summaryChangeNeutral,
+            ]}
+          >
+            {formatChange(change)}
+          </Text>
+        ) : (
+          <View style={styles.chartChangePlaceholder} />
+        )}
         {selectedPoint ? (
-          <View style={styles.metricStack}>
-            <MetricPill
-              label={selectedValueLabel}
-              value={formatMeasurement(selectedPoint.value, unit)}
-            />
-            <MetricPill
-              label={t("history.sessionDate")}
-              value={formatTrendPointDate(selectedPoint.completedAt)}
-            />
-          </View>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+            numberOfLines={1}
+            style={styles.chartSelectionSummary}
+          >
+            {formatTrendPointSummary(selectedPoint, unit)}
+          </Text>
         ) : null}
       </View>
 
-      {trendPoints.length < MIN_TREND_POINTS ? (
+      {points.length < MIN_TREND_POINTS ? (
         <ChartEmptyState
           subtitle={t("history.e1rmEmptySubtitle")}
           title={t("history.e1rmEmptyTitle")}
@@ -322,7 +368,7 @@ function LiftTrendCard({
       ) : (
         <LiftTrendChart
           onSelectIndex={setSelectedTrendIndex}
-          points={trendPoints}
+          points={points}
           selectedIndex={selectedTrendIndex}
         />
       )}
@@ -336,6 +382,16 @@ export function HistorySummarySection({
   unit,
   onSelectLift,
 }: HistorySummarySectionProps) {
+  const [selectedTrendRange, setSelectedTrendRange] = useState<TrendRangeKey>("month");
+  const allTrendPoints = useMemo(
+    () => buildTrendPoints(items, selectedLift, 0),
+    [items, selectedLift],
+  );
+  const filteredTrendPoints = useMemo(
+    () => filterTrendPointsByRange(allTrendPoints, selectedTrendRange),
+    [allTrendPoints, selectedTrendRange],
+  );
+
   return (
     <>
       <LiftSummaryCards
@@ -344,11 +400,23 @@ export function HistorySummarySection({
         selectedLift={selectedLift}
         unit={unit}
       />
-      <LiftTrendCard
-        items={items}
-        selectedLift={selectedLift}
-        unit={unit}
-      />
+      <View style={styles.trendSection}>
+        <Text
+          {...WORD_BREAK_TEXT_PROPS}
+          style={styles.sectionTitle}
+        >
+          {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
+        </Text>
+        <TrendRangeTabs
+          onSelectRange={setSelectedTrendRange}
+          selectedRange={selectedTrendRange}
+        />
+        <LiftTrendCard
+          points={filteredTrendPoints}
+          selectedLift={selectedLift}
+          unit={unit}
+        />
+      </View>
     </>
   );
 }
