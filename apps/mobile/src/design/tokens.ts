@@ -69,10 +69,30 @@ export const borderRadius = {
   full: 999,
 } as const;
 
+export const motion = {
+  duration: {
+    instant: 80,
+    fast: 140,
+    normal: 220,
+    slow: 360,
+  },
+  scale: {
+    press: 0.98,
+    selected: 1.02,
+    reward: 1.06,
+  },
+  distance: {
+    subtle: 6,
+    normal: 12,
+    large: 24,
+  },
+} as const;
+
 export const tokens = {
   colors,
   spacing,
   fontSize,
   fontWeight,
   borderRadius,
+  motion,
 } as const;

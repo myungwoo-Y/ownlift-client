@@ -370,9 +370,8 @@ export default function WorkoutScreen() {
   const warmupSets = visibleSets.filter((setData) => setData.prescribed.isWarmup);
   const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
   const shouldShowRestTimer = isWorkoutActive && restSecondsRemaining > 0;
-  const shouldShowWorkoutCompleteButton = isWorkoutActive && allSetsCompleted;
   const shouldShowStartWorkoutButton = !isWorkoutActive && canStartTodayWorkout;
-  const shouldShowBottomControls = shouldShowStartWorkoutButton || shouldShowWorkoutCompleteButton;
+  const shouldShowBottomControls = shouldShowStartWorkoutButton;
   const effectiveScrollContentBottomPadding = shouldShowBottomControls
     ? scrollContentBottomPadding
     : spacing["3xl"];
@@ -623,6 +622,16 @@ export default function WorkoutScreen() {
               />
             ))}
           </Section>
+
+          {isWorkoutActive ? (
+            <View style={styles.inlineCompleteAction}>
+              <Button
+                title={workoutCompleteButtonTitle}
+                onPress={confirmComplete}
+                disabled={!allSetsCompleted || isSubmitting}
+              />
+            </View>
+          ) : null}
         </ScrollView>
 
         {shouldShowBottomControls ? (
@@ -639,13 +648,6 @@ export default function WorkoutScreen() {
                   title={startWorkoutButtonTitle}
                   onPress={() => void handleStartWorkout()}
                   disabled={isStarting}
-                />
-              ) : null}
-              {shouldShowWorkoutCompleteButton ? (
-                <Button
-                  title={workoutCompleteButtonTitle}
-                  onPress={confirmComplete}
-                  disabled={isSubmitting}
                 />
               ) : null}
             </View>
@@ -1021,6 +1023,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+  },
+  inlineCompleteAction: {
+    marginTop: spacing.sm,
   },
   checkButton: {
     width: 44,

@@ -8,4 +8,4 @@ export { Section } from "./primitives/Section";
 export { SegmentedControl } from "./primitives/SegmentedControl";
 export { Stepper } from "./primitives/Stepper";
 export { Text } from "./primitives/Text";
-export { borderRadius, colors, fontSize, fontWeight, spacing, tokens } from "./tokens";
+export { borderRadius, colors, fontSize, fontWeight, motion, spacing, tokens } from "./tokens";
