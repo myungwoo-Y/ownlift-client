@@ -372,7 +372,7 @@ export default function WorkoutScreen() {
   const shouldShowRestTimer = isWorkoutActive && restSecondsRemaining > 0;
   const shouldShowWorkoutCompleteButton = isWorkoutActive && allSetsCompleted;
   const shouldShowStartWorkoutButton = !isWorkoutActive && canStartTodayWorkout;
-  const shouldShowBottomControls = shouldShowStartWorkoutButton || shouldShowRestTimer || shouldShowWorkoutCompleteButton;
+  const shouldShowBottomControls = shouldShowStartWorkoutButton || shouldShowWorkoutCompleteButton;
   const effectiveScrollContentBottomPadding = shouldShowBottomControls
     ? scrollContentBottomPadding
     : spacing["3xl"];
@@ -499,11 +499,24 @@ export default function WorkoutScreen() {
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <BackButton
-          onPress={confirmExit}
-          disabled={isSubmitting || isStarting}
-          accessibilityLabel={t("common.back")}
-        />
+        <View style={styles.navBar}>
+          <BackButton
+            onPress={confirmExit}
+            disabled={isSubmitting || isStarting}
+            accessibilityLabel={t("common.back")}
+            style={styles.navBackButton}
+          />
+          {shouldShowRestTimer ? (
+            <View style={styles.navTimer}>
+              <RestTimerBar
+                remainingSeconds={restSecondsRemaining}
+                totalSeconds={restTimerTotalSeconds}
+                isPaused={isRestTimerPaused}
+                onPress={presentRestTimerSheet}
+              />
+            </View>
+          ) : null}
+        </View>
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
@@ -621,14 +634,6 @@ export default function WorkoutScreen() {
           >
             <Divider />
             <View style={styles.ctaPadding}>
-              {shouldShowRestTimer ? (
-                <RestTimerBar
-                  remainingSeconds={restSecondsRemaining}
-                  totalSeconds={restTimerTotalSeconds}
-                  isPaused={isRestTimerPaused}
-                  onPress={presentRestTimerSheet}
-                />
-              ) : null}
               {shouldShowStartWorkoutButton ? (
                 <Button
                   title={startWorkoutButtonTitle}
@@ -855,20 +860,22 @@ function SetCard({
       </View>
 
       <View style={styles.setInputRow}>
-        <NumericInput
-          value={data.actualWeight}
-          onChangeText={onChangeWeight}
-          unit={`${unit} ×`}
-          editable={editable}
-        />
-        <NumericInput
-          value={data.actualReps}
-          onChangeText={onChangeReps}
-          unit={t("unit.reps")}
-          editable={editable}
-          ref={repsInputRef}
-          onFocus={onRepsFocus}
-        />
+        <View style={styles.setInputGroup}>
+          <NumericInput
+            value={data.actualWeight}
+            onChangeText={onChangeWeight}
+            unit={`${unit} ×`}
+            editable={editable}
+          />
+          <NumericInput
+            value={data.actualReps}
+            onChangeText={onChangeReps}
+            unit={t("unit.reps")}
+            editable={editable}
+            ref={repsInputRef}
+            onFocus={onRepsFocus}
+          />
+        </View>
         <Pressable
           style={[
             styles.checkButton,
@@ -901,6 +908,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollView: {
+    flex: 1,
+  },
+  navBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  navBackButton: {
+    marginLeft: 0,
+  },
+  navTimer: {
     flex: 1,
   },
   center: {
@@ -992,6 +1012,12 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   setInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  setInputGroup: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
