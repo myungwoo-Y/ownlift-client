@@ -1,13 +1,25 @@
 import { updateStubStatus } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
+import {
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetView,
+  TouchableOpacity as BottomSheetTouchableOpacity,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
+import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
+  findNodeHandle,
   type DimensionValue,
   type TextInput,
 } from "react-native";
@@ -79,7 +91,11 @@ export default function WorkoutScreen() {
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(0);
   const [restTimerTotalSeconds, setRestTimerTotalSeconds] = useState(0);
   const [isRestTimerPaused, setIsRestTimerPaused] = useState(false);
+  const restTimerSheetRef = useRef<ComponentRef<typeof BottomSheetModal>>(null);
   const repsInputRefs = useRef(new Map<string, TextInput | null>());
+  const focusedRepsSetIdRef = useRef<string | null>(null);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const [ctaHeight, setCtaHeight] = useState(0);
 
   const stub = stubs.find((item) => item.sessionId === sessionId);
   const sessionStatus = stub?.status;
@@ -104,6 +120,7 @@ export default function WorkoutScreen() {
     setRestSecondsRemaining(0);
     setRestTimerTotalSeconds(0);
     setIsRestTimerPaused(false);
+    restTimerSheetRef.current?.dismiss();
   }, [sessionId]);
 
   useEffect(() => () => {
@@ -205,6 +222,10 @@ export default function WorkoutScreen() {
     : null;
   const currentSetId = currentSet?.id ?? null;
   const shouldAutoFocusCurrentSet = isWorkoutActive && currentSet?.isAmrap === true;
+  const scrollContentBottomPadding = Math.max(
+    spacing["3xl"],
+    ctaHeight + spacing["4xl"],
+  );
 
   useEffect(() => {
     if (restSecondsRemaining <= 0 || isRestTimerPaused) {
@@ -221,16 +242,69 @@ export default function WorkoutScreen() {
   }, [isRestTimerPaused, restSecondsRemaining]);
 
   useEffect(() => {
+    if (restSecondsRemaining <= 0) {
+      restTimerSheetRef.current?.dismiss();
+    }
+  }, [restSecondsRemaining]);
+
+  const scrollInputIntoView = useCallback((input: TextInput | null, delayMs = 80) => {
+    const inputHandle = findNodeHandle(input);
+    const scrollResponder = scrollViewRef.current?.getScrollResponder?.() as
+      | {
+          scrollResponderScrollNativeHandleToKeyboard?: (
+            nodeHandle: number,
+            additionalOffset?: number,
+            preventNegativeScrollOffset?: boolean,
+          ) => void;
+        }
+      | undefined;
+
+    if (!inputHandle || !scrollResponder?.scrollResponderScrollNativeHandleToKeyboard) {
+      return;
+    }
+
+    setTimeout(() => {
+      scrollResponder.scrollResponderScrollNativeHandleToKeyboard?.(
+        inputHandle,
+        ctaHeight + spacing["2xl"],
+        true,
+      );
+    }, delayMs);
+  }, [ctaHeight]);
+
+  const scrollFocusedRepsInputIntoView = useCallback(() => {
+    const focusedSetId = focusedRepsSetIdRef.current;
+    if (!focusedSetId) return;
+
+    scrollInputIntoView(repsInputRefs.current.get(focusedSetId) ?? null, 0);
+  }, [scrollInputIntoView]);
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener("keyboardDidShow", scrollFocusedRepsInputIntoView);
+    const frameSubscription = Platform.OS === "ios"
+      ? Keyboard.addListener("keyboardDidChangeFrame", scrollFocusedRepsInputIntoView)
+      : null;
+
+    return () => {
+      showSubscription.remove();
+      frameSubscription?.remove();
+    };
+  }, [scrollFocusedRepsInputIntoView]);
+
+  useEffect(() => {
     if (!shouldAutoFocusCurrentSet || !currentSetId) return;
 
     const timeout = setTimeout(() => {
-      repsInputRefs.current.get(currentSetId)?.focus();
+      focusedRepsSetIdRef.current = currentSetId;
+      const input = repsInputRefs.current.get(currentSetId) ?? null;
+      input?.focus();
+      scrollInputIntoView(input);
     }, 150);
 
     return () => {
       clearTimeout(timeout);
     };
-  }, [currentSetId, shouldAutoFocusCurrentSet]);
+  }, [currentSetId, scrollInputIntoView, shouldAutoFocusCurrentSet]);
 
   const startRestTimer = (seconds: number) => {
     setRestSecondsRemaining(seconds);
@@ -238,10 +312,30 @@ export default function WorkoutScreen() {
     setIsRestTimerPaused(false);
   };
 
+  const handleRepsInputFocus = useCallback((setId: string) => {
+    focusedRepsSetIdRef.current = setId;
+    scrollInputIntoView(repsInputRefs.current.get(setId) ?? null);
+  }, [scrollInputIntoView]);
+
+  const presentRestTimerSheet = useCallback(() => {
+    restTimerSheetRef.current?.present();
+  }, []);
+
+  const renderRestTimerBackdrop = useCallback((props: BottomSheetBackdropProps) => (
+    <BottomSheetBackdrop
+      {...props}
+      appearsOnIndex={0}
+      disappearsOnIndex={-1}
+      opacity={0.48}
+      pressBehavior="close"
+    />
+  ), []);
+
   const skipRestTimer = () => {
     setRestSecondsRemaining(0);
     setRestTimerTotalSeconds(0);
     setIsRestTimerPaused(false);
+    restTimerSheetRef.current?.dismiss();
   };
 
   if (isScreenLoading || (isWorkoutActive && isWorkoutLoading) || !stub || !instance) {
@@ -265,15 +359,23 @@ export default function WorkoutScreen() {
   }
 
   const weekLabel = getWeekLabel(stub.weekIndex);
-  const completedCount = stubs.filter((item) => item.status === "completed").length;
-  const totalCount = stubs.length;
-  const allSetsCompleted = sets.every((item) => item.isCompleted);
   const visibleSets = isWorkoutActive
     ? sets
     : prescription.sets
         .map(toPreviewSetState);
+  const workoutCompletedCount = visibleSets.filter((item) => item.isCompleted).length;
+  const workoutTotalCount = visibleSets.length;
+  const workoutProgressPercentage = Math.round((workoutCompletedCount / Math.max(workoutTotalCount, 1)) * 100);
+  const allSetsCompleted = sets.every((item) => item.isCompleted);
   const warmupSets = visibleSets.filter((setData) => setData.prescribed.isWarmup);
   const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
+  const shouldShowRestTimer = isWorkoutActive && restSecondsRemaining > 0;
+  const shouldShowWorkoutCompleteButton = isWorkoutActive && allSetsCompleted;
+  const shouldShowStartWorkoutButton = !isWorkoutActive && canStartTodayWorkout;
+  const shouldShowBottomControls = shouldShowStartWorkoutButton || shouldShowRestTimer || shouldShowWorkoutCompleteButton;
+  const effectiveScrollContentBottomPadding = shouldShowBottomControls
+    ? scrollContentBottomPadding
+    : spacing["3xl"];
 
   const handleComplete = async () => {
     if (isSubmitting || !sessionId || !isWorkoutActive) return;
@@ -282,7 +384,13 @@ export default function WorkoutScreen() {
       setIsSubmitting(true);
       await completeWorkout();
       await completeSession(sessionId);
-      goBack();
+      void loadProgram().catch((error) => {
+        console.error("Failed to refresh program after completion:", error);
+      });
+      router.replace({
+        pathname: "/workout/complete",
+        params: { sessionId },
+      });
     } catch (error) {
       console.error("Failed to complete workout:", error);
       Alert.alert(
@@ -311,8 +419,8 @@ export default function WorkoutScreen() {
     }
   };
 
-  const handleToggleSet = async (setData: WorkoutSetType) => {
-    if (!isWorkoutActive) return;
+  const handleToggleSet = async (setData: WorkoutSetType): Promise<boolean> => {
+    if (!isWorkoutActive) return false;
 
     const nextCompleted = !setData.isCompleted;
     const actualReps = parseInt(setData.actualReps, 10);
@@ -323,19 +431,27 @@ export default function WorkoutScreen() {
         t("workout.amrapRepsRequiredMessage"),
       );
       repsInputRefs.current.get(setData.id)?.focus();
-      return;
+      return false;
     }
 
+    const willHaveRemainingSets = sets.some((item) => item.id !== setData.id && !item.isCompleted);
+
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await toggleSetComplete(setData.id);
 
+    if (!nextCompleted) {
+      skipRestTimer();
+    }
+
     if (nextCompleted && !setData.prescribed.isWarmup) {
-      if (setData.isAmrap) {
+      if (setData.isAmrap || !willHaveRemainingSets) {
         skipRestTimer();
       } else if (defaultRestTimerSeconds > 0) {
         startRestTimer(defaultRestTimerSeconds);
       }
     }
 
+    return true;
   };
 
   const confirmComplete = () => {
@@ -370,131 +486,199 @@ export default function WorkoutScreen() {
     );
   };
 
+  const workoutCompleteButtonTitle = isSubmitting
+    ? t("workout.saving")
+    : t("workout.completeWorkout");
+  const startWorkoutButtonTitle = isStarting
+    ? t("workout.starting")
+    : t("workout.startWorkout");
+
   return (
     <SafeAreaView style={styles.safe}>
-      <BackButton
-        onPress={confirmExit}
-        disabled={isSubmitting || isStarting}
-        accessibilityLabel={t("common.back")}
-      />
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <Text variant="title">
-              {getLiftLabel(stub.mainLiftKey)}
-            </Text>
-            <Text variant="subtitle">
-              {t("workout.subtitle", { week: stub.weekIndex + 1, label: weekLabel })}
-            </Text>
-          </View>
-          <View style={styles.badgeRow}>
-            {isTodaySession ? (
-              <Badge variant="today" label={t("status.today")} />
-            ) : (
-              <Badge
-                variant={stub.status === "completed" ? "completed" : "planned"}
-                label={stub.status === "completed" ? t("status.completed") : t("status.planned")}
-              />
-            )}
-            {workSets.some((setData) => setData.isAmrap) ? (
-              <Badge variant="amrap" label={t("badge.amrap")} />
-            ) : null}
-          </View>
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBarFill,
-                { width: `${Math.round((completedCount / Math.max(totalCount, 1)) * 100)}%` as DimensionValue },
-              ]}
-            />
-          </View>
-          <Text style={styles.progressLabel}>
-            {String(completedCount)}/{String(totalCount)}
-          </Text>
-        </View>
-
-        <Divider />
-
-        {!isWorkoutActive ? (
-          <Card>
-            <View style={styles.previewNotice}>
-              <Text style={styles.previewNoticeTitle}>
-                {canStartTodayWorkout
-                  ? t("workout.readyToStart")
-                  : (showScheduledDayMessage
-                    ? t("workout.onlyScheduledDayCanStart")
-                    : t("workout.onlyTodayCanStart"))}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <BackButton
+          onPress={confirmExit}
+          disabled={isSubmitting || isStarting}
+          accessibilityLabel={t("common.back")}
+        />
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.container,
+            { paddingBottom: effectiveScrollContentBottomPadding },
+          ]}
+          scrollIndicatorInsets={{ bottom: effectiveScrollContentBottomPadding }}
+          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+        >
+          <View style={styles.header}>
+            <View style={styles.headerRow}>
+              <Text variant="title">
+                {getLiftLabel(stub.mainLiftKey)}
+              </Text>
+              <Text variant="subtitle">
+                {t("workout.subtitle", { week: stub.weekIndex + 1, label: weekLabel })}
               </Text>
             </View>
-          </Card>
-        ) : null}
+            <View style={styles.badgeRow}>
+              {isTodaySession ? (
+                <Badge variant="today" label={t("status.today")} />
+              ) : (
+                <Badge
+                  variant={stub.status === "completed" ? "completed" : "planned"}
+                  label={stub.status === "completed" ? t("status.completed") : t("status.planned")}
+                />
+              )}
+              {workSets.some((setData) => setData.isAmrap) ? (
+                <Badge variant="amrap" label={t("badge.amrap")} />
+              ) : null}
+            </View>
+            <View style={styles.progressHeader}>
+              <Text style={styles.progressTitle}>{t("workout.progress.current")}</Text>
+              <Text style={styles.progressValue}>
+                {String(workoutCompletedCount)}/{String(workoutTotalCount)}
+              </Text>
+            </View>
+            <View style={styles.progressBarContainer}>
+              <View
+                style={[
+                  styles.progressBarFill,
+                  { width: `${workoutProgressPercentage}%` as DimensionValue },
+                ]}
+              />
+            </View>
+          </View>
+          <Divider />
 
-        {warmupSets.length > 0 ? (
-          <Section title={t("workout.section.warmupSets")}>
-            {warmupSets.map((setData) => (
+          {!isWorkoutActive ? (
+            <Card>
+              <View style={styles.previewNotice}>
+                <Text style={styles.previewNoticeTitle}>
+                  {canStartTodayWorkout
+                    ? t("workout.readyToStart")
+                    : (showScheduledDayMessage
+                      ? t("workout.onlyScheduledDayCanStart")
+                      : t("workout.onlyTodayCanStart"))}
+                </Text>
+              </View>
+            </Card>
+          ) : null}
+
+          {warmupSets.length > 0 ? (
+            <Section title={t("workout.section.warmupSets")}>
+              {warmupSets.map((setData) => (
+                <SetCard
+                  key={setData.id}
+                  data={setData}
+                  unit={instance.params.unit}
+                  editable={isWorkoutActive}
+                  canToggle={isWorkoutActive && (setData.isCompleted || currentSetId === setData.id)}
+                  isCurrent={currentSetId === setData.id}
+                  repsInputRef={(node) => {
+                    repsInputRefs.current.set(setData.id, node);
+                  }}
+                  onRepsFocus={() => handleRepsInputFocus(setData.id)}
+                  onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
+                  onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
+                  onToggle={() => void handleToggleSet(setData)}
+                />
+              ))}
+            </Section>
+          ) : null}
+
+          <Section title={t("workout.section.workSets")}>
+            {workSets.map((setData) => (
               <SetCard
                 key={setData.id}
                 data={setData}
                 unit={instance.params.unit}
                 editable={isWorkoutActive}
+                canToggle={isWorkoutActive && (setData.isCompleted || currentSetId === setData.id)}
                 isCurrent={currentSetId === setData.id}
                 repsInputRef={(node) => {
                   repsInputRefs.current.set(setData.id, node);
                 }}
+                onRepsFocus={() => handleRepsInputFocus(setData.id)}
                 onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
                 onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
                 onToggle={() => void handleToggleSet(setData)}
               />
             ))}
           </Section>
+        </ScrollView>
+
+        {shouldShowBottomControls ? (
+          <View
+            style={styles.ctaContainer}
+            onLayout={(event) => {
+              setCtaHeight(event.nativeEvent.layout.height);
+            }}
+          >
+            <Divider />
+            <View style={styles.ctaPadding}>
+              {shouldShowRestTimer ? (
+                <RestTimerBar
+                  remainingSeconds={restSecondsRemaining}
+                  totalSeconds={restTimerTotalSeconds}
+                  isPaused={isRestTimerPaused}
+                  onPress={presentRestTimerSheet}
+                />
+              ) : null}
+              {shouldShowStartWorkoutButton ? (
+                <Button
+                  title={startWorkoutButtonTitle}
+                  onPress={() => void handleStartWorkout()}
+                  disabled={isStarting}
+                />
+              ) : null}
+              {shouldShowWorkoutCompleteButton ? (
+                <Button
+                  title={workoutCompleteButtonTitle}
+                  onPress={confirmComplete}
+                  disabled={isSubmitting}
+                />
+              ) : null}
+            </View>
+          </View>
         ) : null}
-
-        <Section title={t("workout.section.workSets")}>
-          {workSets.map((setData) => (
-            <SetCard
-              key={setData.id}
-              data={setData}
-              unit={instance.params.unit}
-              editable={isWorkoutActive}
-              isCurrent={currentSetId === setData.id}
-              repsInputRef={(node) => {
-                repsInputRefs.current.set(setData.id, node);
-              }}
-              onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
-              onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
-              onToggle={() => void handleToggleSet(setData)}
-            />
-          ))}
-        </Section>
-      </ScrollView>
-
-      {(isWorkoutActive || canStartTodayWorkout) ? (
-        <View style={styles.ctaContainer}>
-          <Divider />
-          <View style={styles.ctaPadding}>
-            {isWorkoutActive && restSecondsRemaining > 0 ? (
-              <RestTimerBar
-                remainingSeconds={restSecondsRemaining}
-                totalSeconds={restTimerTotalSeconds}
-                isPaused={isRestTimerPaused}
-                onTogglePause={() => setIsRestTimerPaused((current) => !current)}
-                onAddTime={() => {
+        <BottomSheetModal
+          ref={restTimerSheetRef}
+          enableDynamicSizing
+          enablePanDownToClose
+          backdropComponent={renderRestTimerBackdrop}
+          backgroundStyle={styles.timerSheetBackground}
+          handleIndicatorStyle={styles.timerSheetHandleIndicator}
+        >
+          <BottomSheetView style={styles.timerSheetContent}>
+            <Text style={styles.timerSheetTitle}>
+              {t("workout.restTimer", { time: formatDuration(restSecondsRemaining) })}
+            </Text>
+            <View style={styles.timerSheetActions}>
+              <TimerSheetAction
+                title={isRestTimerPaused ? t("workout.restResume") : t("workout.restPause")}
+                variant="primary"
+                onPress={() => setIsRestTimerPaused((current) => !current)}
+              />
+              <TimerSheetAction
+                title={t("workout.restAddTime")}
+                onPress={() => {
                   setRestSecondsRemaining((current) => current + REST_EXTENSION_SECONDS);
                   setRestTimerTotalSeconds((current) => current + REST_EXTENSION_SECONDS);
                 }}
-                onSkip={skipRestTimer}
               />
-            ) : null}
-            <Button
-              title={isWorkoutActive
-                ? (isSubmitting ? t("workout.saving") : t("workout.completeWorkout"))
-                : (isStarting ? t("workout.starting") : t("workout.startWorkout"))}
-              onPress={isWorkoutActive ? confirmComplete : () => void handleStartWorkout()}
-              disabled={isWorkoutActive ? isSubmitting : isStarting}
-            />
-          </View>
-        </View>
-      ) : null}
+              <TimerSheetAction
+                title={t("workout.restSkip")}
+                onPress={skipRestTimer}
+              />
+            </View>
+          </BottomSheetView>
+        </BottomSheetModal>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -503,16 +687,12 @@ function RestTimerBar({
   remainingSeconds,
   totalSeconds,
   isPaused,
-  onTogglePause,
-  onAddTime,
-  onSkip,
+  onPress,
 }: {
   remainingSeconds: number;
   totalSeconds: number;
   isPaused: boolean;
-  onTogglePause: () => void;
-  onAddTime: () => void;
-  onSkip: () => void;
+  onPress: () => void;
 }) {
   const [trackWidth, setTrackWidth] = useState(0);
   const progressTranslateX = useSharedValue(0);
@@ -564,7 +744,13 @@ function RestTimerBar({
   }));
 
   return (
-    <View style={styles.restBar}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.restBar,
+        pressed && styles.restBarPressed,
+      ]}
+      onPress={onPress}
+    >
       <View
         style={styles.restBarProgressTrack}
         onLayout={(event) => {
@@ -577,36 +763,41 @@ function RestTimerBar({
         <Text style={styles.restBarLabel}>
           {t("workout.restTimer", { time: formatDuration(remainingSeconds) })}
         </Text>
-        <View style={styles.restBarActions}>
-          <RestTimerAction
-            title={isPaused ? t("workout.restResume") : t("workout.restPause")}
-            onPress={onTogglePause}
-          />
-          <RestTimerAction title={t("workout.restAddTime")} onPress={onAddTime} />
-          <RestTimerAction title={t("workout.restSkip")} onPress={onSkip} />
-        </View>
+        {isPaused ? (
+          <Text style={styles.restBarStatus}>{t("workout.restPausedStatus")}</Text>
+        ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
-function RestTimerAction({
+function TimerSheetAction({
   title,
+  variant = "secondary",
   onPress,
 }: {
   title: string;
+  variant?: "primary" | "secondary";
   onPress: () => void;
 }) {
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.restActionButton,
-        pressed && styles.restActionButtonPressed,
+    <BottomSheetTouchableOpacity
+      activeOpacity={0.84}
+      style={[
+        styles.timerSheetAction,
+        variant === "primary" && styles.timerSheetActionPrimary,
       ]}
       onPress={onPress}
     >
-      <Text style={styles.restActionButtonText}>{title}</Text>
-    </Pressable>
+      <Text
+        style={[
+          styles.timerSheetActionText,
+          variant === "primary" && styles.timerSheetActionPrimaryText,
+        ]}
+      >
+        {title}
+      </Text>
+    </BottomSheetTouchableOpacity>
   );
 }
 
@@ -617,7 +808,9 @@ function SetCard({
   onChangeReps,
   onToggle,
   isCurrent,
+  canToggle,
   repsInputRef,
+  onRepsFocus,
   editable = true,
 }: {
   data: WorkoutSetType;
@@ -626,15 +819,34 @@ function SetCard({
   onChangeReps: (v: string) => void;
   onToggle: () => void;
   isCurrent: boolean;
+  canToggle: boolean;
   repsInputRef?: (node: TextInput | null) => void;
+  onRepsFocus?: () => void;
   editable?: boolean;
 }) {
+  const isCurrentSet = editable && isCurrent;
+
   return (
-    <Card highlighted={editable && isCurrent}>
+    <Card
+      highlighted={isCurrentSet}
+      style={[
+        data.isCompleted && styles.completedSetCard,
+        isCurrentSet && styles.currentSetCard,
+      ]}
+    >
       <View style={styles.setHeader}>
         <View style={styles.setLabelRow}>
           <Text style={styles.setLabel}>{t("workout.setLabel", { set: data.setOrder + 1 })}</Text>
-          {isCurrent && editable ? <Badge variant="today" label={t("workout.currentSet")} /> : null}
+          {editable ? (
+            <View
+              style={!isCurrentSet && styles.hiddenCurrentSetBadge}
+              pointerEvents="none"
+              accessibilityElementsHidden={!isCurrentSet}
+              importantForAccessibility={isCurrentSet ? "auto" : "no-hide-descendants"}
+            >
+              <Badge variant="today" label={t("workout.currentSet")} />
+            </View>
+          ) : null}
           {data.isAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
         </View>
         <Text variant="caption">
@@ -655,17 +867,23 @@ function SetCard({
           unit={t("unit.reps")}
           editable={editable}
           ref={repsInputRef}
+          onFocus={onRepsFocus}
         />
         <Pressable
           style={[
             styles.checkButton,
             data.isCompleted && styles.checkButtonActive,
-            !editable && styles.checkButtonDisabled,
+            !canToggle && styles.checkButtonDisabled,
           ]}
           onPress={onToggle}
-          disabled={!editable}
+          disabled={!canToggle}
         >
-          <Text style={[styles.checkMark, data.isCompleted && styles.checkMarkActive]}>
+          <Text
+            style={[
+              styles.checkMark,
+              data.isCompleted && styles.checkMarkActive,
+            ]}
+          >
             ✓
           </Text>
         </Pressable>
@@ -679,14 +897,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardAvoiding: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
   container: {
+    flexGrow: 1,
     padding: spacing["2xl"],
-    paddingBottom: 180,
+    paddingBottom: spacing["3xl"],
     gap: spacing["2xl"],
   },
   header: {
@@ -702,6 +927,23 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.xs,
   },
+  progressHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    marginTop: spacing.xs,
+  },
+  progressTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textSecondary,
+  },
+  progressValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.text,
+  },
   progressBarContainer: {
     height: 6,
     backgroundColor: colors.surface,
@@ -713,12 +955,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     borderRadius: 3,
   },
-  progressLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textSecondary,
-    textAlign: "right",
-  },
   previewNotice: {
     gap: spacing.xs,
   },
@@ -726,6 +962,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.textSecondary,
+  },
+  currentSetCard: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  completedSetCard: {
+    borderWidth: 1,
+    borderColor: "rgba(214, 255, 96, 0.28)",
+    backgroundColor: "rgba(214, 255, 96, 0.05)",
   },
   setHeader: {
     flexDirection: "row",
@@ -743,6 +988,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textSecondary,
   },
+  hiddenCurrentSetBadge: {
+    opacity: 0,
+  },
   setInputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -754,13 +1002,13 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   checkButtonActive: {
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.accent,
+    backgroundColor: colors.primarySoft,
+    borderColor: "rgba(214, 255, 96, 0.38)",
   },
   checkButtonDisabled: {
     opacity: 0.45,
@@ -768,16 +1016,12 @@ const styles = StyleSheet.create({
   checkMark: {
     fontSize: 20,
     fontWeight: "700",
-    color: colors.textTertiary,
+    color: colors.textSecondary,
   },
   checkMarkActive: {
     color: colors.accent,
   },
   ctaContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: colors.background,
     paddingBottom: spacing["3xl"],
   },
@@ -794,6 +1038,9 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
+  restBarPressed: {
+    opacity: 0.9,
+  },
   restBarProgressTrack: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.surfaceMuted,
@@ -806,6 +1053,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    justifyContent: "space-between",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -814,27 +1062,53 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.accent,
   },
-  restBarActions: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    gap: spacing.xs,
-  },
-  restActionButton: {
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  restActionButtonPressed: {
-    opacity: 0.8,
-  },
-  restActionButtonText: {
+  restBarStatus: {
     fontSize: 12,
     fontWeight: "600",
     color: colors.textSecondary,
+  },
+  timerSheetBackground: {
+    backgroundColor: colors.surfaceGlassStrong,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  timerSheetHandleIndicator: {
+    width: 44,
+    backgroundColor: colors.borderStrong,
+  },
+  timerSheetContent: {
+    paddingHorizontal: spacing["2xl"],
+    paddingTop: spacing.sm,
+    paddingBottom: spacing["3xl"],
+    gap: spacing.lg,
+  },
+  timerSheetTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: colors.text,
+    textAlign: "center",
+  },
+  timerSheetActions: {
+    gap: spacing.md,
+  },
+  timerSheetAction: {
+    minHeight: 52,
+    borderRadius: borderRadius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing["2xl"],
+    paddingVertical: spacing.md,
+  },
+  timerSheetActionPrimary: {
+    backgroundColor: colors.primary,
+  },
+  timerSheetActionText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  timerSheetActionPrimaryText: {
+    color: colors.primaryForeground,
   },
 });

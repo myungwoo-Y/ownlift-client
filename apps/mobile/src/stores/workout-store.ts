@@ -157,7 +157,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   completeWorkout: async () => {
-    const { sessionId, instanceId, sets } = get();
+    const { sessionId, instanceId, sets, startedAt } = get();
     if (!sessionId || !instanceId) return;
 
     const mainLift = get().prescription?.mainLift;
@@ -194,14 +194,21 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return sum + w * r;
     }, 0);
 
+    const completedAt = nowISO();
+    const startedAtMs = startedAt ? new Date(startedAt).getTime() : Number.NaN;
+    const completedAtMs = new Date(completedAt).getTime();
+    const durationMinutes = Number.isFinite(startedAtMs) && Number.isFinite(completedAtMs) && completedAtMs >= startedAtMs
+      ? Math.max(1, Math.round((completedAtMs - startedAtMs) / 60000))
+      : undefined;
+
     await createWorkoutResult({
       sessionId,
       instanceId,
-      completedAt: nowISO(),
+      completedAt,
       summary: {
         totalVolume,
         isPR: false,
-        durationMinutes: undefined,
+        durationMinutes,
       },
     });
   },

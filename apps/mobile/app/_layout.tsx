@@ -1,4 +1,5 @@
 import { getSetting, runMigrations, setDatabase } from "@ownlift/db";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -105,39 +106,48 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <ThemeProvider value={navigationTheme}>
-          <StatusBar style="light" />
-          <View key={`locale-shell-${locale}`} style={styles.navigatorShell}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: styles.stackContent,
-              }}
-            >
-              <Stack.Screen name="(onboarding)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen
-                name="workout/[sessionId]"
-                options={{
-                  presentation: "card",
+          <BottomSheetModalProvider>
+            <StatusBar style="light" />
+            <View key={`locale-shell-${locale}`} style={styles.navigatorShell}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
                   contentStyle: styles.stackContent,
                 }}
-              />
-              <Stack.Screen
-                name="session/[sessionId]"
-                options={{
-                  presentation: "card",
-                  contentStyle: styles.stackContent,
-                }}
-              />
-              <Stack.Screen
-                name="upcoming"
-                options={{
-                  presentation: "card",
-                  contentStyle: styles.stackContent,
-                }}
-              />
-            </Stack>
-          </View>
+              >
+                <Stack.Screen name="(onboarding)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen
+                  name="workout/complete"
+                  options={{
+                    presentation: "card",
+                    contentStyle: styles.stackContent,
+                  }}
+                />
+                <Stack.Screen
+                  name="workout/[sessionId]"
+                  options={{
+                    presentation: "card",
+                    contentStyle: styles.stackContent,
+                  }}
+                />
+                <Stack.Screen
+                  name="session/[sessionId]"
+                  options={{
+                    presentation: "card",
+                    contentStyle: styles.stackContent,
+                  }}
+                />
+                <Stack.Screen
+                  name="upcoming"
+                  options={{
+                    presentation: "card",
+                    contentStyle: styles.stackContent,
+                  }}
+                />
+              </Stack>
+            </View>
+          </BottomSheetModalProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
