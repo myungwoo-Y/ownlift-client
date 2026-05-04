@@ -24,6 +24,7 @@ import {
   type TextInput,
 } from "react-native";
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   BackButton,
@@ -371,7 +372,7 @@ export default function WorkoutScreen() {
   const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
   const shouldShowRestTimer = isWorkoutActive && restSecondsRemaining > 0;
   const shouldShowStartWorkoutButton = !isWorkoutActive && canStartTodayWorkout;
-  const shouldShowBottomControls = shouldShowStartWorkoutButton;
+  const shouldShowBottomControls = shouldShowStartWorkoutButton || isWorkoutActive;
   const effectiveScrollContentBottomPadding = shouldShowBottomControls
     ? scrollContentBottomPadding
     : spacing["3xl"];
@@ -623,15 +624,6 @@ export default function WorkoutScreen() {
             ))}
           </Section>
 
-          {isWorkoutActive ? (
-            <View style={styles.inlineCompleteAction}>
-              <Button
-                title={workoutCompleteButtonTitle}
-                onPress={confirmComplete}
-                disabled={!allSetsCompleted || isSubmitting}
-              />
-            </View>
-          ) : null}
         </ScrollView>
 
         {shouldShowBottomControls ? (
@@ -641,15 +633,28 @@ export default function WorkoutScreen() {
               setCtaHeight(event.nativeEvent.layout.height);
             }}
           >
-            <Divider />
+            <View pointerEvents="none" style={styles.ctaFadeArea}>
+              <Svg
+                width="100%"
+                height="100%"
+                style={StyleSheet.absoluteFill}
+                preserveAspectRatio="none"
+              >
+                <Defs>
+                  <SvgLinearGradient id="ctaFade" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0%" stopColor={colors.background} stopOpacity="0" />
+                    <Stop offset="100%" stopColor={colors.background} stopOpacity="1" />
+                  </SvgLinearGradient>
+                </Defs>
+                <Rect width="100%" height="100%" fill="url(#ctaFade)" />
+              </Svg>
+            </View>
             <View style={styles.ctaPadding}>
-              {shouldShowStartWorkoutButton ? (
-                <Button
-                  title={startWorkoutButtonTitle}
-                  onPress={() => void handleStartWorkout()}
-                  disabled={isStarting}
-                />
-              ) : null}
+              <Button
+                title={isWorkoutActive ? workoutCompleteButtonTitle : startWorkoutButtonTitle}
+                onPress={isWorkoutActive ? confirmComplete : () => void handleStartWorkout()}
+                disabled={isWorkoutActive ? isSubmitting : isStarting}
+              />
             </View>
           </View>
         ) : null}
@@ -1024,9 +1029,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
   },
-  inlineCompleteAction: {
-    marginTop: spacing.sm,
-  },
   checkButton: {
     width: 44,
     height: 44,
@@ -1053,12 +1055,19 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   ctaContainer: {
-    backgroundColor: colors.background,
-    paddingBottom: spacing["3xl"],
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  ctaFadeArea: {
+    height: 88,
   },
   ctaPadding: {
+    backgroundColor: colors.background,
     paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing.lg,
+    paddingTop: 0,
+    paddingBottom: spacing["3xl"],
     gap: spacing.md,
   },
   restBar: {
