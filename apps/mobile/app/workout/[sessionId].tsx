@@ -91,6 +91,7 @@ export default function WorkoutScreen() {
   const [isScreenLoading, setIsScreenLoading] = useState(true);
   const [isStarting, setIsStarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCompletingWarmups, setIsCompletingWarmups] = useState(false);
   const [restSecondsRemaining, setRestSecondsRemaining] = useState(0);
   const [restTimerTotalSeconds, setRestTimerTotalSeconds] = useState(0);
   const [isRestTimerPaused, setIsRestTimerPaused] = useState(false);
@@ -120,6 +121,7 @@ export default function WorkoutScreen() {
     setIsScreenLoading(true);
     setIsStarting(false);
     setIsSubmitting(false);
+    setIsCompletingWarmups(false);
     setRestSecondsRemaining(0);
     setRestTimerTotalSeconds(0);
     setIsRestTimerPaused(false);
@@ -372,12 +374,17 @@ export default function WorkoutScreen() {
   const allSetsCompleted = sets.every((item) => item.isCompleted);
   const warmupSets = visibleSets.filter((setData) => setData.prescribed.isWarmup);
   const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
+  const incompleteWarmupSets = warmupSets.filter((setData) => !setData.isCompleted);
   const shouldShowRestTimer = isWorkoutActive && restSecondsRemaining > 0;
   const shouldShowStartWorkoutButton = !isWorkoutActive && canStartTodayWorkout;
   const shouldShowBottomControls = shouldShowStartWorkoutButton || isWorkoutActive;
   const effectiveScrollContentBottomPadding = shouldShowBottomControls
     ? scrollContentBottomPadding
     : spacing["3xl"];
+  const canCompleteWarmups = isWorkoutActive &&
+    !isSubmitting &&
+    !isCompletingWarmups &&
+    incompleteWarmupSets.length > 0;
 
   const handleComplete = async () => {
     if (isSubmitting || !sessionId || !isWorkoutActive) return;
@@ -454,6 +461,28 @@ export default function WorkoutScreen() {
     }
 
     return true;
+  };
+
+  const handleCompleteWarmups = async () => {
+    if (!canCompleteWarmups) return;
+
+    try {
+      setIsCompletingWarmups(true);
+      skipRestTimer();
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      for (const setData of incompleteWarmupSets) {
+        await toggleSetComplete(setData.id);
+      }
+    } catch (error) {
+      console.error("Failed to complete warm-up sets:", error);
+      Alert.alert(
+        t("workout.errorWarmupCompleteTitle"),
+        t("workout.errorWarmupCompleteMessage"),
+      );
+    } finally {
+      setIsCompletingWarmups(false);
+    }
   };
 
   const confirmComplete = () => {
@@ -604,7 +633,35 @@ export default function WorkoutScreen() {
           ) : null}
 
           {warmupSets.length > 0 ? (
-            <Section title={t("workout.section.warmupSets")}>
+            <Section
+              title={t("workout.section.warmupSets")}
+              headerAccessory={isWorkoutActive ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("workout.warmupCompleteAll")}
+                  disabled={!canCompleteWarmups}
+                  onPress={() => void handleCompleteWarmups()}
+                  style={({ pressed }) => [
+                    styles.warmupShortcutButton,
+                    pressed && canCompleteWarmups ? styles.warmupShortcutButtonPressed : null,
+                    !canCompleteWarmups ? styles.warmupShortcutButtonDisabled : null,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.warmupShortcutText,
+                      !canCompleteWarmups ? styles.warmupShortcutTextDisabled : null,
+                    ]}
+                  >
+                    {isCompletingWarmups
+                      ? t("workout.warmupCompleting")
+                      : incompleteWarmupSets.length > 0
+                        ? t("workout.warmupCompleteAll")
+                        : t("workout.warmupCompleteAllDone")}
+                  </Text>
+                </Pressable>
+              ) : null}
+            >
               {warmupSets.map((setData) => (
                 <SetCard
                   key={setData.id}
@@ -1026,6 +1083,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.textSecondary,
+  },
+  warmupShortcutButton: {
+    minHeight: 44,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+  },
+  warmupShortcutButtonPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.98 }],
+  },
+  warmupShortcutButtonDisabled: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  warmupShortcutText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  warmupShortcutTextDisabled: {
+    color: colors.textTertiary,
   },
   currentSetCard: {
     borderWidth: 1,

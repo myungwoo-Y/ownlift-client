@@ -447,7 +447,7 @@ export default function WorkoutCompleteScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: colors.backgroundDeep,
+    backgroundColor: colors.background,
   },
   content: {
     flexGrow: 1,

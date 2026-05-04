@@ -34,7 +34,12 @@ function ActivityItem({
       <View style={styles.activitySummaryItem}>
         <View style={styles.activitySummaryMetaRow}>
           <Ionicons color={iconColor} name={iconName} size={18} />
-          <Text numberOfLines={1} style={styles.activitySummaryLabel}>
+          <Text
+            adjustsFontSizeToFit
+            minimumFontScale={0.82}
+            numberOfLines={1}
+            style={styles.activitySummaryLabel}
+          >
             {label}
           </Text>
         </View>
