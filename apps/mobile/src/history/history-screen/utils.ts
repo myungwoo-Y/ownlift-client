@@ -3,7 +3,7 @@ import type { SetLogRecord } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import type { HistoryFilterOption } from "../history-filter-store";
-import type { HistoryItem, LiftSummary, TrendPoint } from "./types";
+import type { HistoryItem, HistoryMonthSection, LiftSummary, TrendPoint } from "./types";
 
 export const SUMMARY_LIFTS: readonly MainLift[] = [
   "deadlift",
@@ -35,6 +35,34 @@ function formatHistoryMonthLabel(dateStr: string, includeYear: boolean): string 
     month: "long",
     ...(includeYear ? { year: "numeric" } : {}),
   });
+}
+
+export function buildHistoryMonthSections(items: HistoryItem[]): HistoryMonthSection[] {
+  const sections: HistoryMonthSection[] = [];
+  const sectionByKey = new Map<string, HistoryMonthSection>();
+
+  for (const item of items) {
+    const dateValue = getHistoryItemDate(item);
+    const monthKey = getHistoryMonthKey(dateValue) ?? "unknown";
+    let section = sectionByKey.get(monthKey);
+
+    if (!section) {
+      section = {
+        key: monthKey,
+        title:
+          dateValue && monthKey !== "unknown"
+            ? formatHistoryMonthLabel(dateValue, true)
+            : t("history.unknownMonth"),
+        data: [],
+      };
+      sectionByKey.set(monthKey, section);
+      sections.push(section);
+    }
+
+    section.data.push(item);
+  }
+
+  return sections;
 }
 
 export function buildMonthFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
@@ -78,12 +106,22 @@ export function getFilterOptionLabel(options: HistoryFilterOption[], key: string
   return options.find((option) => option.key === key)?.label ?? null;
 }
 
-export function formatHistoryDate(dateStr: string | null): { day: string; weekday: string } {
+export function formatHistoryDate(
+  dateStr: string | null,
+  options: { includeMonth?: boolean } = {},
+): { day: string; weekday: string } {
   if (!dateStr) return { day: "", weekday: "" };
 
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return { day: "", weekday: "" };
+
+  const includeMonth = options.includeMonth ?? true;
+
   return {
-    day: formatLocaleDate(date, { month: "short", day: "numeric" }),
+    day: formatLocaleDate(
+      date,
+      includeMonth ? { month: "short", day: "numeric" } : { day: "numeric" },
+    ),
     weekday: formatLocaleDate(date, { weekday: "long" }),
   };
 }

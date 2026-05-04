@@ -194,13 +194,21 @@ export const styles = StyleSheet.create({
   reorderIntroText: {
     color: colors.textSecondary,
   },
-  weekCarouselContent: {
+  weekGrid: {
     gap: spacing.md,
-    paddingLeft: spacing["2xl"],
-    paddingRight: spacing["2xl"],
   },
-  weekCarouselViewport: {
-    marginHorizontal: -spacing["2xl"],
+  weekGridRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  weekGridCard: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 148,
+    gap: spacing.lg,
+  },
+  weekGridSpacer: {
+    flex: 1,
   },
   weekCarouselCard: {
     justifyContent: "space-between",
@@ -248,6 +256,10 @@ export const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
+  },
+  weekGridThumbnailFrame: {
+    width: spacing["4xl"],
+    height: spacing["4xl"],
   },
   weekCarouselBody: {
     gap: spacing.sm,

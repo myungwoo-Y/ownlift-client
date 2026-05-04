@@ -75,15 +75,15 @@ const variantStyles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   secondary: {
-    backgroundColor: "#7A7A7C",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.04)",
+    borderColor: colors.borderStrong,
   },
   ghost: { backgroundColor: "rgba(255, 255, 255, 0.04)" },
 });
 
 const variantTextStyles = StyleSheet.create({
   primary: { color: colors.primaryForeground },
-  secondary: { color: colors.primary },
+  secondary: { color: colors.text },
   ghost: { color: colors.text },
 });

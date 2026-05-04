@@ -1,8 +1,7 @@
 import type { SessionStubRecord } from "@ownlift/db";
 import { Image } from "expo-image";
-import { useEffect, useMemo, useRef } from "react";
-import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
-import { Badge, colors, spacing, Text } from "../../design";
+import { Pressable, View } from "react-native";
+import { Badge, colors, Text } from "../../design";
 import {
   getLiftLabel,
   getSessionLabel,
@@ -20,6 +19,8 @@ interface PlanWeekCarouselProps {
   onPressStub: (stub: SessionStubRecord) => void;
 }
 
+const WEEK_GRID_COLUMNS = 2;
+
 function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
   if (mainLiftKey === "bench") {
     return {
@@ -27,7 +28,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: colors.primary,
     };
   }
 
@@ -37,7 +37,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: colors.primary,
     };
   }
 
@@ -47,7 +46,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
       meta: styles.weekCarouselMetaLight,
       title: styles.weekCarouselTitleLight,
       summary: styles.weekCarouselSummaryLight,
-      tintColor: colors.primary,
     };
   }
 
@@ -56,7 +54,6 @@ function getPalette(mainLiftKey: SessionStubRecord["mainLiftKey"]) {
     meta: styles.weekCarouselMetaLight,
     title: styles.weekCarouselTitleLight,
     summary: styles.weekCarouselSummaryLight,
-    tintColor: colors.primary,
   };
 }
 
@@ -68,123 +65,97 @@ export function PlanWeekCarousel({
   onPressStub,
 }: PlanWeekCarouselProps) {
   useLocale();
-  const scrollViewRef = useRef<ScrollView>(null);
-  const { width: viewportWidth } = useWindowDimensions();
-  const cardWidth = useMemo(
-    () =>
-      Math.round(
-        Math.min(
-          160,
-          Math.max(120, (viewportWidth - spacing["2xl"] - spacing.md * 2) / 2.25),
-        ),
-      ),
-    [viewportWidth],
-  );
-  const snapToInterval = cardWidth + spacing.md;
-  const cardWidthStyle = useMemo(() => ({ width: cardWidth }), [cardWidth]);
-  const todaySessionIndex = useMemo(
-    () => weekStubs.findIndex((stub) => stub.sessionId === todaySessionId),
-    [todaySessionId, weekStubs],
-  );
-  const initialScrollOffset = useMemo(
-    () => ({
-      x: Math.max(todaySessionIndex, 0) * snapToInterval,
-      y: 0,
-    }),
-    [snapToInterval, todaySessionIndex],
-  );
+  const rows: SessionStubRecord[][] = [];
 
-  useEffect(() => {
-    const scrollX = Math.max(todaySessionIndex, 0) * snapToInterval;
-    const frameId = requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ x: scrollX, y: 0, animated: false });
-    });
-
-    return () => {
-      cancelAnimationFrame(frameId);
-    };
-  }, [snapToInterval, todaySessionIndex, weekStubs.length]);
+  for (let index = 0; index < weekStubs.length; index += WEEK_GRID_COLUMNS) {
+    rows.push(weekStubs.slice(index, index + WEEK_GRID_COLUMNS));
+  }
 
   return (
-    <ScrollView
-      ref={scrollViewRef}
-      contentOffset={initialScrollOffset}
-      decelerationRate="fast"
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      snapToAlignment="start"
-      snapToInterval={snapToInterval}
-      style={styles.weekCarouselViewport}
-      contentContainerStyle={styles.weekCarouselContent}
-    >
-      {weekStubs.map((stub, index) => {
-        const isToday = todaySessionId === stub.sessionId;
-        const isCompleted = stub.status === "completed";
-        const scheduledDayLabel = getScheduledDayLabel(index);
-        const sessionLabel = getSessionLabel(stub.dayIndex);
-        const metaLabel = scheduledDayLabel ? `${scheduledDayLabel} · ${sessionLabel}` : sessionLabel;
-        const summaryText = sessionSummaryBySessionId[stub.sessionId];
-        const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
-        const palette = getPalette(stub.mainLiftKey);
+    <View style={styles.weekGrid}>
+      {rows.map((row, rowIndex) => (
+        <View key={`week-grid-row-${rowIndex}`} style={styles.weekGridRow}>
+          {row.map((stub, columnIndex) => {
+            const index = rowIndex * WEEK_GRID_COLUMNS + columnIndex;
+            const isToday = todaySessionId === stub.sessionId;
+            const isCompleted = stub.status === "completed";
+            const scheduledDayLabel = getScheduledDayLabel(index);
+            const sessionLabel = getSessionLabel(stub.dayIndex);
+            const metaLabel = scheduledDayLabel ? `${scheduledDayLabel} · ${sessionLabel}` : sessionLabel;
+            const summaryText = sessionSummaryBySessionId[stub.sessionId];
+            const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
+            const palette = getPalette(stub.mainLiftKey);
+            const thumbnailTintColor = isToday || isCompleted ? colors.primary : colors.textTertiary;
 
-        return (
-          <Pressable
-            key={stub.sessionId}
-            onPress={() => onPressStub(stub)}
-            style={({ pressed }) => [
-              styles.weekCarouselCard,
-              cardWidthStyle,
-              palette.card,
-              isToday ? styles.weekCarouselCardToday : null,
-              isCompleted ? styles.weekCarouselCardCompleted : null,
-              pressed ? styles.weekCarouselCardPressed : null,
-            ]}
-          >
-            <View style={styles.weekCarouselTopRow}>
-              {thumbnailSource ? (
-                <View
-                  style={[
-                    styles.weekCarouselThumbnailFrame,
-                  ]}
-                >
-                  <Image
-                    source={thumbnailSource}
-                    contentFit="contain"
-                    style={styles.thumbnailImage}
-                    tintColor={palette.tintColor}
+            return (
+              <Pressable
+                accessibilityRole="button"
+                key={stub.sessionId}
+                onPress={() => onPressStub(stub)}
+                style={({ pressed }) => [
+                  styles.weekCarouselCard,
+                  styles.weekGridCard,
+                  palette.card,
+                  isToday ? styles.weekCarouselCardToday : null,
+                  isCompleted ? styles.weekCarouselCardCompleted : null,
+                  pressed ? styles.weekCarouselCardPressed : null,
+                ]}
+              >
+                <View style={styles.weekCarouselTopRow}>
+                  {thumbnailSource ? (
+                    <View
+                      style={[
+                        styles.weekCarouselThumbnailFrame,
+                        styles.weekGridThumbnailFrame,
+                      ]}
+                    >
+                      <Image
+                        source={thumbnailSource}
+                        contentFit="contain"
+                        style={styles.thumbnailImage}
+                        tintColor={thumbnailTintColor}
+                      />
+                    </View>
+                  ) : <View />}
+                  <Badge
+                    size="compact"
+                    variant={isCompleted ? "completed" : isToday ? "today" : "planned"}
+                    label={
+                      isCompleted
+                        ? t("status.completed")
+                        : isToday
+                          ? t("status.today")
+                          : t("status.planned")
+                    }
                   />
                 </View>
-              ) : <View />}
-              <Badge
-                size="compact"
-                variant={isCompleted ? "completed" : isToday ? "today" : "planned"}
-                label={
-                  isCompleted
-                    ? t("status.completed")
-                    : isToday
-                      ? t("status.today")
-                      : t("status.planned")
-                }
-              />
-            </View>
 
-            <View style={styles.weekCarouselBody}>
-              <Text numberOfLines={1} style={palette.meta}>
-                {metaLabel}
-              </Text>
-              <Text numberOfLines={2} style={palette.title}>
-                {getLiftLabel(stub.mainLiftKey)}
-              </Text>
-              <Text numberOfLines={2} style={palette.summary}>
-                {summaryText ?? t("session.weekAndSession", {
-                  week: stub.weekIndex + 1,
-                  session: sessionLabel,
-                })}
-              </Text>
-            </View>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+                <View style={styles.weekCarouselBody}>
+                  <Text numberOfLines={1} style={palette.meta}>
+                    {metaLabel}
+                  </Text>
+                  <Text numberOfLines={2} style={palette.title}>
+                    {getLiftLabel(stub.mainLiftKey)}
+                  </Text>
+                  <Text numberOfLines={2} style={palette.summary}>
+                    {summaryText ?? t("session.weekAndSession", {
+                      week: stub.weekIndex + 1,
+                      session: sessionLabel,
+                    })}
+                  </Text>
+                </View>
+              </Pressable>
+            );
+          })}
+          {row.length < WEEK_GRID_COLUMNS ? (
+            <View
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={styles.weekGridSpacer}
+            />
+          ) : null}
+        </View>
+      ))}
+    </View>
   );
 }

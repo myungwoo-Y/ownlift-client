@@ -2,15 +2,21 @@ import { getSetLogsBySession, getWorkoutResultBySession } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlatList, View } from "react-native";
+import { SectionList, View } from "react-native";
+import { Text } from "../../../src/design";
 import { useHistoryFilterStore } from "../../../src/history/history-filter-store";
 import { HistoryEmptyState } from "../../../src/history/history-screen/HistoryEmptyState";
 import { HistoryListHeader } from "../../../src/history/history-screen/HistoryListHeader";
 import { HistoryListItem } from "../../../src/history/history-screen/HistoryListItem";
 import { HistorySummarySection } from "../../../src/history/history-screen/HistorySummarySection";
 import { styles } from "../../../src/history/history-screen/styles";
-import type { ActiveFilterChip, HistoryItem } from "../../../src/history/history-screen/types";
+import type {
+  ActiveFilterChip,
+  HistoryItem,
+  HistoryMonthSection,
+} from "../../../src/history/history-screen/types";
 import {
+  buildHistoryMonthSections,
   buildLiftFilterOptions,
   buildMonthFilterOptions,
   getFilterOptionLabel,
@@ -103,6 +109,10 @@ export default function HistoryScreen() {
       }),
     [activeListLift, activeMonthKey, items],
   );
+  const historySections = useMemo(
+    () => buildHistoryMonthSections(filteredItems),
+    [filteredItems],
+  );
 
   const hasActiveFilters = activeMonthKey !== "all" || activeListLift !== "all";
   const activeFilterCount = Number(activeMonthKey !== "all") + Number(activeListLift !== "all");
@@ -152,6 +162,14 @@ export default function HistoryScreen() {
     ),
     [handlePressSession, unitLabel],
   );
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: HistoryMonthSection }) => (
+      <View style={styles.monthSectionHeader}>
+        <Text style={styles.monthSectionTitle}>{section.title}</Text>
+      </View>
+    ),
+    [],
+  );
 
   const keyExtractor = useCallback((item: HistoryItem) => item.sessionId, []);
   const hasItems = items.length > 0;
@@ -194,15 +212,17 @@ export default function HistoryScreen() {
   );
 
   return (
-    <FlatList
+    <SectionList
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={styles.listContent}
-      data={filteredItems}
       keyExtractor={keyExtractor}
       ListEmptyComponent={emptyState}
       ListHeaderComponent={listHeader}
       renderItem={renderItem}
+      renderSectionHeader={renderSectionHeader}
+      sections={historySections}
       showsVerticalScrollIndicator={false}
+      stickySectionHeadersEnabled={false}
       style={styles.safe}
     />
   );

@@ -27,7 +27,7 @@ export default function HistoryStackLayout() {
       <Stack.Screen
         name="filters"
         options={{
-          animation: "slide_from_bottom",
+          animation: "none",
           contentStyle: { backgroundColor: "transparent" },
           headerShown: false,
           presentation: "transparentModal",

@@ -8,6 +8,12 @@ export interface HistoryItem extends SessionStubRecord {
   isMock?: boolean;
 }
 
+export interface HistoryMonthSection {
+  key: string;
+  title: string;
+  data: HistoryItem[];
+}
+
 export interface TrendPoint {
   sessionId: string;
   completedAt: string;

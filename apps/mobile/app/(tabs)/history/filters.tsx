@@ -1,9 +1,15 @@
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  Button,
+  BottomSheetBackdrop,
+  BottomSheetModal,
+  BottomSheetScrollView,
+  BottomSheetView,
+  TouchableOpacity as BottomSheetTouchableOpacity,
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+import {
   Card,
   Section,
   borderRadius,
@@ -39,19 +45,19 @@ function FilterOptionSection({
             const isSelected = option.key === selectedKey;
 
             return (
-              <Pressable
+              <BottomSheetTouchableOpacity
                 key={option.key}
-                style={({ pressed }) => [
+                activeOpacity={0.82}
+                style={[
                   styles.optionChip,
                   isSelected && styles.optionChipSelected,
-                  pressed ? styles.optionChipPressed : null,
                 ]}
                 onPress={() => onSelect(option.key)}
               >
                 <Text style={[styles.optionChipText, isSelected && styles.optionChipTextSelected]}>
                   {option.label}
                 </Text>
-              </Pressable>
+              </BottomSheetTouchableOpacity>
             );
           })}
         </View>
@@ -60,10 +66,43 @@ function FilterOptionSection({
   );
 }
 
+function FilterSheetAction({
+  title,
+  variant = "secondary",
+  onPress,
+}: {
+  title: string;
+  variant?: "primary" | "secondary";
+  onPress: () => void;
+}) {
+  return (
+    <BottomSheetTouchableOpacity
+      activeOpacity={0.84}
+      onPress={onPress}
+      style={[
+        styles.actionTouchable,
+        variant === "primary" && styles.actionTouchablePrimary,
+      ]}
+    >
+      <Text
+        style={[
+          styles.actionText,
+          variant === "primary" && styles.actionTextPrimary,
+        ]}
+      >
+        {title}
+      </Text>
+    </BottomSheetTouchableOpacity>
+  );
+}
+
 export default function HistoryFilterScreen() {
   useLocale();
 
   const router = useRouter();
+  const { height } = useWindowDimensions();
+  const filterSheetRef = useRef<ComponentRef<typeof BottomSheetModal>>(null);
+  const isClosingRouteRef = useRef(false);
   const monthOptions = useHistoryFilterStore((state) => state.monthOptions);
   const liftOptions = useHistoryFilterStore((state) => state.liftOptions);
   const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
@@ -83,9 +122,36 @@ export default function HistoryFilterScreen() {
   const initialListLift = resolvedLiftOptions.some((option) => option.key === selectedListLift)
     ? selectedListLift
     : "all";
+  const maxSheetHeight = useMemo(() => Math.round(height * 0.84), [height]);
 
   const [draftMonthKey, setDraftMonthKey] = useState(initialMonthKey);
   const [draftListLift, setDraftListLift] = useState<HistoryListLiftFilter>(initialListLift);
+
+  useEffect(() => {
+    filterSheetRef.current?.present();
+  }, []);
+
+  const closeRoute = useCallback(() => {
+    if (isClosingRouteRef.current) return;
+
+    isClosingRouteRef.current = true;
+    if (router.canGoBack()) {
+      router.back();
+      return;
+    }
+
+    router.replace("/(tabs)/history");
+  }, [router]);
+
+  const renderBackdrop = useCallback((props: BottomSheetBackdropProps) => (
+    <BottomSheetBackdrop
+      {...props}
+      appearsOnIndex={0}
+      disappearsOnIndex={-1}
+      opacity={0.48}
+      pressBehavior="close"
+    />
+  ), []);
 
   function handleReset(): void {
     setDraftMonthKey("all");
@@ -99,118 +165,91 @@ export default function HistoryFilterScreen() {
   }
 
   function handleClose(): void {
-    if (router.canGoBack()) {
-      router.back();
+    if (filterSheetRef.current) {
+      filterSheetRef.current.dismiss();
       return;
     }
 
-    router.replace("/(tabs)/history");
+    closeRoute();
   }
 
   return (
-    <View style={styles.overlay}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={handleClose}
-        style={styles.backdrop}
-      />
-
-      <SafeAreaView edges={["bottom"]} style={styles.safeArea}>
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-
-          <View style={styles.header}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.title}>{t("history.filter.title")}</Text>
-              <Text style={styles.helper} variant="body">
-                {t("history.filter.helper")}
-              </Text>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={handleClose}
-              style={({ pressed }) => [
-                styles.closeButton,
-                pressed ? styles.closeButtonPressed : null,
-              ]}
-            >
-              <Text style={styles.closeButtonText}>{t("common.cancel")}</Text>
-            </Pressable>
+    <View style={styles.screen}>
+      <BottomSheetModal
+        ref={filterSheetRef}
+        enableDynamicSizing
+        enablePanDownToClose
+        backdropComponent={renderBackdrop}
+        backgroundStyle={styles.sheetBackground}
+        handleIndicatorStyle={styles.sheetHandleIndicator}
+        maxDynamicContentSize={maxSheetHeight}
+        onDismiss={closeRoute}
+      >
+        <BottomSheetView style={styles.header}>
+          <View style={styles.headerCopy}>
+            <Text style={styles.title}>{t("history.filter.title")}</Text>
+            <Text style={styles.helper} variant="body">
+              {t("history.filter.helper")}
+            </Text>
           </View>
 
-          <ScrollView
-            contentContainerStyle={styles.container}
-            showsVerticalScrollIndicator={false}
-            style={styles.scroll}
+          <BottomSheetTouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.82}
+            onPress={handleClose}
+            style={styles.closeButton}
           >
-            <FilterOptionSection
-              title={t("history.filter.period")}
-              options={resolvedMonthOptions}
-              selectedKey={draftMonthKey}
-              onSelect={setDraftMonthKey}
-            />
+            <Text style={styles.closeButtonText}>{t("common.cancel")}</Text>
+          </BottomSheetTouchableOpacity>
+        </BottomSheetView>
 
-            <FilterOptionSection
-              title={t("history.filter.exercise")}
-              options={resolvedLiftOptions}
-              selectedKey={draftListLift}
-              onSelect={(key) => setDraftListLift(key as HistoryListLiftFilter)}
-            />
-          </ScrollView>
+        <BottomSheetScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          <FilterOptionSection
+            title={t("history.filter.period")}
+            options={resolvedMonthOptions}
+            selectedKey={draftMonthKey}
+            onSelect={setDraftMonthKey}
+          />
 
-          <View style={styles.actions}>
-            <Button
-              title={t("history.filter.reset")}
-              variant="ghost"
-              size="md"
-              onPress={handleReset}
-              style={styles.actionButton}
-            />
-            <Button
-              title={t("history.filter.apply")}
-              size="md"
-              onPress={handleApply}
-              style={styles.actionButton}
-            />
-          </View>
-        </View>
-      </SafeAreaView>
+          <FilterOptionSection
+            title={t("history.filter.exercise")}
+            options={resolvedLiftOptions}
+            selectedKey={draftListLift}
+            onSelect={(key) => setDraftListLift(key as HistoryListLiftFilter)}
+          />
+        </BottomSheetScrollView>
+
+        <BottomSheetView style={styles.actions}>
+          <FilterSheetAction
+            title={t("history.filter.reset")}
+            onPress={handleReset}
+          />
+          <FilterSheetAction
+            title={t("history.filter.apply")}
+            variant="primary"
+            onPress={handleApply}
+          />
+        </BottomSheetView>
+      </BottomSheetModal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  screen: {
     flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(4, 5, 8, 0.38)",
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  safeArea: {
-    width: "100%",
-  },
-  sheet: {
-    maxHeight: "84%",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    borderCurve: "continuous",
+  sheetBackground: {
     borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: "rgba(255, 255, 255, 0.06)",
     backgroundColor: colors.surfaceGlassStrong,
-    boxShadow: "0px -18px 44px rgba(0, 0, 0, 0.28)",
-    overflow: "hidden",
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
-  handle: {
-    alignSelf: "center",
+  sheetHandleIndicator: {
     width: 44,
-    height: 5,
-    marginTop: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    backgroundColor: colors.borderStrong,
   },
   header: {
     flexDirection: "row",
@@ -244,16 +283,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.06)",
   },
-  closeButtonPressed: {
-    opacity: 0.82,
-  },
   closeButtonText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
-  },
-  scroll: {
-    flexGrow: 0,
   },
   container: {
     paddingHorizontal: spacing["2xl"],
@@ -288,9 +321,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.06)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
-  optionChipPressed: {
-    transform: [{ scale: 0.98 }],
-  },
   optionChipSelected: {
     borderColor: "rgba(214, 255, 96, 0.28)",
     backgroundColor: "rgba(214, 255, 96, 0.12)",
@@ -314,7 +344,25 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255, 255, 255, 0.05)",
     backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
-  actionButton: {
+  actionTouchable: {
     flex: 1,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+  },
+  actionTouchablePrimary: {
+    backgroundColor: colors.primary,
+  },
+  actionText: {
+    color: colors.text,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+  },
+  actionTextPrimary: {
+    color: colors.primaryForeground,
   },
 });

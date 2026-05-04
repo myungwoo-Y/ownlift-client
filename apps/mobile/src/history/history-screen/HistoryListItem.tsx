@@ -22,7 +22,9 @@ function HistoryListItemComponent({
   unitLabel,
   onPressSession,
 }: HistoryListItemProps) {
-  const { day, weekday } = formatHistoryDate(getHistoryItemDate(item));
+  const { day, weekday } = formatHistoryDate(getHistoryItemDate(item), {
+    includeMonth: false,
+  });
   const weekLabel = getWeekLabel(item.weekIndex);
   const sessionLabel = getSessionLabel(item.dayIndex);
   const isInteractive = !item.isMock;

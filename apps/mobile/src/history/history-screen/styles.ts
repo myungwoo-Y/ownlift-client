@@ -71,6 +71,17 @@ export const styles = StyleSheet.create({
   logSection: {
     gap: spacing.md,
   },
+  monthSectionHeader: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xs,
+    backgroundColor: colors.background,
+  },
+  monthSectionTitle: {
+    color: colors.text,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    lineHeight: 22,
+  },
   logHeaderRow: {
     flexDirection: "row",
     alignItems: "flex-start",
