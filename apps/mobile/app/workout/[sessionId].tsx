@@ -48,6 +48,8 @@ import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-
 type WorkoutScreenMode = "loading" | "preview" | "active";
 type WorkoutSetType = WorkoutSetState;
 const REST_EXTENSION_SECONDS = 30;
+const NAV_FADE_HEIGHT = spacing["5xl"] + spacing["4xl"];
+const NAV_CONTENT_TOP_OFFSET = spacing["5xl"] + spacing["2xl"];
 
 function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSetType {
   return {
@@ -499,23 +501,42 @@ export default function WorkoutScreen() {
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.navBar}>
-          <BackButton
-            onPress={confirmExit}
-            disabled={isSubmitting || isStarting}
-            accessibilityLabel={t("common.back")}
-            style={styles.navBackButton}
-          />
-          {shouldShowRestTimer ? (
-            <View style={styles.navTimer}>
-              <RestTimerBar
-                remainingSeconds={restSecondsRemaining}
-                totalSeconds={restTimerTotalSeconds}
-                isPaused={isRestTimerPaused}
-                onPress={presentRestTimerSheet}
-              />
-            </View>
-          ) : null}
+        <View style={styles.navBar} pointerEvents="box-none">
+          <View pointerEvents="none" style={styles.navBackdrop}>
+            <Svg
+              width="100%"
+              height="100%"
+              style={StyleSheet.absoluteFill}
+              preserveAspectRatio="none"
+            >
+              <Defs>
+                <SvgLinearGradient id="navFade" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0%" stopColor={colors.background} stopOpacity="0.96" />
+                  <Stop offset="64%" stopColor={colors.background} stopOpacity="0.74" />
+                  <Stop offset="100%" stopColor={colors.background} stopOpacity="0" />
+                </SvgLinearGradient>
+              </Defs>
+              <Rect width="100%" height="100%" fill="url(#navFade)" />
+            </Svg>
+          </View>
+          <View style={styles.navContent}>
+            <BackButton
+              onPress={confirmExit}
+              disabled={isSubmitting || isStarting}
+              accessibilityLabel={t("common.back")}
+              style={styles.navBackButton}
+            />
+            {shouldShowRestTimer ? (
+              <View style={styles.navTimer}>
+                <RestTimerBar
+                  remainingSeconds={restSecondsRemaining}
+                  totalSeconds={restTimerTotalSeconds}
+                  isPaused={isRestTimerPaused}
+                  onPress={presentRestTimerSheet}
+                />
+              </View>
+            ) : null}
+          </View>
         </View>
         <ScrollView
           ref={scrollViewRef}
@@ -918,10 +939,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   navBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  navBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: NAV_FADE_HEIGHT,
+  },
+  navContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
   navBackButton: {
@@ -937,7 +973,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    padding: spacing["2xl"],
+    paddingHorizontal: spacing["2xl"],
+    paddingTop: NAV_CONTENT_TOP_OFFSET,
     paddingBottom: spacing["3xl"],
     gap: spacing["2xl"],
   },
