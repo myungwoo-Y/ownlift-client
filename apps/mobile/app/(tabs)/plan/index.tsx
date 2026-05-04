@@ -179,6 +179,11 @@ export default function PlanScreen() {
               return;
             }
 
+            if (pressedStub.sessionId === todayStub?.sessionId) {
+              router.push(`/workout/${pressedStub.sessionId}?autostart=1`);
+              return;
+            }
+
             router.push(`/workout/${pressedStub.sessionId}`);
           }}
         />

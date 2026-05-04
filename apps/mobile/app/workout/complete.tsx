@@ -3,58 +3,225 @@ import { getSetLogsBySession, getWorkoutResultBySession, getWorkoutResultsByInst
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { borderRadius, Button, colors, fontSize, fontWeight, spacing, Text } from "../../src/design";
+import { borderRadius, Button, colors, fontSize, fontWeight, motion, spacing, Text } from "../../src/design";
 import { formatMeasurement, getSessionEstimatedOneRepMax } from "../../src/history/history-screen/utils";
 import { formatNumber, getLiftLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
-function MetricRow({
+type DeltaTone = "negative" | "neutral" | "positive";
+
+function RevealView({
+  children,
+  delay = 0,
+  style,
+}: {
+  children: ReactNode;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withDelay(
+      delay,
+      withTiming(1, {
+        duration: motion.duration.normal,
+        easing: Easing.out(Easing.cubic),
+      }),
+    );
+  }, [delay, progress]);
+
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      { translateY: motion.distance.normal * (1 - progress.value) },
+    ],
+  }));
+
+  return <Animated.View style={[style, revealStyle]}>{children}</Animated.View>;
+}
+
+function ResultCard({
   label,
   value,
-  deltaValue,
-  deltaTone = "neutral",
-  emphasized = false,
+  detail,
+  detailTone = "neutral",
+  reward = false,
 }: {
   label: string;
   value: string;
-  deltaValue?: string | null;
-  deltaTone?: "negative" | "neutral" | "positive";
-  emphasized?: boolean;
+  detail?: string | null;
+  detailTone?: DeltaTone;
+  reward?: boolean;
 }) {
+  const glowProgress = useSharedValue(0);
+
+  useEffect(() => {
+    if (!reward) {
+      cancelAnimation(glowProgress);
+      glowProgress.value = 0;
+      return;
+    }
+
+    glowProgress.value = withRepeat(
+      withTiming(1, {
+        duration: 1100,
+        easing: Easing.inOut(Easing.quad),
+      }),
+      -1,
+      true,
+    );
+
+    return () => {
+      cancelAnimation(glowProgress);
+    };
+  }, [glowProgress, reward]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: reward ? 0.12 + glowProgress.value * 0.18 : 0,
+  }));
+
   return (
-    <View style={[styles.metricRow, emphasized ? styles.metricRowEmphasized : null]}>
-      <Text variant="label" style={styles.metricLabel}>
+    <View style={[styles.card, reward ? styles.cardReward : null]}>
+      {reward ? <Animated.View pointerEvents="none" style={[styles.cardRewardGlow, glowStyle]} /> : null}
+      <Text variant="label" style={styles.cardLabel}>
         {label}
       </Text>
-      <View style={styles.metricValueRow}>
+      <Text adjustsFontSizeToFit minimumFontScale={0.86} numberOfLines={1} style={styles.cardValue}>
+        {value}
+      </Text>
+      {detail ? (
         <Text
-          adjustsFontSizeToFit
-          minimumFontScale={0.78}
-          numberOfLines={1}
-          style={[styles.metricValue, emphasized ? styles.metricValueEmphasized : null]}
+          style={[
+            styles.cardDetail,
+            detailTone === "positive"
+              ? styles.detailPositive
+              : detailTone === "negative"
+                ? styles.detailNegative
+                : styles.detailNeutral,
+          ]}
         >
-          {value}
+          {detail}
         </Text>
-        {deltaValue ? (
-          <Text
-            style={[
-              styles.metricDelta,
-              deltaTone === "positive"
-                ? styles.metricDeltaPositive
-                : deltaTone === "negative"
-                  ? styles.metricDeltaNegative
-                  : styles.metricDeltaNeutral,
-            ]}
-          >
-            {deltaValue}
-          </Text>
-        ) : null}
+      ) : null}
+    </View>
+  );
+}
+
+function TopSetHero({
+  value,
+  detail,
+  detailTone,
+}: {
+  value: string;
+  detail: string;
+  detailTone: DeltaTone;
+}) {
+  return (
+    <View style={styles.topSetHero}>
+      <Text variant="label" style={styles.cardLabel}>
+        {t("workout.completeScreen.topSet")}
+      </Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.84} numberOfLines={1} style={styles.topSetValue}>
+        {value}
+      </Text>
+      <View
+        style={[
+          styles.topSetDetailPill,
+          detailTone === "positive"
+            ? styles.topSetAchievementPill
+            : detailTone === "negative"
+              ? styles.topSetMissPill
+              : styles.topSetNeutralPill,
+        ]}
+      >
+        <Text
+          style={[
+            styles.topSetDetailText,
+            detailTone === "positive"
+              ? styles.detailPositive
+              : detailTone === "negative"
+                ? styles.detailNegative
+                : styles.detailNeutral,
+          ]}
+        >
+          {detail}
+        </Text>
       </View>
     </View>
   );
+}
+
+function getTopSetSummary(logs: SetLogRecord[], unit: string): {
+  value: string;
+  detail: string;
+  detailTone: DeltaTone;
+} {
+  const workLogs = logs
+    .filter((log) => log.isCompleted && (log.setType === "work" || log.setType === "amrap"))
+    .sort((a, b) => a.setOrder - b.setOrder);
+  const amrapLog = workLogs.find((log) => log.setType === "amrap");
+  const topSet = amrapLog ?? workLogs[workLogs.length - 1] ?? null;
+
+  if (!topSet) {
+    return {
+      value: t("workout.completeScreen.noTopSet"),
+      detail: t("workout.completeScreen.noTopSetDetail"),
+      detailTone: "neutral",
+    };
+  }
+
+  const weight = topSet.actualWeight ?? topSet.planned?.targetWeight ?? null;
+  const reps = topSet.actualReps ?? topSet.planned?.targetReps ?? null;
+  const targetReps = topSet.planned?.targetReps ?? null;
+
+  const value = weight != null && reps != null
+    ? `${formatNumber(weight, { maximumFractionDigits: 1 })}${unit} × ${formatNumber(reps)}`
+    : t("workout.completeScreen.noTopSet");
+
+  if (reps == null || targetReps == null) {
+    return {
+      value,
+      detail: t("workout.completeScreen.noTopSetDetail"),
+      detailTone: "neutral",
+    };
+  }
+
+  const delta = reps - targetReps;
+  if (delta > 0) {
+    return {
+      value,
+      detail: t("workout.completeScreen.targetRepsAbove", { count: formatNumber(delta) }),
+      detailTone: "positive",
+    };
+  }
+
+  if (delta < 0) {
+    return {
+      value,
+      detail: t("workout.completeScreen.targetRepsBelow", { count: formatNumber(Math.abs(delta)) }),
+      detailTone: "negative",
+    };
+  }
+
+  return {
+    value,
+    detail: t("workout.completeScreen.targetRepsMet"),
+    detailTone: "neutral",
+  };
 }
 
 export default function WorkoutCompleteScreen() {
@@ -145,10 +312,6 @@ export default function WorkoutCompleteScreen() {
     };
   }, [instance?.instanceId, result?.completedAt, sessionId, stub, stubs]);
 
-  useEffect(() => {
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  }, []);
-
   const goToPlan = () => {
     try {
       if (router.canDismiss()) {
@@ -179,39 +342,46 @@ export default function WorkoutCompleteScreen() {
     });
   };
 
-  const estimatedPr = useMemo(() => getSessionEstimatedOneRepMax(logs), [logs]);
-  const liftLabel = stub ? getLiftLabel(stub.mainLiftKey) : null;
   const unit = instance?.params.unit ?? "kg";
+  const estimatedPr = useMemo(() => getSessionEstimatedOneRepMax(logs), [logs]);
+  const topSetSummary = useMemo(() => getTopSetSummary(logs, unit), [logs, unit]);
+  const liftLabel = stub ? getLiftLabel(stub.mainLiftKey) : null;
   const estimatedPrValue = estimatedPr != null
     ? formatMeasurement(estimatedPr, unit)
     : t("workout.completeScreen.estimatedPrEmpty");
   const previousGap = estimatedPr != null && previousEstimatedPr != null
     ? estimatedPr - previousEstimatedPr
     : null;
-  const previousGapValue = previousGap != null
-    ? `${previousGap > 0 ? "+" : previousGap < 0 ? "-" : ""}${formatMeasurement(Math.abs(previousGap), unit)}`
+  const hasPrReward = previousGap != null && previousGap > 0;
+  const prDetail = hasPrReward && previousGap != null
+    ? t("workout.completeScreen.prImproved", {
+      value: `+${formatMeasurement(previousGap, unit)}`,
+    })
     : null;
-  const previousGapTone = previousGap == null
-    ? "neutral"
-    : previousGap > 0
-      ? "positive"
-      : previousGap < 0
-        ? "negative"
-        : "neutral";
-  const isBelowPreviousPr = previousGap != null && previousGap < 0;
-  const volumeValue = result?.summary?.totalVolume != null && instance
-    ? `${formatNumber(result.summary.totalVolume)} ${instance.params.unit}`
-    : null;
-  const nextUpLabel = upcomingStub
-    ? getLiftLabel(upcomingStub.mainLiftKey)
-    : null;
+  const cycleStubs = stub
+    ? stubs.filter((item) => item.cycleIndex === stub.cycleIndex)
+    : [];
+  const cycleCompletedCount = cycleStubs.filter((item) => item.status === "completed").length;
+  const cycleTotalCount = cycleStubs.length;
+  const cycleValue = cycleTotalCount > 0
+    ? `${formatNumber(cycleCompletedCount)} / ${formatNumber(cycleTotalCount)} ${t("workout.completeScreen.completedShort")}`
+    : t("workout.completeScreen.noCycleProgress");
+  const nextUpValue = upcomingStub
+    ? `${getLiftLabel(upcomingStub.mainLiftKey)} · ${t("week.title", { week: upcomingStub.weekIndex + 1 })}`
+    : t("workout.completeScreen.noNextWorkout");
+
+  useEffect(() => {
+    if (!hasPrReward) return;
+
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [hasPrReward]);
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mainStack}>
-          <View style={styles.heroCopy}>
+          <RevealView style={styles.heroCopy}>
             <Text style={styles.heroTitle}>
               {t("workout.completeScreen.title")}
             </Text>
@@ -220,38 +390,41 @@ export default function WorkoutCompleteScreen() {
                 ? t("workout.completeScreen.subtitle", { lift: liftLabel })
                 : t("workout.completeScreen.subtitleFallback")}
             </Text>
-          </View>
+          </RevealView>
 
           <View style={styles.summarySection}>
-            <MetricRow
-              emphasized
-              label={t("workout.completeScreen.estimatedPr")}
-              value={estimatedPrValue}
-              deltaValue={previousGapValue}
-              deltaTone={previousGapTone}
-            />
+            <RevealView delay={motion.duration.fast}>
+              <TopSetHero
+                value={topSetSummary.value}
+                detail={topSetSummary.detail}
+                detailTone={topSetSummary.detailTone}
+              />
+            </RevealView>
 
-            {isBelowPreviousPr ? (
-              <View style={styles.encouragementBox}>
-                <Text style={styles.encouragementText}>
-                  {t("workout.completeScreen.encouragement")}
-                </Text>
-              </View>
-            ) : null}
+            <RevealView delay={motion.duration.fast + motion.duration.instant}>
+              <ResultCard
+                reward={hasPrReward}
+                label={t("workout.completeScreen.estimatedOneRepMax")}
+                value={estimatedPrValue}
+                detail={prDetail}
+                detailTone={hasPrReward ? "positive" : "neutral"}
+              />
+            </RevealView>
 
-            {nextUpLabel ? (
-              <MetricRow
+            <RevealView delay={motion.duration.fast + motion.duration.instant * 2}>
+              <ResultCard
                 label={t("workout.completeScreen.nextUp")}
-                value={nextUpLabel}
+                value={nextUpValue}
               />
-            ) : null}
+            </RevealView>
 
-            {volumeValue ? (
-              <MetricRow
-                label={t("workout.completeScreen.volume")}
-                value={volumeValue}
+            <RevealView delay={motion.duration.fast + motion.duration.instant * 3}>
+              <ResultCard
+                label={t("workout.completeScreen.thisCycle")}
+                value={cycleValue}
               />
-            ) : null}
+            </RevealView>
+
           </View>
         </View>
 
@@ -304,70 +477,91 @@ const styles = StyleSheet.create({
   summarySection: {
     gap: spacing.sm,
   },
-  metricRow: {
-    minHeight: 68,
+  topSetHero: {
+    position: "relative",
+    minHeight: 176,
     borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.primarySoft,
+    justifyContent: "center",
+  },
+  card: {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 96,
+    borderRadius: borderRadius.xl,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.surfaceGlassStrong,
     borderWidth: 1,
     borderColor: colors.border,
     justifyContent: "center",
   },
-  metricRowEmphasized: {
-    minHeight: 112,
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.borderStrong,
+  cardReward: {
+    borderColor: colors.primary,
   },
-  metricLabel: {
+  cardRewardGlow: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.primarySoft,
+  },
+  cardLabel: {
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  metricValueRow: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  metricValue: {
-    flexShrink: 1,
-    fontSize: fontSize.xl,
-    lineHeight: 26,
-    fontWeight: fontWeight.semibold,
-    color: colors.text,
-  },
-  metricValueEmphasized: {
+  topSetValue: {
     fontSize: fontSize["4xl"],
     lineHeight: 42,
     fontWeight: fontWeight.extrabold,
-    color: colors.primary,
+    color: colors.text,
   },
-  metricDelta: {
-    paddingBottom: spacing.xs,
+  topSetDetailPill: {
+    alignSelf: "flex-start",
+    marginTop: spacing.md,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+  },
+  topSetAchievementPill: {
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primarySoft,
+  },
+  topSetMissPill: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+  },
+  topSetNeutralPill: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.border,
+  },
+  topSetDetailText: {
     fontSize: fontSize.lg,
     lineHeight: 24,
     fontWeight: fontWeight.semibold,
   },
-  metricDeltaPositive: {
-    color: colors.primary,
+  cardValue: {
+    fontSize: fontSize["3xl"],
+    lineHeight: 36,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
   },
-  metricDeltaNegative: {
-    color: colors.textSecondary,
-  },
-  metricDeltaNeutral: {
-    color: colors.textTertiary,
-  },
-  encouragementBox: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  encouragementText: {
+  cardDetail: {
+    marginTop: spacing.xs,
     fontSize: fontSize.md,
     lineHeight: 22,
+    fontWeight: fontWeight.semibold,
+  },
+  detailPositive: {
+    color: colors.primary,
+  },
+  detailNegative: {
     color: colors.textSecondary,
+  },
+  detailNeutral: {
+    color: colors.textTertiary,
   },
   actions: {
     gap: spacing.sm,
