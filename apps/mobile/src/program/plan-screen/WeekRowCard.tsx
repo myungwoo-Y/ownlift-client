@@ -122,6 +122,7 @@ export function WeekRowCard({
 
   return (
     <Pressable
+      accessibilityRole="button"
       disabled={isAnyDragging && !isDragging}
       onPress={() => {
         if (isAnyDragging) return;
