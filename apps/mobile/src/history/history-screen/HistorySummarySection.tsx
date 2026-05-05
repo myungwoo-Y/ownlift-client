@@ -315,10 +315,8 @@ function LiftTrendChart({
             <LineGraph
               animated
               color={colors.accent}
-              enableIndicator
               enablePanGesture
               horizontalPadding={spacing.md}
-              indicatorPulsating={false}
               lineThickness={3}
               onPointSelected={(graphPoint) => {
                 const nextIndex = findTrendPointIndex(points, graphPoint);

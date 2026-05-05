@@ -34,6 +34,7 @@ import {
   Card,
   colors,
   Divider,
+  motion,
   NumericInput,
   Section,
   spacing,
@@ -284,17 +285,29 @@ export default function WorkoutScreen() {
     scrollInputIntoView(repsInputRefs.current.get(focusedSetId) ?? null, 0);
   }, [scrollInputIntoView]);
 
+  const scrollFocusedRepsInputAfterKeyboardHide = useCallback(() => {
+    const focusedSetId = focusedRepsSetIdRef.current;
+    if (!focusedSetId) return;
+
+    scrollInputIntoView(
+      repsInputRefs.current.get(focusedSetId) ?? null,
+      motion.duration.fast,
+    );
+  }, [scrollInputIntoView]);
+
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", scrollFocusedRepsInputIntoView);
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", scrollFocusedRepsInputAfterKeyboardHide);
     const frameSubscription = Platform.OS === "ios"
       ? Keyboard.addListener("keyboardDidChangeFrame", scrollFocusedRepsInputIntoView)
       : null;
 
     return () => {
       showSubscription.remove();
+      hideSubscription.remove();
       frameSubscription?.remove();
     };
-  }, [scrollFocusedRepsInputIntoView]);
+  }, [scrollFocusedRepsInputAfterKeyboardHide, scrollFocusedRepsInputIntoView]);
 
   useEffect(() => {
     if (!shouldAutoFocusCurrentSet || !currentSetId) return;
