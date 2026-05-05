@@ -51,19 +51,23 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.06)",
     backgroundColor: "rgba(255, 255, 255, 0.04)",
+    overflow: "hidden",
+  },
+  trendRangeTabIndicator: {
+    position: "absolute",
+    top: spacing["2xs"],
+    bottom: spacing["2xs"],
+    left: spacing["2xs"],
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.accent,
   },
   trendRangeTab: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: borderRadius.full,
-  },
-  trendRangeTabSelected: {
-    backgroundColor: colors.accent,
-  },
-  trendRangeTabPressed: {
-    opacity: 0.92,
+    zIndex: 1,
   },
   trendRangeTabText: {
     color: colors.textSecondary,
@@ -72,7 +76,6 @@ export const styles = StyleSheet.create({
   },
   trendRangeTabTextSelected: {
     color: colors.primaryForeground,
-    fontWeight: fontWeight.semibold,
   },
   logSection: {
     gap: spacing.md,

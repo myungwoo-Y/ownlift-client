@@ -1,10 +1,11 @@
 import type { MainLift } from "@ownlift/schemas";
 import { Image } from "expo-image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { Pressable, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { LineChart, type lineDataItem } from "react-native-gifted-charts";
-import { Card, Text, colors } from "../../design";
+import { Card, Text, colors, motion, spacing } from "../../design";
 import { formatDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import { getLiftThumbnailSource } from "../../program/plan-screen/utils";
 import { LINE_CHART_HEIGHT, getLiftSurfaceStyle, styles } from "./styles";
@@ -126,6 +127,7 @@ const TREND_RANGE_OPTIONS = [
   { key: "year", label: "Y", dayWindow: 365 },
   { key: "all", label: "A", dayWindow: null },
 ] as const;
+const TREND_RANGE_TABS_INSET = spacing["2xs"];
 
 type TrendRangeKey = (typeof TREND_RANGE_OPTIONS)[number]["key"];
 
@@ -190,8 +192,56 @@ function TrendRangeTabs({
   selectedRange: TrendRangeKey;
   onSelectRange: (range: TrendRangeKey) => void;
 }) {
+  const [tabsWidth, setTabsWidth] = useState(0);
+  const indicatorTranslateX = useSharedValue(0);
+  const hasPositionedIndicatorRef = useRef(false);
+  const selectedIndex = Math.max(
+    TREND_RANGE_OPTIONS.findIndex((option) => option.key === selectedRange),
+    0,
+  );
+  const tabWidth = tabsWidth > 0
+    ? (tabsWidth - TREND_RANGE_TABS_INSET * 2) / TREND_RANGE_OPTIONS.length
+    : 0;
+  const indicatorStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: indicatorTranslateX.value }],
+  }));
+
+  useEffect(() => {
+    if (tabWidth <= 0) return;
+
+    const nextTranslateX = selectedIndex * tabWidth;
+
+    if (!hasPositionedIndicatorRef.current) {
+      indicatorTranslateX.value = nextTranslateX;
+      hasPositionedIndicatorRef.current = true;
+      return;
+    }
+
+    indicatorTranslateX.value = withTiming(nextTranslateX, {
+      duration: motion.duration.normal,
+    });
+  }, [indicatorTranslateX, selectedIndex, tabWidth]);
+
   return (
-    <View style={styles.trendRangeTabs}>
+    <View
+      onLayout={(event: LayoutChangeEvent) => {
+        const nextWidth = event.nativeEvent.layout.width;
+        if (nextWidth !== tabsWidth) {
+          setTabsWidth(nextWidth);
+        }
+      }}
+      style={styles.trendRangeTabs}
+    >
+      {tabWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.trendRangeTabIndicator,
+            { width: tabWidth },
+            indicatorStyle,
+          ]}
+        />
+      ) : null}
       {TREND_RANGE_OPTIONS.map((option) => {
         const isSelected = option.key === selectedRange;
 
@@ -199,11 +249,9 @@ function TrendRangeTabs({
           <Pressable
             key={option.key}
             onPress={() => onSelectRange(option.key)}
-            style={({ pressed }) => [
-              styles.trendRangeTab,
-              isSelected ? styles.trendRangeTabSelected : null,
-              pressed ? styles.trendRangeTabPressed : null,
-            ]}
+            style={styles.trendRangeTab}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
           >
             <Text
               style={[

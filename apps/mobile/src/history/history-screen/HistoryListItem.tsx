@@ -59,7 +59,7 @@ function HistoryListItemComponent({
               </View>
             </View>
             <Text style={styles.historySessionMeta} variant="caption">
-              {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
+              {sessionLabel} / {t("week.title", { week: item.weekIndex + 1 })} / {weekLabel}
             </Text>
             {lastWorkSet || item.estimatedOneRepMax != null ? (
               <View style={styles.historyMetricRow}>
