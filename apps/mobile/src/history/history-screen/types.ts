@@ -5,7 +5,13 @@ export interface HistoryItem extends SessionStubRecord {
   completedAt?: string;
   totalVolume?: number;
   estimatedOneRepMax?: number | null;
+  lastWorkSet?: HistoryLastWorkSetMetric | null;
   isMock?: boolean;
+}
+
+export interface HistoryLastWorkSetMetric {
+  weight: number;
+  reps: number;
 }
 
 export interface HistoryMonthSection {

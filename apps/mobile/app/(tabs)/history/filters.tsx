@@ -1,13 +1,12 @@
-import {
+import BottomSheet, {
   BottomSheetBackdrop,
-  BottomSheetModal,
   BottomSheetScrollView,
-  BottomSheetView,
   TouchableOpacity as BottomSheetTouchableOpacity,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
+import type { MainLift } from "@ownlift/schemas";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from "react";
+import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import {
   Card,
@@ -20,21 +19,42 @@ import {
   Text,
 } from "../../../src/design";
 import {
+  normalizeHistoryLiftFilter,
   useHistoryFilterStore,
   type HistoryFilterOption,
-  type HistoryListLiftFilter,
+  type HistoryListLiftFilterValue,
 } from "../../../src/history/history-filter-store";
 import { t, useLocale } from "../../../src/i18n";
+
+const MAIN_LIFT_KEYS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
+
+function isMainLiftKey(key: string): key is MainLift {
+  return MAIN_LIFT_KEYS.includes(key as MainLift);
+}
+
+function getLiftFilterSelectedKeys(value: HistoryListLiftFilterValue): string[] {
+  return value === "all" ? ["all"] : value;
+}
+
+function normalizeLiftFilterForOptions(
+  value: HistoryListLiftFilterValue,
+  options: HistoryFilterOption[],
+): HistoryListLiftFilterValue {
+  if (value === "all") return "all";
+
+  const availableLiftKeys = new Set(options.map((option) => option.key));
+  return normalizeHistoryLiftFilter(value.filter((lift) => availableLiftKeys.has(lift)));
+}
 
 function FilterOptionSection({
   title,
   options,
-  selectedKey,
+  selectedKeys,
   onSelect,
 }: {
   title: string;
   options: HistoryFilterOption[];
-  selectedKey: string;
+  selectedKeys: readonly string[];
   onSelect: (key: string) => void;
 }) {
   return (
@@ -42,7 +62,7 @@ function FilterOptionSection({
       <Card style={styles.card}>
         <View style={styles.optionGrid}>
           {options.map((option) => {
-            const isSelected = option.key === selectedKey;
+            const isSelected = selectedKeys.includes(option.key);
 
             return (
               <BottomSheetTouchableOpacity
@@ -101,14 +121,14 @@ export default function HistoryFilterScreen() {
 
   const router = useRouter();
   const { height } = useWindowDimensions();
-  const filterSheetRef = useRef<ComponentRef<typeof BottomSheetModal>>(null);
+  const filterSheetRef = useRef<ComponentRef<typeof BottomSheet>>(null);
   const isClosingRouteRef = useRef(false);
   const monthOptions = useHistoryFilterStore((state) => state.monthOptions);
   const liftOptions = useHistoryFilterStore((state) => state.liftOptions);
   const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
-  const selectedListLift = useHistoryFilterStore((state) => state.selectedListLift);
+  const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
   const setSelectedMonthKey = useHistoryFilterStore((state) => state.setSelectedMonthKey);
-  const setSelectedListLift = useHistoryFilterStore((state) => state.setSelectedListLift);
+  const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
 
   const resolvedMonthOptions = monthOptions.length > 0
     ? monthOptions
@@ -119,17 +139,15 @@ export default function HistoryFilterScreen() {
   const initialMonthKey = resolvedMonthOptions.some((option) => option.key === selectedMonthKey)
     ? selectedMonthKey
     : "all";
-  const initialListLift = resolvedLiftOptions.some((option) => option.key === selectedListLift)
-    ? selectedListLift
-    : "all";
+  const initialListLifts = normalizeLiftFilterForOptions(selectedListLifts, resolvedLiftOptions);
   const maxSheetHeight = useMemo(() => Math.round(height * 0.84), [height]);
 
   const [draftMonthKey, setDraftMonthKey] = useState(initialMonthKey);
-  const [draftListLift, setDraftListLift] = useState<HistoryListLiftFilter>(initialListLift);
-
-  useEffect(() => {
-    filterSheetRef.current?.present();
-  }, []);
+  const [draftListLifts, setDraftListLifts] = useState<HistoryListLiftFilterValue>(initialListLifts);
+  const draftListLiftSelectedKeys = useMemo(
+    () => getLiftFilterSelectedKeys(draftListLifts),
+    [draftListLifts],
+  );
 
   const closeRoute = useCallback(() => {
     if (isClosingRouteRef.current) return;
@@ -155,18 +173,39 @@ export default function HistoryFilterScreen() {
 
   function handleReset(): void {
     setDraftMonthKey("all");
-    setDraftListLift("all");
+    setDraftListLifts("all");
   }
 
   function handleApply(): void {
     setSelectedMonthKey(draftMonthKey);
-    setSelectedListLift(draftListLift);
+    setSelectedListLifts(draftListLifts);
     handleClose();
+  }
+
+  function handleSelectListLift(key: string): void {
+    if (key === "all") {
+      setDraftListLifts("all");
+      return;
+    }
+
+    if (!isMainLiftKey(key)) return;
+
+    setDraftListLifts((current) => {
+      if (current === "all") {
+        return [key];
+      }
+
+      const nextListLifts = current.includes(key)
+        ? current.filter((lift) => lift !== key)
+        : [...current, key];
+
+      return normalizeHistoryLiftFilter(nextListLifts);
+    });
   }
 
   function handleClose(): void {
     if (filterSheetRef.current) {
-      filterSheetRef.current.dismiss();
+      filterSheetRef.current.close();
       return;
     }
 
@@ -175,65 +214,66 @@ export default function HistoryFilterScreen() {
 
   return (
     <View style={styles.screen}>
-      <BottomSheetModal
+      <BottomSheet
         ref={filterSheetRef}
+        index={0}
         enableDynamicSizing
         enablePanDownToClose
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandleIndicator}
         maxDynamicContentSize={maxSheetHeight}
-        onDismiss={closeRoute}
+        onClose={closeRoute}
       >
-        <BottomSheetView style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title}>{t("history.filter.title")}</Text>
-            <Text style={styles.helper} variant="body">
-              {t("history.filter.helper")}
-            </Text>
-          </View>
-
-          <BottomSheetTouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.82}
-            onPress={handleClose}
-            style={styles.closeButton}
-          >
-            <Text style={styles.closeButtonText}>{t("common.cancel")}</Text>
-          </BottomSheetTouchableOpacity>
-        </BottomSheetView>
-
         <BottomSheetScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.sheetContent}
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.header}>
+            <View style={styles.headerCopy}>
+              <Text style={styles.title}>{t("history.filter.title")}</Text>
+              <Text style={styles.helper} variant="body">
+                {t("history.filter.helper")}
+              </Text>
+            </View>
+
+            <BottomSheetTouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.82}
+              onPress={handleClose}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>{t("common.cancel")}</Text>
+            </BottomSheetTouchableOpacity>
+          </View>
+
           <FilterOptionSection
             title={t("history.filter.period")}
             options={resolvedMonthOptions}
-            selectedKey={draftMonthKey}
+            selectedKeys={[draftMonthKey]}
             onSelect={setDraftMonthKey}
           />
 
           <FilterOptionSection
             title={t("history.filter.exercise")}
             options={resolvedLiftOptions}
-            selectedKey={draftListLift}
-            onSelect={(key) => setDraftListLift(key as HistoryListLiftFilter)}
+            selectedKeys={draftListLiftSelectedKeys}
+            onSelect={handleSelectListLift}
           />
-        </BottomSheetScrollView>
 
-        <BottomSheetView style={styles.actions}>
-          <FilterSheetAction
-            title={t("history.filter.reset")}
-            onPress={handleReset}
-          />
-          <FilterSheetAction
-            title={t("history.filter.apply")}
-            variant="primary"
-            onPress={handleApply}
-          />
-        </BottomSheetView>
-      </BottomSheetModal>
+          <View style={styles.actions}>
+            <FilterSheetAction
+              title={t("history.filter.reset")}
+              onPress={handleReset}
+            />
+            <FilterSheetAction
+              title={t("history.filter.apply")}
+              variant="primary"
+              onPress={handleApply}
+            />
+          </View>
+        </BottomSheetScrollView>
+      </BottomSheet>
     </View>
   );
 }
@@ -241,10 +281,11 @@ export default function HistoryFilterScreen() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
+    backgroundColor: colors.transparent,
   },
   sheetBackground: {
     borderWidth: 1,
-    backgroundColor: colors.surfaceGlassStrong,
+    backgroundColor: colors.surface,
     borderColor: "rgba(255, 255, 255, 0.08)",
   },
   sheetHandleIndicator: {
@@ -256,9 +297,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.md,
-    paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
   },
   headerCopy: {
     flex: 1,
@@ -288,9 +326,10 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semibold,
     color: colors.textSecondary,
   },
-  container: {
+  sheetContent: {
     paddingHorizontal: spacing["2xl"],
-    paddingBottom: spacing["2xl"],
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.lg,
     gap: spacing["2xl"],
   },
   sectionTitle: {
@@ -315,7 +354,9 @@ const styles = StyleSheet.create({
   optionChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    minHeight: 40,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.06)",
@@ -329,6 +370,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.sm,
     fontWeight: fontWeight.medium,
+    lineHeight: 18,
   },
   optionChipTextSelected: {
     color: colors.text,
@@ -337,12 +379,9 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: "row",
     gap: spacing.md,
-    paddingHorizontal: spacing["2xl"],
     paddingTop: spacing.md,
-    paddingBottom: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.05)",
-    backgroundColor: "rgba(255, 255, 255, 0.02)",
   },
   actionTouchable: {
     flex: 1,

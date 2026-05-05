@@ -1,10 +1,23 @@
-import type { ProgramInstanceRecord, SessionStubRecord } from "@ownlift/db";
-import type { MainLift, ProgramWeekday } from "@ownlift/schemas";
+import { prescribe } from "@ownlift/core";
+import type {
+  ProgramInstanceRecord,
+  SessionStubRecord,
+  SetLogRecord,
+  WorkoutResultRecord,
+} from "@ownlift/db";
+import type {
+  MainLift,
+  PrescriptionData,
+  PrescriptionSet,
+  ProgramWeekday,
+} from "@ownlift/schemas";
+import type { HistoryLastWorkSetMetric } from "./history-screen/types";
 
 export interface MockHistoryItem extends SessionStubRecord {
   completedAt: string;
   totalVolume: number;
   estimatedOneRepMax: number;
+  lastWorkSet: HistoryLastWorkSetMetric;
   isMock: true;
 }
 
@@ -42,6 +55,7 @@ const VOLUME_FACTOR_BY_LIFT: Record<MainLift, number> = {
 
 const WEEK_E1RM_WAVE = [0.4, 1, 1.6, -0.6] as const;
 const WEEK_VOLUME_MULTIPLIER = [1.02, 0.98, 0.92, 0.72] as const;
+const LAST_WORK_SET_REPS_BY_WEEK = [8, 6, 4, 5] as const;
 const SESSION_TIMES = [
   { hour: 18, minute: 10 },
   { hour: 19, minute: 0 },
@@ -70,6 +84,94 @@ function roundToNearest(value: number, increment: number): number {
 
 function roundToSingleDecimal(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function getMockPrescription(
+  instance: ProgramInstanceRecord,
+  item: Pick<MockHistoryItem, "weekIndex" | "mainLiftKey">,
+): PrescriptionData {
+  return prescribe({
+    params: instance.params,
+    state: instance.state,
+    weekIndex: item.weekIndex,
+    mainLift: item.mainLiftKey,
+  });
+}
+
+function getLastWorkSet(sets: readonly PrescriptionSet[]): PrescriptionSet | null {
+  return sets.filter((set) => !set.isWarmup).at(-1) ?? null;
+}
+
+function buildMockLastWorkSet(
+  instance: ProgramInstanceRecord,
+  item: Pick<MockHistoryItem, "weekIndex" | "mainLiftKey">,
+): HistoryLastWorkSetMetric {
+  const prescription = getMockPrescription(instance, item);
+  const lastWorkSet = getLastWorkSet(prescription.sets);
+
+  return {
+    weight: lastWorkSet?.targetWeight ?? instance.state.trainingMaxes[item.mainLiftKey],
+    reps: LAST_WORK_SET_REPS_BY_WEEK[item.weekIndex] ?? LAST_WORK_SET_REPS_BY_WEEK[0],
+  };
+}
+
+function getSetType(set: PrescriptionSet): SetLogRecord["setType"] {
+  if (set.isWarmup) return "warmup";
+  return set.isAmrap ? "amrap" : "work";
+}
+
+function buildMockSetLogs(
+  item: MockHistoryItem,
+  prescription: PrescriptionData,
+): SetLogRecord[] {
+  const lastWorkSetOrder = getLastWorkSet(prescription.sets)?.setOrder ?? null;
+
+  return prescription.sets.map((set) => {
+    const isLastWorkSet = set.setOrder === lastWorkSetOrder;
+
+    return {
+      id: `${item.sessionId}-set-${set.setOrder}`,
+      sessionId: item.sessionId,
+      exerciseId: `${item.sessionId}-${item.mainLiftKey}`,
+      setType: getSetType(set),
+      setOrder: set.setOrder,
+      planned: {
+        targetWeight: set.targetWeight,
+        targetReps: set.targetReps,
+        percentage: set.percentage,
+      },
+      actualWeight: set.targetWeight,
+      actualReps: isLastWorkSet ? item.lastWorkSet.reps : set.targetReps,
+      rpe: null,
+      isCompleted: true,
+    };
+  });
+}
+
+export function buildMockHistorySessionDetail(
+  instance: ProgramInstanceRecord,
+  item: MockHistoryItem,
+): {
+  prescription: PrescriptionData;
+  setLogs: SetLogRecord[];
+  result: WorkoutResultRecord;
+} {
+  const prescription = getMockPrescription(instance, item);
+
+  return {
+    prescription,
+    setLogs: buildMockSetLogs(item, prescription),
+    result: {
+      sessionId: item.sessionId,
+      instanceId: item.instanceId,
+      completedAt: item.completedAt,
+      summary: {
+        totalVolume: item.totalVolume,
+        amrapReps: item.lastWorkSet.reps,
+        isPR: false,
+      },
+    },
+  };
 }
 
 function getTrainingDayOffsets(instance: ProgramInstanceRecord): number[] {
@@ -138,6 +240,10 @@ export function buildMockHistoryItems(
         completedAt: date.toISOString(),
         totalVolume,
         estimatedOneRepMax,
+        lastWorkSet: buildMockLastWorkSet(instance, {
+          weekIndex,
+          mainLiftKey: lift,
+        }),
         isMock: true as const,
       } satisfies MockHistoryItem;
     });

@@ -3,7 +3,13 @@ import type { SetLogRecord } from "@ownlift/db";
 import type { MainLift } from "@ownlift/schemas";
 import { formatDate as formatLocaleDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import type { HistoryFilterOption } from "../history-filter-store";
-import type { HistoryItem, HistoryMonthSection, LiftSummary, TrendPoint } from "./types";
+import type {
+  HistoryItem,
+  HistoryLastWorkSetMetric,
+  HistoryMonthSection,
+  LiftSummary,
+  TrendPoint,
+} from "./types";
 
 export const SUMMARY_LIFTS: readonly MainLift[] = [
   "deadlift",
@@ -126,6 +132,19 @@ export function formatHistoryDate(
   };
 }
 
+export function formatHistoryDateLabel(dateStr: string | null): string {
+  if (!dateStr) return "";
+
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return formatLocaleDate(date, {
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  });
+}
+
 function getCompletedSetMetrics(log: SetLogRecord): { weight: number; reps: number } | null {
   if (!log.isCompleted) return null;
   if (log.setType !== "work" && log.setType !== "amrap") return null;
@@ -133,6 +152,19 @@ function getCompletedSetMetrics(log: SetLogRecord): { weight: number; reps: numb
   const weight = log.actualWeight ?? log.planned?.targetWeight ?? null;
   const reps = log.actualReps ?? log.planned?.targetReps ?? null;
 
+  if (weight == null || reps == null || weight <= 0 || reps <= 0) {
+    return null;
+  }
+
+  return { weight, reps };
+}
+
+function getCompletedWorkSetMetric(log: SetLogRecord): HistoryLastWorkSetMetric | null {
+  if (!log.isCompleted) return null;
+  if (log.setType !== "work" && log.setType !== "amrap") return null;
+
+  const weight = log.actualWeight ?? log.planned?.targetWeight ?? null;
+  const reps = log.actualReps ?? log.planned?.targetReps ?? null;
   if (weight == null || reps == null || weight <= 0 || reps <= 0) {
     return null;
   }
@@ -160,6 +192,24 @@ export function getSessionEstimatedOneRepMax(logs: SetLogRecord[]): number | nul
   return bestEstimate;
 }
 
+export function getSessionLastWorkSetMetric(logs: SetLogRecord[]): HistoryLastWorkSetMetric | null {
+  const workLogs = logs
+    .filter((log) => log.setType === "work" || log.setType === "amrap")
+    .sort((a, b) => a.setOrder - b.setOrder);
+
+  for (let index = workLogs.length - 1; index >= 0; index -= 1) {
+    const log = workLogs[index];
+    if (!log) continue;
+
+    const metric = getCompletedWorkSetMetric(log);
+    if (metric) {
+      return metric;
+    }
+  }
+
+  return null;
+}
+
 export function buildTrendPoints(
   items: HistoryItem[],
   lift: MainLift,
@@ -180,6 +230,14 @@ export function buildTrendPoints(
 
 export function formatMeasurement(value: number, unit: string): string {
   return `${formatNumber(value, { maximumFractionDigits: 1 })} ${unit}`;
+}
+
+export function formatLastWorkSetMetric(metric: HistoryLastWorkSetMetric, unit: string): string {
+  return t("history.lastWorkSetMetric", {
+    weight: formatNumber(metric.weight, { maximumFractionDigits: 1 }),
+    unit,
+    reps: formatNumber(metric.reps),
+  });
 }
 
 export function formatChange(value: number): string {

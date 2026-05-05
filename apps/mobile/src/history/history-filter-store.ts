@@ -6,22 +6,37 @@ export interface HistoryFilterOption {
   label: string;
 }
 
-export type HistoryListLiftFilter = MainLift | "all";
+export type HistoryListLiftFilterValue = MainLift[] | "all";
+
+const MAIN_LIFT_COUNT = 4;
+
+export function normalizeHistoryLiftFilter(
+  value: HistoryListLiftFilterValue,
+): HistoryListLiftFilterValue {
+  if (value === "all") return "all";
+
+  const uniqueValues = Array.from(new Set(value));
+  if (uniqueValues.length === 0 || uniqueValues.length >= MAIN_LIFT_COUNT) {
+    return "all";
+  }
+
+  return uniqueValues;
+}
 
 interface HistoryFilterStore {
   selectedMonthKey: string;
-  selectedListLift: HistoryListLiftFilter;
+  selectedListLifts: HistoryListLiftFilterValue;
   monthOptions: HistoryFilterOption[];
   liftOptions: HistoryFilterOption[];
   setSelectedMonthKey: (value: string) => void;
-  setSelectedListLift: (value: HistoryListLiftFilter) => void;
+  setSelectedListLifts: (value: HistoryListLiftFilterValue) => void;
   setAvailableOptions: (monthOptions: HistoryFilterOption[], liftOptions: HistoryFilterOption[]) => void;
   resetFilters: () => void;
 }
 
 export const useHistoryFilterStore = create<HistoryFilterStore>((set) => ({
   selectedMonthKey: "all",
-  selectedListLift: "all",
+  selectedListLifts: "all",
   monthOptions: [],
   liftOptions: [],
 
@@ -29,8 +44,8 @@ export const useHistoryFilterStore = create<HistoryFilterStore>((set) => ({
     set({ selectedMonthKey: value });
   },
 
-  setSelectedListLift: (value) => {
-    set({ selectedListLift: value });
+  setSelectedListLifts: (value) => {
+    set({ selectedListLifts: normalizeHistoryLiftFilter(value) });
   },
 
   setAvailableOptions: (monthOptions, liftOptions) => {
@@ -40,7 +55,7 @@ export const useHistoryFilterStore = create<HistoryFilterStore>((set) => ({
   resetFilters: () => {
     set({
       selectedMonthKey: "all",
-      selectedListLift: "all",
+      selectedListLifts: "all",
     });
   },
 }));

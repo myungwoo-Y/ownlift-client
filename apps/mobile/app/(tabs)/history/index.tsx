@@ -4,7 +4,11 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SectionList, View } from "react-native";
 import { Text } from "../../../src/design";
-import { useHistoryFilterStore } from "../../../src/history/history-filter-store";
+import {
+  normalizeHistoryLiftFilter,
+  useHistoryFilterStore,
+  type HistoryListLiftFilterValue,
+} from "../../../src/history/history-filter-store";
 import { HistoryEmptyState } from "../../../src/history/history-screen/HistoryEmptyState";
 import { HistoryListHeader } from "../../../src/history/history-screen/HistoryListHeader";
 import { HistoryListItem } from "../../../src/history/history-screen/HistoryListItem";
@@ -23,6 +27,7 @@ import {
   getHistoryItemDate,
   getHistoryMonthKey,
   getSessionEstimatedOneRepMax,
+  getSessionLastWorkSetMetric,
 } from "../../../src/history/history-screen/utils";
 import { buildMockHistoryItems } from "../../../src/history/mock-history";
 import { useLocale } from "../../../src/i18n";
@@ -34,9 +39,9 @@ export default function HistoryScreen() {
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
   const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
-  const selectedListLift = useHistoryFilterStore((state) => state.selectedListLift);
+  const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
   const setSelectedMonthKey = useHistoryFilterStore((state) => state.setSelectedMonthKey);
-  const setSelectedListLift = useHistoryFilterStore((state) => state.setSelectedListLift);
+  const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
   const setAvailableOptions = useHistoryFilterStore((state) => state.setAvailableOptions);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [selectedLift, setSelectedLift] = useState<MainLift>("deadlift");
@@ -59,6 +64,7 @@ export default function HistoryScreen() {
               completedAt: result?.completedAt,
               totalVolume: result?.summary?.totalVolume ?? undefined,
               estimatedOneRepMax: getSessionEstimatedOneRepMax(logs),
+              lastWorkSet: getSessionLastWorkSetMetric(logs),
             } satisfies HistoryItem;
           }),
         );
@@ -94,9 +100,14 @@ export default function HistoryScreen() {
   const activeMonthKey = monthFilterOptions.some((option) => option.key === selectedMonthKey)
     ? selectedMonthKey
     : "all";
-  const activeListLift = liftFilterOptions.some((option) => option.key === selectedListLift)
-    ? selectedListLift
-    : "all";
+  const activeListLifts = useMemo<HistoryListLiftFilterValue>(() => {
+    if (selectedListLifts === "all") return "all";
+
+    const availableLiftKeys = new Set(liftFilterOptions.map((option) => option.key));
+    const nextListLifts = selectedListLifts.filter((lift) => availableLiftKeys.has(lift));
+
+    return normalizeHistoryLiftFilter(nextListLifts);
+  }, [liftFilterOptions, selectedListLifts]);
   const unitLabel = instance?.params.unit ?? "kg";
 
   const filteredItems = useMemo(
@@ -104,18 +115,17 @@ export default function HistoryScreen() {
       items.filter((item) => {
         const itemMonthKey = getHistoryMonthKey(getHistoryItemDate(item));
         const matchesMonth = activeMonthKey === "all" || itemMonthKey === activeMonthKey;
-        const matchesLift = activeListLift === "all" || item.mainLiftKey === activeListLift;
+        const matchesLift = activeListLifts === "all" || activeListLifts.includes(item.mainLiftKey);
         return matchesMonth && matchesLift;
       }),
-    [activeListLift, activeMonthKey, items],
+    [activeListLifts, activeMonthKey, items],
   );
   const historySections = useMemo(
     () => buildHistoryMonthSections(filteredItems),
     [filteredItems],
   );
 
-  const hasActiveFilters = activeMonthKey !== "all" || activeListLift !== "all";
-  const activeFilterCount = Number(activeMonthKey !== "all") + Number(activeListLift !== "all");
+  const hasActiveFilters = activeMonthKey !== "all" || activeListLifts !== "all";
   const activeFilterChips = useMemo<ActiveFilterChip[]>(
     () =>
       [
@@ -126,30 +136,36 @@ export default function HistoryScreen() {
             onRemove: () => setSelectedMonthKey("all"),
           }
           : null,
-        activeListLift !== "all"
-          ? {
-            key: "lift",
-            label: getFilterOptionLabel(liftFilterOptions, activeListLift) ?? activeListLift,
-            onRemove: () => setSelectedListLift("all"),
-          }
-          : null,
+        ...(activeListLifts === "all"
+          ? []
+          : activeListLifts.map((lift) => ({
+            key: `lift-${lift}`,
+            label: getFilterOptionLabel(liftFilterOptions, lift) ?? lift,
+            onRemove: () => {
+              setSelectedListLifts(activeListLifts.filter((selectedLift) => selectedLift !== lift));
+            },
+          }))),
       ].filter((chip): chip is ActiveFilterChip => Boolean(chip)),
     [
-      activeListLift,
+      activeListLifts,
       activeMonthKey,
       liftFilterOptions,
       monthFilterOptions,
-      setSelectedListLift,
+      setSelectedListLifts,
       setSelectedMonthKey,
     ],
   );
+  const activeFilterCount = activeFilterChips.length;
 
   const handleOpenFilters = useCallback(() => {
     router.push("/(tabs)/history/filters");
   }, [router]);
 
   const handlePressSession = useCallback((sessionId: string) => {
-    router.push(`/session/${sessionId}`);
+    router.push({
+      pathname: "/session/[sessionId]",
+      params: { sessionId, source: "history" },
+    });
   }, [router]);
 
   const renderItem = useCallback(

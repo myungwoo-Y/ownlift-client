@@ -1,9 +1,10 @@
-import { updateInstanceState } from "@ownlift/db";
+import { updateInstanceState, type OwnLiftDataBackup } from "@ownlift/db";
 import type { MainLift, ProgramScheduleMode, ProgramWeekday } from "@ownlift/schemas";
 import { DEFAULT_SETTINGS, REQUIRED_SCHEDULED_DAYS } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { exportBackupFile, importBackupFile, pickBackupFile } from "../../../src/data/backup-files";
 import {
   Button,
   Section,
@@ -16,7 +17,7 @@ import {
   fontWeight,
   spacing,
 } from "../../../src/design";
-import { getLiftLabel, t, useLocale } from "../../../src/i18n";
+import { formatDate, getLiftLabel, t, useLocale } from "../../../src/i18n";
 import { SchedulePolicyEditor } from "../../../src/program/SchedulePolicyEditor";
 import { syncLiftPrescriptions } from "../../../src/program/prescription-sync";
 import { hasRequiredScheduledDays, normalizeScheduledDays } from "../../../src/program/schedule-policy";
@@ -43,6 +44,8 @@ export default function SettingsScreen() {
   const [draftScheduleMode, setDraftScheduleMode] = useState<ProgramScheduleMode>(scheduleMode);
   const [draftScheduledDays, setDraftScheduledDays] = useState<ProgramWeekday[]>([...scheduledDays]);
   const [isSavingSchedule, setIsSavingSchedule] = useState(false);
+  const [isExportingBackup, setIsExportingBackup] = useState(false);
+  const [isImportingBackup, setIsImportingBackup] = useState(false);
   const normalizedSavedDays = normalizeScheduledDays(scheduledDays);
   const normalizedDraftDays = normalizeScheduledDays(draftScheduledDays);
   const isScheduledDraftValid = draftScheduleMode !== "scheduled" || hasRequiredScheduledDays(normalizedDraftDays);
@@ -133,6 +136,80 @@ export default function SettingsScreen() {
       await updateSchedulePolicy(draftScheduleMode, normalizedDraftDays);
     } finally {
       setIsSavingSchedule(false);
+    }
+  };
+
+  const handleBackupError = (titleKey: Parameters<typeof t>[0], error: unknown) => {
+    Alert.alert(
+      t(titleKey),
+      error instanceof Error ? error.message : t("settings.dataUnknownError"),
+    );
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      setIsExportingBackup(true);
+      const result = await exportBackupFile();
+
+      Alert.alert(
+        t("settings.dataExportSuccessTitle"),
+        result.shared
+          ? t("settings.dataExportSuccessMessage", { rows: result.summary.totalRows })
+          : t("settings.dataExportSavedMessage", { file: result.fileName }),
+      );
+    } catch (error) {
+      handleBackupError("settings.dataExportFailedTitle", error);
+    } finally {
+      setIsExportingBackup(false);
+    }
+  };
+
+  const handleImportConfirmed = async (backup: OwnLiftDataBackup) => {
+    try {
+      setIsImportingBackup(true);
+      const summary = await importBackupFile(backup);
+      await loadSettings();
+      await loadProgram();
+
+      Alert.alert(
+        t("settings.dataImportSuccessTitle"),
+        t("settings.dataImportSuccessMessage", { rows: summary.totalRows }),
+      );
+    } catch (error) {
+      handleBackupError("settings.dataImportFailedTitle", error);
+    } finally {
+      setIsImportingBackup(false);
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      const picked = await pickBackupFile();
+      if (!picked) return;
+
+      Alert.alert(
+        t("settings.dataImportConfirmTitle"),
+        t("settings.dataImportConfirmMessage", {
+          file: picked.fileName,
+          rows: picked.summary.totalRows,
+          exportedAt: formatDate(picked.summary.exportedAt, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }),
+        }),
+        [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("settings.dataImportConfirmAction"),
+            style: "destructive",
+            onPress: () => {
+              void handleImportConfirmed(picked.backup);
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      handleBackupError("settings.dataImportFailedTitle", error);
     }
   };
 
@@ -304,6 +381,34 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Section>
+
+      <Section title={t("settings.section.data")}>
+        <View style={styles.card}>
+          <View style={styles.dataBlock}>
+            <View style={styles.dataCopy}>
+              <Text variant="caption">{t("settings.dataBackupHint")}</Text>
+            </View>
+            <View style={styles.dataActions}>
+              <Button
+                title={isExportingBackup ? t("settings.dataExporting") : t("settings.dataExport")}
+                variant="secondary"
+                disabled={isExportingBackup || isImportingBackup}
+                onPress={() => {
+                  void handleExportBackup();
+                }}
+              />
+              <Button
+                title={isImportingBackup ? t("settings.dataImporting") : t("settings.dataImport")}
+                variant="ghost"
+                disabled={isExportingBackup || isImportingBackup}
+                onPress={() => {
+                  void handleImportBackup();
+                }}
+              />
+            </View>
+          </View>
+        </View>
+      </Section>
     </ScrollView>
   );
 }
@@ -409,5 +514,15 @@ const styles = StyleSheet.create({
   },
   scheduleError: {
     color: colors.destructive,
+  },
+  dataBlock: {
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  dataCopy: {
+    gap: spacing.xs,
+  },
+  dataActions: {
+    gap: spacing.sm,
   },
 });

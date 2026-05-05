@@ -2,7 +2,14 @@
 export { DB_NAME, getDatabase, setDatabase } from "./client";
 
 // ─── Migrator ───────────────────────────────────────────
-export { runMigrations } from "./migrator";
+export { CURRENT_SCHEMA_VERSION, runMigrations } from "./migrator";
+
+// ─── Backup ─────────────────────────────────────────────
+export {
+    exportDataBackup, getDataBackupSummary, importDataBackup,
+    parseDataBackupJson
+} from "./backup";
+export type { DataBackupSummary, OwnLiftDataBackup } from "./backup";
 
 // ─── Helpers ────────────────────────────────────────────
 export { insertMeta, softDeleteMeta, updateMeta } from "./helpers/sync-meta";

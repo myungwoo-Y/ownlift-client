@@ -1,12 +1,13 @@
 import { memo } from "react";
 import { Pressable, View } from "react-native";
-import { Badge, Card, Text } from "../../design";
-import { formatNumber, getLiftLabel, getSessionLabel, getWeekLabel, t } from "../../i18n";
+import { Card, Text } from "../../design";
+import { getLiftLabel, getSessionLabel, getWeekLabel, t } from "../../i18n";
 import { getLiftSurfaceStyle, styles } from "./styles";
 import type { HistoryItem } from "./types";
 import {
   WORD_BREAK_TEXT_PROPS,
-  formatHistoryDate,
+  formatHistoryDateLabel,
+  formatLastWorkSetMetric,
   formatMeasurement,
   getHistoryItemDate,
 } from "./utils";
@@ -22,23 +23,21 @@ function HistoryListItemComponent({
   unitLabel,
   onPressSession,
 }: HistoryListItemProps) {
-  const { day, weekday } = formatHistoryDate(getHistoryItemDate(item), {
-    includeMonth: false,
-  });
+  const dateLabel = formatHistoryDateLabel(getHistoryItemDate(item));
   const weekLabel = getWeekLabel(item.weekIndex);
   const sessionLabel = getSessionLabel(item.dayIndex);
-  const isInteractive = !item.isMock;
-  const dateLabel = [day, weekday].filter(Boolean).join(" · ");
+  const lastWorkSet = item.lastWorkSet
+    ? formatLastWorkSetMetric(item.lastWorkSet, unitLabel)
+    : null;
 
   return (
     <Pressable
-      disabled={!isInteractive}
+      accessibilityRole="button"
       onPress={() => {
-        if (!isInteractive) return;
         onPressSession(item.sessionId);
       }}
       style={({ pressed }) => [
-        pressed && isInteractive ? styles.cardPressablePressed : null,
+        pressed ? styles.cardPressablePressed : null,
       ]}
     >
       <Card style={[styles.historyCard, getLiftSurfaceStyle(item.mainLiftKey)]}>
@@ -58,14 +57,11 @@ function HistoryListItemComponent({
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.badges}>
-                <Badge label={t("status.completed")} variant="completed" />
-              </View>
             </View>
             <Text style={styles.historySessionMeta} variant="caption">
               {sessionLabel} · {t("week.title", { week: item.weekIndex + 1 })} · {weekLabel}
             </Text>
-            {item.totalVolume != null || item.estimatedOneRepMax != null ? (
+            {lastWorkSet || item.estimatedOneRepMax != null ? (
               <View style={styles.historyMetricRow}>
                 {item.estimatedOneRepMax != null ? (
                   <View style={[styles.historyMetricChip, styles.historyMetricChipPrimary]}>
@@ -74,13 +70,10 @@ function HistoryListItemComponent({
                     </Text>
                   </View>
                 ) : null}
-                {item.totalVolume != null ? (
+                {lastWorkSet ? (
                   <View style={styles.historyMetricChip}>
                     <Text style={styles.historyMetricText}>
-                      {t("history.volume", {
-                        volume: formatNumber(item.totalVolume),
-                        unit: unitLabel,
-                      })}
+                      {lastWorkSet}
                     </Text>
                   </View>
                 ) : null}

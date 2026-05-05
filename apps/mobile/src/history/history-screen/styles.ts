@@ -427,10 +427,6 @@ export const styles = StyleSheet.create({
     fontWeight: fontWeight.medium,
     color: colors.text,
   },
-  badges: {
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
   empty: {
     paddingVertical: spacing["2xl"],
   },

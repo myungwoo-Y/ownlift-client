@@ -6,6 +6,8 @@ const MIGRATIONS: readonly { version: number; sql: string }[] = [
   { version: 1, sql: migration001 },
 ];
 
+export const CURRENT_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;
+
 /**
  * Run all pending migrations on the given database.
  *

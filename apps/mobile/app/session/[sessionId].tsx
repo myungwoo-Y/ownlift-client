@@ -3,7 +3,7 @@ import { getPrescriptionBySession, getSetLogsBySession, getWorkoutResultBySessio
 import type { PrescriptionData } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -17,12 +17,16 @@ import {
   Text,
 } from "../../src/design";
 import { formatDate, formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../src/i18n";
+import {
+  buildMockHistoryItems,
+  buildMockHistorySessionDetail,
+} from "../../src/history/mock-history";
 import { useProgramStore } from "../../src/stores/program-store";
 
 export default function SessionDetailScreen() {
   useLocale();
 
-  const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
+  const { sessionId, source } = useLocalSearchParams<{ sessionId: string; source?: string }>();
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
 
@@ -31,6 +35,15 @@ export default function SessionDetailScreen() {
   const [result, setResult] = useState<WorkoutResultRecord | null>(null);
 
   const stub = stubs.find((s) => s.sessionId === sessionId);
+  const mockHistoryItem = useMemo(() => {
+    if (stub || !instance || !sessionId || !__DEV__) {
+      return null;
+    }
+
+    return buildMockHistoryItems(instance).find((item) => item.sessionId === sessionId) ?? null;
+  }, [instance, sessionId, stub]);
+  const displayStub = stub ?? mockHistoryItem;
+  const fallbackRoute = source === "history" ? "/(tabs)/history" : "/(tabs)/plan";
 
   const goBack = useCallback(() => {
     try {
@@ -44,35 +57,44 @@ export default function SessionDetailScreen() {
         return;
       }
 
-      router.dismissTo("/(tabs)/plan");
+      router.dismissTo(fallbackRoute);
     } catch {
       try {
-        router.dismissTo("/(tabs)/plan");
+        router.dismissTo(fallbackRoute);
       } catch {
         try {
-          router.replace("/(tabs)/plan");
+          router.replace(fallbackRoute);
         } catch {
         }
       }
     }
-  }, [router]);
+  }, [fallbackRoute, router]);
 
   useEffect(() => {
     async function load() {
       if (!sessionId) return;
+
+      if (!stub && mockHistoryItem && instance && __DEV__) {
+        const mockDetail = buildMockHistorySessionDetail(instance, mockHistoryItem);
+        setPrescription(mockDetail.prescription);
+        setSetLogs(mockDetail.setLogs);
+        setResult(mockDetail.result);
+        return;
+      }
+
       const [rx, logs, wr] = await Promise.all([
         getPrescriptionBySession(sessionId),
         getSetLogsBySession(sessionId),
         getWorkoutResultBySession(sessionId),
       ]);
-      if (rx) setPrescription(rx.data);
+      setPrescription(rx?.data ?? null);
       setSetLogs(logs);
       setResult(wr);
     }
     void load();
-  }, [sessionId]);
+  }, [instance, mockHistoryItem, sessionId, stub]);
 
-  if (!stub || !instance) {
+  if (!displayStub || !instance) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
@@ -82,9 +104,9 @@ export default function SessionDetailScreen() {
     );
   }
 
-  const sessionLabel = getSessionLabel(stub.dayIndex);
+  const sessionLabel = getSessionLabel(displayStub.dayIndex);
   const unit = instance.params.unit;
-  const isCompleted = stub.status === "completed";
+  const isCompleted = displayStub.status === "completed";
 
   const workSets = prescription?.sets.filter((s) => !s.isWarmup) ?? [];
 
@@ -110,10 +132,10 @@ export default function SessionDetailScreen() {
         </View>
         <View style={styles.header}>
           <Text variant="title">
-            {getLiftLabel(stub.mainLiftKey)}
+            {getLiftLabel(displayStub.mainLiftKey)}
           </Text>
           <Text variant="subtitle">
-            {t("session.weekAndSession", { week: stub.weekIndex + 1, session: sessionLabel })}
+            {t("session.weekAndSession", { week: displayStub.weekIndex + 1, session: sessionLabel })}
           </Text>
 
           <View style={styles.badgeRow}>
