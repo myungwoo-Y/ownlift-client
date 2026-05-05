@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { Pressable, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { LineChart, type lineDataItem } from "react-native-gifted-charts";
+import { LineGraph, type GraphPoint } from "react-native-graph";
 import { Card, Text, colors, motion, spacing } from "../../design";
 import { formatDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import { getLiftThumbnailSource } from "../../program/plan-screen/utils";
-import { LINE_CHART_HEIGHT, getLiftSurfaceStyle, styles } from "./styles";
+import { getLiftSurfaceStyle, styles } from "./styles";
 import type { HistoryItem, TrendPoint } from "./types";
 import {
   MIN_TREND_POINTS,
@@ -115,14 +115,7 @@ function LiftSummaryCards({
   );
 }
 
-type TrendChartDataItem = lineDataItem & {
-  trendPoint: TrendPoint;
-};
-
-const TREND_CHART_Y_AXIS_LABEL_WIDTH = 44;
-const TREND_CHART_RIGHT_INSET = 20;
 const TREND_RANGE_OPTIONS = [
-  { key: "week", label: "W", dayWindow: 7 },
   { key: "month", label: "M", dayWindow: 30 },
   { key: "year", label: "Y", dayWindow: 365 },
   { key: "all", label: "A", dayWindow: null },
@@ -131,10 +124,10 @@ const TREND_RANGE_TABS_INSET = spacing["2xs"];
 
 type TrendRangeKey = (typeof TREND_RANGE_OPTIONS)[number]["key"];
 
-function formatTrendAxisValue(label: string): string {
+function formatTrendAxisValue(label: number | string): string {
   const value = Number(label);
 
-  if (!Number.isFinite(value)) return label;
+  if (!Number.isFinite(value)) return String(label);
 
   return formatNumber(value, {
     maximumFractionDigits: Number.isInteger(value) ? 0 : 1,
@@ -168,20 +161,34 @@ function formatTrendXAxisLabel(completedAt: string): string {
   return formatDate(completedAt, { month: "numeric", day: "numeric" });
 }
 
-function buildTrendChartData(points: TrendPoint[]): TrendChartDataItem[] {
+function buildTrendGraphPoints(points: TrendPoint[]): GraphPoint[] {
+  return points.map((point) => ({
+    date: new Date(point.completedAt),
+    value: point.value,
+  }));
+}
+
+function buildTrendXAxisLabels(points: TrendPoint[]): string[] {
   const maxVisibleLabels = 6;
   const labelStep = points.length <= maxVisibleLabels ? 1 : Math.ceil(points.length / maxVisibleLabels);
 
-  return points.map((point, index) => {
-    const shouldShowLabel = index === 0
-      || index === points.length - 1
-      || index % labelStep === 0;
+  return points
+    .map((point, index) => {
+      const shouldShowLabel = index === 0
+        || index === points.length - 1
+        || index % labelStep === 0;
 
-    return {
-      label: shouldShowLabel ? formatTrendXAxisLabel(point.completedAt) : "",
-      trendPoint: point,
-      value: point.value,
-    };
+      return shouldShowLabel ? formatTrendXAxisLabel(point.completedAt) : "";
+    })
+    .filter(Boolean);
+}
+
+function findTrendPointIndex(points: TrendPoint[], graphPoint: GraphPoint): number {
+  const selectedTime = graphPoint.date.getTime();
+
+  return points.findIndex((point) => {
+    const pointTime = new Date(point.completedAt).getTime();
+    return pointTime === selectedTime && point.value === graphPoint.value;
   });
 }
 
@@ -270,84 +277,79 @@ function TrendRangeTabs({
 
 function LiftTrendChart({
   points,
-  selectedIndex,
   onSelectIndex,
 }: {
   points: TrendPoint[];
-  selectedIndex: number;
   onSelectIndex: (index: number) => void;
 }) {
-  const [chartWidth, setChartWidth] = useState(0);
-  const chartData = useMemo<TrendChartDataItem[]>(() => buildTrendChartData(points), [points]);
-  const values = chartData.map((point) => point.value ?? 0);
+  const graphPoints = useMemo(() => buildTrendGraphPoints(points), [points]);
+  const axisLabels = useMemo(() => buildTrendXAxisLabels(points), [points]);
+  const values = graphPoints.map((point) => point.value);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const spread = maxValue - minValue;
   const padding = spread === 0 ? Math.max(maxValue * 0.05, 2) : spread * 0.18;
   const chartMin = Math.max(0, minValue - padding);
   const chartMax = maxValue + padding;
-  const chartViewportWidth = Math.max(
-    chartWidth - TREND_CHART_Y_AXIS_LABEL_WIDTH - TREND_CHART_RIGHT_INSET,
-    0,
-  );
+  const chartMid = (chartMin + chartMax) / 2;
 
   return (
     <View style={styles.trendChart}>
-      <View
-        onLayout={(event: LayoutChangeEvent) => {
-          const nextWidth = event.nativeEvent.layout.width;
-          if (nextWidth !== chartWidth) {
-            setChartWidth(nextWidth);
-          }
-        }}
-        style={styles.trendPlot}
-      >
-        {chartViewportWidth > 0 ? (
-          <LineChart
-            adjustToWidth
-            color={colors.accent}
-            data={chartData}
-            dataPointsColor="rgba(214, 255, 96, 0.36)"
-            dataPointsRadius={4}
-            disableScroll
-            endSpacing={30}
-            focusEnabled
-            focusedDataPointColor={colors.accent}
-            focusedDataPointIndex={selectedIndex}
-            focusedDataPointRadius={6}
-            formatYLabel={formatTrendAxisValue}
-            height={LINE_CHART_HEIGHT}
-            hideOrigin
-            initialSpacing={18}
-            labelsExtraHeight={14}
-            maxValue={Math.max(chartMax - chartMin, 1)}
-            noOfSections={2}
-            onFocus={(_: TrendChartDataItem, index: number) => {
-              onSelectIndex(index);
-            }}
-            parentWidth={chartWidth}
-            rulesColor="rgba(255, 255, 255, 0.06)"
-            rulesThickness={1}
-            showStripOnFocus
-            stripColor="rgba(214, 255, 96, 0.24)"
-            stripStrokeDashArray={[4, 4]}
-            stripWidth={1}
-            thickness={3}
-            unFocusOnPressOut={false}
-            width={chartViewportWidth}
-            xAxisColor="rgba(255, 255, 255, 0.14)"
-            xAxisLabelTextStyle={styles.chartAxisLabel}
-            xAxisLabelsHeight={24}
-            xAxisLabelsVerticalShift={12}
-            xAxisTextNumberOfLines={1}
-            xAxisThickness={1}
-            yAxisColor="rgba(255, 255, 255, 0.14)"
-            yAxisLabelWidth={TREND_CHART_Y_AXIS_LABEL_WIDTH}
-            yAxisOffset={chartMin}
-            yAxisThickness={1}
-            yAxisTextStyle={styles.chartAxisLabel}
-          />
-        ) : null}
+      <View style={styles.trendPlot}>
+        <View style={styles.trendGraphBody}>
+          <View pointerEvents="none" style={styles.trendYAxis}>
+            <Text numberOfLines={1} style={styles.chartAxisLabel}>
+              {formatTrendAxisValue(chartMax)}
+            </Text>
+            <Text numberOfLines={1} style={styles.chartAxisLabel}>
+              {formatTrendAxisValue(chartMid)}
+            </Text>
+            <Text numberOfLines={1} style={styles.chartAxisLabel}>
+              {formatTrendAxisValue(chartMin)}
+            </Text>
+          </View>
+          <View style={styles.trendGraphCanvas}>
+            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineTop]} />
+            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineMiddle]} />
+            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineBottom]} />
+            <LineGraph
+              animated
+              color={colors.accent}
+              enableIndicator
+              enablePanGesture
+              horizontalPadding={spacing.md}
+              indicatorPulsating={false}
+              lineThickness={3}
+              onPointSelected={(graphPoint) => {
+                const nextIndex = findTrendPointIndex(points, graphPoint);
+                if (nextIndex >= 0) {
+                  onSelectIndex(nextIndex);
+                }
+              }}
+              panGestureDelay={0}
+              points={graphPoints}
+              range={{
+                y: {
+                  min: chartMin,
+                  max: chartMax,
+                },
+              }}
+              style={styles.trendLineGraph}
+              verticalPadding={spacing.xs}
+            />
+          </View>
+        </View>
+        <View style={styles.trendAxisLabels}>
+          {axisLabels.map((label, index) => (
+            <Text
+              key={`${label}-${index}`}
+              numberOfLines={1}
+              style={styles.chartAxisLabel}
+            >
+              {label}
+            </Text>
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -417,7 +419,6 @@ function LiftTrendCard({
         <LiftTrendChart
           onSelectIndex={setSelectedTrendIndex}
           points={points}
-          selectedIndex={selectedTrendIndex}
         />
       )}
     </Card>

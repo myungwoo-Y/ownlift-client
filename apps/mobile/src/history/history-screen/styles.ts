@@ -306,9 +306,46 @@ export const styles = StyleSheet.create({
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     overflow: "hidden",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: colors.transparent,
+    paddingTop: spacing.md,
+    paddingRight: spacing.md,
+    paddingBottom: spacing.sm,
+    paddingLeft: spacing.sm,
+  },
+  trendGraphBody: {
+    flexDirection: "row",
+    height: LINE_CHART_HEIGHT,
+  },
+  trendYAxis: {
+    width: 44,
+    justifyContent: "space-between",
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    paddingRight: spacing.sm,
+  },
+  trendGraphCanvas: {
+    flex: 1,
+    overflow: "hidden",
+  },
+  trendLineGraph: {
+    flex: 1,
+  },
+  trendGraphGridline: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
+  },
+  trendGraphGridlineTop: {
+    top: spacing.xs,
+  },
+  trendGraphGridlineMiddle: {
+    top: "50%",
+  },
+  trendGraphGridlineBottom: {
+    bottom: spacing.xs,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
   },
   chartAxisLabel: {
     color: colors.textSecondary,
@@ -359,7 +396,8 @@ export const styles = StyleSheet.create({
   trendAxisLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.xs,
+    paddingLeft: 44,
+    paddingTop: spacing.xs,
   },
   historyCard: {
     padding: spacing.lg,
