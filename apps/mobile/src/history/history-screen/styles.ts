@@ -28,6 +28,12 @@ export const styles = StyleSheet.create({
     lineHeight: 24,
     color: colors.text,
   },
+  subSectionTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 22,
+    color: colors.text,
+  },
   sectionHelper: {
     lineHeight: 18,
   },
@@ -70,6 +76,7 @@ export const styles = StyleSheet.create({
   },
   logSection: {
     gap: spacing.md,
+    paddingTop: spacing.lg,
   },
   monthSectionHeader: {
     paddingTop: spacing.md,

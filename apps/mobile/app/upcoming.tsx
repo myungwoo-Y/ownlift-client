@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { BackButton, Card, colors, Section, spacing, Text } from "../src/design";
+import { BackButton, Card, colors, fontWeight, Section, spacing, Text } from "../src/design";
 import { formatNumber, getWeekdayShortLabel, t, useLocale } from "../src/i18n";
 import { WeekRowCard } from "../src/program/plan-screen/WeekRowCard";
 import { loadSyncedPrescriptionForSession } from "../src/program/prescription-sync";
@@ -150,14 +150,13 @@ export default function UpcomingScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <BackButton
-        onPress={goBack}
-        accessibilityLabel={t("common.back")}
-      />
-
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.headerEyebrow}>{t("tab.plan")}</Text>
+          <BackButton
+            onPress={goBack}
+            accessibilityLabel={t("common.back")}
+            style={styles.headerBackButton}
+          />
           <Text style={styles.headerTitle}>{t("plan.section.upcoming")}</Text>
         </View>
 
@@ -210,23 +209,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   container: {
-    padding: spacing["2xl"],
+    paddingHorizontal: spacing["2xl"],
+    paddingTop: spacing.lg,
     paddingBottom: spacing["4xl"],
     gap: spacing["2xl"],
   },
   header: {
-    gap: spacing.xs,
+    gap: spacing.lg,
   },
-  headerEyebrow: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    color: colors.textTertiary,
+  headerBackButton: {
+    marginLeft: 0,
   },
   headerTitle: {
-    fontSize: 34,
-    fontWeight: "800",
+    fontSize: 42,
+    fontWeight: fontWeight.extrabold,
+    lineHeight: 44,
     color: colors.text,
   },
   upcomingGroups: {

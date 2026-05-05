@@ -403,7 +403,7 @@ export function HistorySummarySection({
       <View style={styles.trendSection}>
         <Text
           {...WORD_BREAK_TEXT_PROPS}
-          style={styles.sectionTitle}
+          style={styles.subSectionTitle}
         >
           {t("history.e1rmTitle", { lift: getLiftLabel(selectedLift) })}
         </Text>

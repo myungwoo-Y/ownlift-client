@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   timerSheetBackground: {
-    backgroundColor: colors.surfaceGlassStrong,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.08)",
   },
