@@ -212,27 +212,29 @@ function ResultCard({
         <Text variant="label" style={styles.cardLabel}>
           {label}
         </Text>
-        {badgeLabel ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{badgeLabel}</Text>
-          </View>
+      </View>
+      {badgeLabel ? (
+        <View style={[styles.badge, styles.cardBadge]}>
+          <Text style={styles.badgeText}>{badgeLabel}</Text>
+        </View>
+      ) : null}
+      <View style={styles.cardBody}>
+        <MetricValueText metric={metric} value={value} size={featured && metric ? "hero" : "card"} />
+        {detail ? (
+          <Text
+            style={[
+              styles.cardDetail,
+              detailTone === "positive"
+                ? styles.detailPositive
+                : detailTone === "negative"
+                  ? styles.detailNegative
+                  : styles.detailNeutral,
+            ]}
+          >
+            {detail}
+          </Text>
         ) : null}
       </View>
-      <MetricValueText metric={metric} value={value} size={featured && metric ? "hero" : "card"} />
-      {detail ? (
-        <Text
-          style={[
-            styles.cardDetail,
-            detailTone === "positive"
-              ? styles.detailPositive
-              : detailTone === "negative"
-                ? styles.detailNegative
-                : styles.detailNeutral,
-          ]}
-        >
-          {detail}
-        </Text>
-      ) : null}
     </View>
   );
 }
@@ -279,24 +281,28 @@ function TopSetHero({
 
   return (
     <View style={styles.topSetHero}>
-      <Text variant="label" style={[styles.cardLabel, styles.stackedCardLabel]}>
-        {t("workout.completeScreen.topSet")}
-      </Text>
-      <MetricValueText metric={metric} value={value} size={metric ? "hero" : "card"} />
-      {shouldShowDetail ? (
-        <Text
-          style={[
-            styles.cardDetail,
-            detailTone === "positive"
-              ? styles.detailPositive
-              : detailTone === "negative"
-                ? styles.detailNegative
-                : styles.detailNeutral,
-          ]}
-        >
-          {detail}
+      <View style={styles.cardHeaderRow}>
+        <Text variant="label" style={styles.cardLabel}>
+          {t("workout.completeScreen.topSet")}
         </Text>
-      ) : null}
+      </View>
+      <View style={styles.cardBody}>
+        <MetricValueText metric={metric} value={value} size={metric ? "hero" : "card"} />
+        {shouldShowDetail ? (
+          <Text
+            style={[
+              styles.cardDetail,
+              detailTone === "positive"
+                ? styles.detailPositive
+                : detailTone === "negative"
+                  ? styles.detailNegative
+                  : styles.detailNeutral,
+            ]}
+          >
+            {detail}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -314,14 +320,18 @@ function CycleProgressCard({
 
   return (
     <View style={[styles.card, styles.cycleCard]}>
-      <Text variant="label" style={[styles.cardLabel, styles.stackedCardLabel]}>
-        {label}
-      </Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={styles.cycleValue}>
-        {value}
-      </Text>
-      <View style={styles.progressTrack}>
-        <View style={[styles.progressFill, { width: progressWidth }]} />
+      <View style={styles.cardHeaderRow}>
+        <Text variant="label" style={styles.cardLabel}>
+          {label}
+        </Text>
+      </View>
+      <View style={styles.cardBody}>
+        <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={styles.cycleValue}>
+          {value}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: progressWidth }]} />
+        </View>
       </View>
     </View>
   );
@@ -690,38 +700,36 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   summarySection: {
-    gap: spacing.xl,
+    gap: spacing.lg,
   },
   topSetHero: {
     position: "relative",
-    minHeight: 120,
-    borderRadius: borderRadius.xl,
-    borderCurve: "continuous",
-    paddingHorizontal: spacing["2xl"],
-    paddingVertical: spacing.xl,
-    backgroundColor: colors.surfaceGlassStrong,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: "center",
-  },
-  card: {
-    position: "relative",
-    overflow: "hidden",
     minHeight: 112,
     borderRadius: borderRadius.xl,
     borderCurve: "continuous",
     paddingHorizontal: spacing["2xl"],
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.lg,
     backgroundColor: colors.surfaceGlassStrong,
     borderWidth: 1,
     borderColor: colors.border,
-    justifyContent: "center",
+  },
+  card: {
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 104,
+    borderRadius: borderRadius.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing["2xl"],
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.surfaceGlassStrong,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cardReward: {
     borderColor: colors.primary,
   },
   cardFeatured: {
-    minHeight: 140,
+    minHeight: 124,
     borderColor: colors.text,
   },
   cardRewardGlow: {
@@ -729,18 +737,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   cardHeaderRow: {
-    minHeight: 24,
+    minHeight: 16,
     marginBottom: spacing.sm,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.md,
   },
   cardLabel: {
     color: colors.textSecondary,
   },
-  stackedCardLabel: {
-    marginBottom: spacing.md,
+  cardBody: {
+    flex: 1,
+    justifyContent: "center",
   },
   badge: {
     minWidth: 48,
@@ -750,6 +759,11 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.primary,
+  },
+  cardBadge: {
+    position: "absolute",
+    top: spacing.lg,
+    right: spacing["2xl"],
   },
   badgeText: {
     fontSize: fontSize.sm,
