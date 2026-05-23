@@ -27,14 +27,14 @@ import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, wi
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  BackButton,
   Badge,
   borderRadius,
   Button,
   Card,
   colors,
   Divider,
-  motion,
+  FLOATING_NAV_CONTENT_TOP_OFFSET,
+  FloatingBackNav,
   NumericInput,
   Section,
   spacing,
@@ -49,8 +49,6 @@ import { useWorkoutStore, type WorkoutSetState } from "../../src/stores/workout-
 type WorkoutScreenMode = "loading" | "preview" | "active";
 type WorkoutSetType = WorkoutSetState;
 const REST_EXTENSION_SECONDS = 30;
-const NAV_FADE_HEIGHT = spacing["5xl"] + spacing["4xl"];
-const NAV_CONTENT_TOP_OFFSET = spacing["5xl"] + spacing["2xl"];
 
 function toPreviewSetState(setData: PrescriptionData["sets"][number]): WorkoutSetType {
   return {
@@ -285,29 +283,17 @@ export default function WorkoutScreen() {
     scrollInputIntoView(repsInputRefs.current.get(focusedSetId) ?? null, 0);
   }, [scrollInputIntoView]);
 
-  const scrollFocusedRepsInputAfterKeyboardHide = useCallback(() => {
-    const focusedSetId = focusedRepsSetIdRef.current;
-    if (!focusedSetId) return;
-
-    scrollInputIntoView(
-      repsInputRefs.current.get(focusedSetId) ?? null,
-      motion.duration.fast,
-    );
-  }, [scrollInputIntoView]);
-
   useEffect(() => {
     const showSubscription = Keyboard.addListener("keyboardDidShow", scrollFocusedRepsInputIntoView);
-    const hideSubscription = Keyboard.addListener("keyboardDidHide", scrollFocusedRepsInputAfterKeyboardHide);
     const frameSubscription = Platform.OS === "ios"
       ? Keyboard.addListener("keyboardDidChangeFrame", scrollFocusedRepsInputIntoView)
       : null;
 
     return () => {
       showSubscription.remove();
-      hideSubscription.remove();
       frameSubscription?.remove();
     };
-  }, [scrollFocusedRepsInputAfterKeyboardHide, scrollFocusedRepsInputIntoView]);
+  }, [scrollFocusedRepsInputIntoView]);
 
   useEffect(() => {
     if (!shouldAutoFocusCurrentSet || !currentSetId) return;
@@ -543,43 +529,20 @@ export default function WorkoutScreen() {
         style={styles.keyboardAvoiding}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.navBar} pointerEvents="box-none">
-          <View pointerEvents="none" style={styles.navBackdrop}>
-            <Svg
-              width="100%"
-              height="100%"
-              style={StyleSheet.absoluteFill}
-              preserveAspectRatio="none"
-            >
-              <Defs>
-                <SvgLinearGradient id="navFade" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0%" stopColor={colors.background} stopOpacity="0.96" />
-                  <Stop offset="64%" stopColor={colors.background} stopOpacity="0.74" />
-                  <Stop offset="100%" stopColor={colors.background} stopOpacity="0" />
-                </SvgLinearGradient>
-              </Defs>
-              <Rect width="100%" height="100%" fill="url(#navFade)" />
-            </Svg>
-          </View>
-          <View style={styles.navContent}>
-            <BackButton
-              onPress={confirmExit}
-              disabled={isSubmitting || isStarting}
-              accessibilityLabel={t("common.back")}
-              style={styles.navBackButton}
+        <FloatingBackNav
+          onPress={confirmExit}
+          disabled={isSubmitting || isStarting}
+          accessibilityLabel={t("common.back")}
+        >
+          {shouldShowRestTimer ? (
+            <RestTimerBar
+              remainingSeconds={restSecondsRemaining}
+              totalSeconds={restTimerTotalSeconds}
+              isPaused={isRestTimerPaused}
+              onPress={presentRestTimerSheet}
             />
-            {shouldShowRestTimer ? (
-              <View style={styles.navTimer}>
-                <RestTimerBar
-                  remainingSeconds={restSecondsRemaining}
-                  totalSeconds={restTimerTotalSeconds}
-                  isPaused={isRestTimerPaused}
-                  onPress={presentRestTimerSheet}
-                />
-              </View>
-            ) : null}
-          </View>
-        </View>
+          ) : null}
+        </FloatingBackNav>
         <ScrollView
           ref={scrollViewRef}
           style={styles.scrollView}
@@ -588,7 +551,6 @@ export default function WorkoutScreen() {
             { paddingBottom: effectiveScrollContentBottomPadding },
           ]}
           scrollIndicatorInsets={{ bottom: effectiveScrollContentBottomPadding }}
-          automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
@@ -1008,34 +970,6 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  navBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  navBackdrop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: NAV_FADE_HEIGHT,
-  },
-  navContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-  },
-  navBackButton: {
-    marginLeft: 0,
-  },
-  navTimer: {
-    flex: 1,
-  },
   center: {
     flex: 1,
     justifyContent: "center",
@@ -1044,7 +978,7 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: spacing["2xl"],
-    paddingTop: NAV_CONTENT_TOP_OFFSET,
+    paddingTop: FLOATING_NAV_CONTENT_TOP_OFFSET,
     paddingBottom: spacing["3xl"],
     gap: spacing["2xl"],
   },

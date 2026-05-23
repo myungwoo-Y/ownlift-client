@@ -1,10 +1,19 @@
 import type { SetLogRecord, WorkoutResultRecord } from "@ownlift/db";
 import { getSetLogsBySession, getWorkoutResultBySession, getWorkoutResultsByInstance } from "@ownlift/db";
 import * as Haptics from "expo-haptics";
+import LottieView from "lottie-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import {
+  AccessibilityInfo,
+  ScrollView,
+  StyleSheet,
+  UIManager,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -15,12 +24,108 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { borderRadius, Button, colors, fontSize, fontWeight, motion, spacing, Text } from "../../src/design";
+import {
+  borderRadius,
+  Button,
+  colors,
+  FLOATING_NAV_CONTENT_TOP_OFFSET,
+  FloatingBackNav,
+  fontSize,
+  fontWeight,
+  motion,
+  spacing,
+  Text,
+} from "../../src/design";
 import { formatMeasurement, getSessionEstimatedOneRepMax } from "../../src/history/history-screen/utils";
 import { formatNumber, getLiftLabel, t, useLocale } from "../../src/i18n";
 import { useProgramStore } from "../../src/stores/program-store";
 
+const confettiAnimation = require("../../assets/animations/flex-confetti.json");
+const COMPLETION_TITLE_SIZE = 42;
+const COMPLETION_METRIC_SIZE = 46;
+
 type DeltaTone = "negative" | "neutral" | "positive";
+
+interface MetricDisplayParts {
+  amount: string;
+  unit?: string;
+  reps?: string;
+}
+
+function canRenderLottieAnimationView() {
+  const nativeUIManager = UIManager as typeof UIManager & {
+    getViewManagerConfig?: (name: string) => unknown;
+    hasViewManagerConfig?: (name: string) => boolean;
+  };
+
+  try {
+    if (typeof nativeUIManager.hasViewManagerConfig === "function") {
+      return nativeUIManager.hasViewManagerConfig("LottieAnimationView");
+    }
+
+    return nativeUIManager.getViewManagerConfig?.("LottieAnimationView") != null;
+  } catch {
+    return false;
+  }
+}
+
+function CompletionConfetti({
+  animationKey,
+  enabled,
+}: {
+  animationKey?: string;
+  enabled: boolean;
+}) {
+  const [isMotionAllowed, setIsMotionAllowed] = useState(false);
+  const [isLottieAvailable, setIsLottieAvailable] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setIsLottieAvailable(canRenderLottieAnimationView());
+
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((isReduceMotionEnabled) => {
+        if (isMounted) {
+          setIsMotionAllowed(!isReduceMotionEnabled);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsMotionAllowed(true);
+        }
+      });
+
+    const subscription = AccessibilityInfo.addEventListener(
+      "reduceMotionChanged",
+      (isReduceMotionEnabled) => {
+        setIsMotionAllowed(!isReduceMotionEnabled);
+      },
+    );
+
+    return () => {
+      isMounted = false;
+      subscription.remove();
+    };
+  }, []);
+
+  if (!enabled || !isMotionAllowed || !isLottieAvailable) {
+    return null;
+  }
+
+  return (
+    <View pointerEvents="none" style={styles.confettiLayer}>
+      <LottieView
+        key={animationKey}
+        autoPlay
+        loop={false}
+        resizeMode="cover"
+        source={confettiAnimation}
+        style={styles.confettiAnimation}
+      />
+    </View>
+  );
+}
 
 function RevealView({
   children,
@@ -57,14 +162,20 @@ function RevealView({
 function ResultCard({
   label,
   value,
+  metric,
   detail,
   detailTone = "neutral",
+  badgeLabel,
+  featured = false,
   reward = false,
 }: {
   label: string;
   value: string;
+  metric?: MetricDisplayParts | null;
   detail?: string | null;
   detailTone?: DeltaTone;
+  badgeLabel?: string | null;
+  featured?: boolean;
   reward?: boolean;
 }) {
   const glowProgress = useSharedValue(0);
@@ -95,14 +206,19 @@ function ResultCard({
   }));
 
   return (
-    <View style={[styles.card, reward ? styles.cardReward : null]}>
+    <View style={[styles.card, reward ? styles.cardReward : null, featured ? styles.cardFeatured : null]}>
       {reward ? <Animated.View pointerEvents="none" style={[styles.cardRewardGlow, glowStyle]} /> : null}
-      <Text variant="label" style={styles.cardLabel}>
-        {label}
-      </Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.86} numberOfLines={1} style={styles.cardValue}>
-        {value}
-      </Text>
+      <View style={styles.cardHeaderRow}>
+        <Text variant="label" style={styles.cardLabel}>
+          {label}
+        </Text>
+        {badgeLabel ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badgeLabel}</Text>
+          </View>
+        ) : null}
+      </View>
+      <MetricValueText metric={metric} value={value} size={featured && metric ? "hero" : "card"} />
       {detail ? (
         <Text
           style={[
@@ -121,36 +237,56 @@ function ResultCard({
   );
 }
 
+function MetricValueText({
+  metric,
+  value,
+  size,
+}: {
+  metric?: MetricDisplayParts | null;
+  value: string;
+  size: "hero" | "card";
+}) {
+  return (
+    <Text
+      adjustsFontSizeToFit
+      minimumFontScale={0.72}
+      numberOfLines={1}
+      style={[
+        styles.metricValue,
+        size === "hero" ? styles.metricValueHero : styles.metricValueCard,
+      ]}
+    >
+      {metric ? metric.amount : value}
+      {metric?.unit ? <Text style={styles.metricUnit}> {metric.unit}</Text> : null}
+      {metric?.reps ? <Text style={styles.metricSeparator}> × </Text> : null}
+      {metric?.reps ? <Text style={styles.metricReps}>{metric.reps}</Text> : null}
+    </Text>
+  );
+}
+
 function TopSetHero({
   value,
+  metric,
   detail,
   detailTone,
 }: {
   value: string;
+  metric?: MetricDisplayParts | null;
   detail: string;
   detailTone: DeltaTone;
 }) {
+  const shouldShowDetail = metric == null && detail.length > 0;
+
   return (
     <View style={styles.topSetHero}>
-      <Text variant="label" style={styles.cardLabel}>
+      <Text variant="label" style={[styles.cardLabel, styles.stackedCardLabel]}>
         {t("workout.completeScreen.topSet")}
       </Text>
-      <Text adjustsFontSizeToFit minimumFontScale={0.84} numberOfLines={1} style={styles.topSetValue}>
-        {value}
-      </Text>
-      <View
-        style={[
-          styles.topSetDetailPill,
-          detailTone === "positive"
-            ? styles.topSetAchievementPill
-            : detailTone === "negative"
-              ? styles.topSetMissPill
-              : styles.topSetNeutralPill,
-        ]}
-      >
+      <MetricValueText metric={metric} value={value} size={metric ? "hero" : "card"} />
+      {shouldShowDetail ? (
         <Text
           style={[
-            styles.topSetDetailText,
+            styles.cardDetail,
             detailTone === "positive"
               ? styles.detailPositive
               : detailTone === "negative"
@@ -160,6 +296,32 @@ function TopSetHero({
         >
           {detail}
         </Text>
+      ) : null}
+    </View>
+  );
+}
+
+function CycleProgressCard({
+  label,
+  value,
+  progress,
+}: {
+  label: string;
+  value: string;
+  progress: number;
+}) {
+  const progressWidth = `${Math.max(0, Math.min(100, Math.round(progress * 100)))}%` as ViewStyle["width"];
+
+  return (
+    <View style={[styles.card, styles.cycleCard]}>
+      <Text variant="label" style={[styles.cardLabel, styles.stackedCardLabel]}>
+        {label}
+      </Text>
+      <Text adjustsFontSizeToFit minimumFontScale={0.82} numberOfLines={1} style={styles.cycleValue}>
+        {value}
+      </Text>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: progressWidth }]} />
       </View>
     </View>
   );
@@ -167,6 +329,7 @@ function TopSetHero({
 
 function getTopSetSummary(logs: SetLogRecord[], unit: string): {
   value: string;
+  metric?: MetricDisplayParts | null;
   detail: string;
   detailTone: DeltaTone;
 } {
@@ -191,10 +354,18 @@ function getTopSetSummary(logs: SetLogRecord[], unit: string): {
   const value = weight != null && reps != null
     ? `${formatNumber(weight, { maximumFractionDigits: 1 })}${unit} × ${formatNumber(reps)}`
     : t("workout.completeScreen.noTopSet");
+  const metric = weight != null && reps != null
+    ? {
+      amount: formatNumber(weight, { maximumFractionDigits: 1 }),
+      unit,
+      reps: formatNumber(reps),
+    }
+    : null;
 
   if (reps == null || targetReps == null) {
     return {
       value,
+      metric,
       detail: t("workout.completeScreen.noTopSetDetail"),
       detailTone: "neutral",
     };
@@ -204,6 +375,7 @@ function getTopSetSummary(logs: SetLogRecord[], unit: string): {
   if (delta > 0) {
     return {
       value,
+      metric,
       detail: t("workout.completeScreen.targetRepsAbove", { count: formatNumber(delta) }),
       detailTone: "positive",
     };
@@ -212,6 +384,7 @@ function getTopSetSummary(logs: SetLogRecord[], unit: string): {
   if (delta < 0) {
     return {
       value,
+      metric,
       detail: t("workout.completeScreen.targetRepsBelow", { count: formatNumber(Math.abs(delta)) }),
       detailTone: "negative",
     };
@@ -219,6 +392,7 @@ function getTopSetSummary(logs: SetLogRecord[], unit: string): {
 
   return {
     value,
+    metric,
     detail: t("workout.completeScreen.targetRepsMet"),
     detailTone: "neutral",
   };
@@ -346,6 +520,12 @@ export default function WorkoutCompleteScreen() {
   const estimatedPr = useMemo(() => getSessionEstimatedOneRepMax(logs), [logs]);
   const topSetSummary = useMemo(() => getTopSetSummary(logs, unit), [logs, unit]);
   const liftLabel = stub ? getLiftLabel(stub.mainLiftKey) : null;
+  const estimatedPrMetric = estimatedPr != null
+    ? {
+      amount: formatNumber(estimatedPr, { maximumFractionDigits: 1 }),
+      unit,
+    }
+    : null;
   const estimatedPrValue = estimatedPr != null
     ? formatMeasurement(estimatedPr, unit)
     : t("workout.completeScreen.estimatedPrEmpty");
@@ -366,6 +546,7 @@ export default function WorkoutCompleteScreen() {
   const cycleValue = cycleTotalCount > 0
     ? `${formatNumber(cycleCompletedCount)} / ${formatNumber(cycleTotalCount)} ${t("workout.completeScreen.completedShort")}`
     : t("workout.completeScreen.noCycleProgress");
+  const cycleProgress = cycleTotalCount > 0 ? cycleCompletedCount / cycleTotalCount : 0;
   const nextUpValue = upcomingStub
     ? `${getLiftLabel(upcomingStub.mainLiftKey)} · ${t("week.title", { week: upcomingStub.weekIndex + 1 })}`
     : t("workout.completeScreen.noNextWorkout");
@@ -379,7 +560,11 @@ export default function WorkoutCompleteScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.content}>
+      <FloatingBackNav
+        onPress={goToPlan}
+        accessibilityLabel={t("common.back")}
+      />
+      <ScrollView contentContainerStyle={styles.content} style={styles.scroll}>
         <View style={styles.mainStack}>
           <RevealView style={styles.heroCopy}>
             <Text style={styles.heroTitle}>
@@ -396,6 +581,7 @@ export default function WorkoutCompleteScreen() {
             <RevealView delay={motion.duration.fast}>
               <TopSetHero
                 value={topSetSummary.value}
+                metric={topSetSummary.metric}
                 detail={topSetSummary.detail}
                 detailTone={topSetSummary.detailTone}
               />
@@ -404,8 +590,11 @@ export default function WorkoutCompleteScreen() {
             <RevealView delay={motion.duration.fast + motion.duration.instant}>
               <ResultCard
                 reward={hasPrReward}
+                featured
+                badgeLabel={hasPrReward ? "PR" : null}
                 label={t("workout.completeScreen.estimatedOneRepMax")}
                 value={estimatedPrValue}
+                metric={estimatedPrMetric}
                 detail={prDetail}
                 detailTone={hasPrReward ? "positive" : "neutral"}
               />
@@ -419,9 +608,10 @@ export default function WorkoutCompleteScreen() {
             </RevealView>
 
             <RevealView delay={motion.duration.fast + motion.duration.instant * 3}>
-              <ResultCard
+              <CycleProgressCard
                 label={t("workout.completeScreen.thisCycle")}
                 value={cycleValue}
+                progress={cycleProgress}
               />
             </RevealView>
 
@@ -432,14 +622,20 @@ export default function WorkoutCompleteScreen() {
           <Button
             title={t("workout.completeScreen.backToPlan")}
             onPress={goToPlan}
+            style={styles.primaryAction}
           />
           <Button
             title={t("workout.completeScreen.viewLog")}
             variant="secondary"
             onPress={viewSessionLog}
+            style={styles.secondaryAction}
           />
         </View>
       </ScrollView>
+      <CompletionConfetti
+        animationKey={sessionId}
+        enabled={sessionId != null}
+      />
     </SafeAreaView>
   );
 }
@@ -449,25 +645,44 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing["2xl"],
-    paddingTop: spacing["5xl"],
+    paddingTop: FLOATING_NAV_CONTENT_TOP_OFFSET,
     paddingBottom: spacing["3xl"],
     justifyContent: "space-between",
-    gap: spacing["2xl"],
+    gap: spacing["3xl"],
   },
   mainStack: {
-    gap: spacing["2xl"],
+    gap: spacing["3xl"],
+  },
+  confettiLayer: {
+    ...StyleSheet.absoluteFillObject,
+    elevation: 2,
+    zIndex: 2,
+  },
+  confettiAnimation: {
+    position: "absolute",
+    top: -spacing["5xl"],
+    right: 0,
+    bottom: -spacing["2xl"],
+    left: 0,
+    opacity: 0.9,
   },
   heroCopy: {
     gap: spacing.sm,
   },
   heroTitle: {
-    fontSize: fontSize["4xl"],
-    lineHeight: 42,
+    fontSize: COMPLETION_TITLE_SIZE,
+    lineHeight: 48,
     fontWeight: fontWeight.extrabold,
     color: colors.text,
+    textShadowColor: "rgba(0, 0, 0, 0.84)",
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 0,
   },
   heroSubtitle: {
     fontSize: fontSize.lg,
@@ -475,26 +690,28 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   summarySection: {
-    gap: spacing.sm,
+    gap: spacing.xl,
   },
   topSetHero: {
     position: "relative",
-    minHeight: 176,
+    minHeight: 120,
     borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.xl,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing["2xl"],
     paddingVertical: spacing.xl,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceGlassStrong,
     borderWidth: 1,
-    borderColor: colors.primarySoft,
+    borderColor: colors.border,
     justifyContent: "center",
   },
   card: {
     position: "relative",
     overflow: "hidden",
-    minHeight: 96,
+    minHeight: 112,
     borderRadius: borderRadius.xl,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    borderCurve: "continuous",
+    paddingHorizontal: spacing["2xl"],
+    paddingVertical: spacing.xl,
     backgroundColor: colors.surfaceGlassStrong,
     borderWidth: 1,
     borderColor: colors.border,
@@ -503,53 +720,72 @@ const styles = StyleSheet.create({
   cardReward: {
     borderColor: colors.primary,
   },
+  cardFeatured: {
+    minHeight: 140,
+    borderColor: colors.text,
+  },
   cardRewardGlow: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.primarySoft,
   },
+  cardHeaderRow: {
+    minHeight: 24,
+    marginBottom: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
   cardLabel: {
     color: colors.textSecondary,
-    marginBottom: spacing.sm,
   },
-  topSetValue: {
-    fontSize: fontSize["4xl"],
-    lineHeight: 42,
+  stackedCardLabel: {
+    marginBottom: spacing.md,
+  },
+  badge: {
+    minWidth: 48,
+    minHeight: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary,
+  },
+  badgeText: {
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    fontWeight: fontWeight.extrabold,
+    color: colors.primaryForeground,
+  },
+  metricValue: {
     fontWeight: fontWeight.extrabold,
     color: colors.text,
+    textShadowColor: "rgba(0, 0, 0, 0.84)",
+    textShadowOffset: { width: 0, height: 3 },
+    textShadowRadius: 0,
   },
-  topSetDetailPill: {
-    alignSelf: "flex-start",
-    marginTop: spacing.md,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
+  metricValueHero: {
+    fontSize: COMPLETION_METRIC_SIZE,
+    lineHeight: 52,
   },
-  topSetAchievementPill: {
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primarySoft,
+  metricValueCard: {
+    fontSize: fontSize["2xl"],
+    lineHeight: 32,
   },
-  topSetMissPill: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-  },
-  topSetNeutralPill: {
-    backgroundColor: colors.surfaceMuted,
-    borderColor: colors.border,
-  },
-  topSetDetailText: {
-    fontSize: fontSize.lg,
-    lineHeight: 24,
-    fontWeight: fontWeight.semibold,
-  },
-  cardValue: {
-    fontSize: fontSize["3xl"],
-    lineHeight: 36,
+  metricUnit: {
+    fontSize: fontSize["2xl"],
+    lineHeight: 34,
     fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+  },
+  metricSeparator: {
+    color: colors.text,
+  },
+  metricReps: {
     color: colors.text,
   },
   cardDetail: {
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
     fontSize: fontSize.md,
     lineHeight: 22,
     fontWeight: fontWeight.semibold,
@@ -563,7 +799,37 @@ const styles = StyleSheet.create({
   detailNeutral: {
     color: colors.textTertiary,
   },
+  cycleCard: {
+    minHeight: 104,
+    paddingVertical: spacing.lg,
+  },
+  cycleValue: {
+    fontSize: fontSize.xl,
+    lineHeight: 28,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  progressTrack: {
+    height: 7,
+    marginTop: spacing.md,
+    overflow: "hidden",
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.borderStrong,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary,
+  },
   actions: {
-    gap: spacing.sm,
+    gap: spacing.md,
+  },
+  primaryAction: {
+    minHeight: 58,
+  },
+  secondaryAction: {
+    minHeight: 58,
+    backgroundColor: colors.transparent,
+    borderColor: colors.borderStrong,
   },
 });

@@ -6,7 +6,7 @@ low friction, and trust that progression is handled correctly.
 
 Before changing UI, read:
 
-- `docs/ownlift-design.md` for product design direction and UI review rules.
+- `docs/DESIGN.md` for product design direction, implemented UI style, and UI review rules.
 - `docs/spec.md` for product scope, domain concepts, and MVP behavior.
 
 UI implementation rules:

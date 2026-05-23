@@ -220,58 +220,22 @@ export default function SettingsScreen() {
       showsVerticalScrollIndicator={false}
       style={styles.safe}
     >
-
-      {/* Training Maxes */}
-      <Section title={t("settings.section.trainingMax")}>
-        <View style={styles.card}>
-          {LIFTS.map((lift) => (
-            <Pressable
-              key={lift}
-              style={styles.tmRow}
-              onPress={() => handleTmEdit(lift)}
-            >
-              <Text variant="body">{getLiftLabel(lift)}</Text>
-              <View style={styles.tmValue}>
-                <Text style={styles.tmNumber}>
-                  {instance ? String(instance.state.trainingMaxes[lift]) : "—"} {settings.unit}
-                </Text>
-                <Text style={styles.chevron}>›</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-      </Section>
-
-      {/* Units */}
       <Section title={t("settings.section.units")}>
-        <View style={styles.card}>
-          <View style={styles.unitRow}>
-            <View style={styles.unitLabel}>
-              <Text variant="body">{t("settings.weightUnit")}</Text>
-              <Text variant="caption">{t("settings.weightUnitHint")}</Text>
-            </View>
-            <SegmentedControl
-              options={["kg", "lb"]}
-              selectedIndex={settings.unit === "kg" ? 0 : 1}
-              onSelect={handleUnitChange}
-            />
-          </View>
-        </View>
+        <SegmentedControl
+          options={["kg", "lb"]}
+          selectedIndex={settings.unit === "kg" ? 0 : 1}
+          onSelect={handleUnitChange}
+          size="large"
+        />
       </Section>
 
       <Section title={t("settings.section.language")}>
-        <View style={styles.card}>
-          <View style={styles.unitRow}>
-            <View style={styles.unitLabel}>
-              <Text variant="body">{t("settings.languageLabel")}</Text>
-            </View>
-            <SegmentedControl
-              options={[t("language.en"), t("language.ko")]}
-              selectedIndex={settings.locale === "en" ? 0 : 1}
-              onSelect={handleLocaleChange}
-            />
-          </View>
-        </View>
+        <SegmentedControl
+          options={[t("language.en"), t("language.ko")]}
+          selectedIndex={settings.locale === "en" ? 0 : 1}
+          onSelect={handleLocaleChange}
+          size="large"
+        />
       </Section>
 
       <Section title={t("settings.section.workout")}>
@@ -285,6 +249,7 @@ export default function SettingsScreen() {
               value={settings.restTimerSeconds}
               displayValue={formatDuration(settings.restTimerSeconds)}
               min={REST_TIMER_STEP_SECONDS}
+              valueSize="compact"
               onIncrement={() => {
                 void handleRestTimerChange(REST_TIMER_STEP_SECONDS);
               }}
@@ -307,10 +272,12 @@ export default function SettingsScreen() {
             <Stepper
               value={settings.tmIncreaseUpper}
               unit={settings.unit}
+              valueSize="compact"
               onIncrement={() => handleIncrementChange("tmIncreaseUpper", settings.unit === "kg" ? 0.5 : 2.5)}
               onDecrement={() => handleIncrementChange("tmIncreaseUpper", -(settings.unit === "kg" ? 0.5 : 2.5))}
             />
           </View>
+          <View style={styles.cardSeparator} />
           <View style={styles.incRow}>
             <View style={styles.incLabel}>
               <Text variant="body">{t("settings.lowerBody")}</Text>
@@ -319,10 +286,38 @@ export default function SettingsScreen() {
             <Stepper
               value={settings.tmIncreaseLower}
               unit={settings.unit}
+              valueSize="compact"
               onIncrement={() => handleIncrementChange("tmIncreaseLower", settings.unit === "kg" ? 0.5 : 2.5)}
               onDecrement={() => handleIncrementChange("tmIncreaseLower", -(settings.unit === "kg" ? 0.5 : 2.5))}
             />
           </View>
+        </View>
+      </Section>
+
+      {/* Training Maxes */}
+      <Section title={t("settings.section.trainingMax")}>
+        <View style={styles.card}>
+          {LIFTS.map((lift, index) => {
+            const isLast = index === LIFTS.length - 1;
+
+            return (
+              <View key={lift}>
+                <Pressable
+                  style={styles.tmRow}
+                  onPress={() => handleTmEdit(lift)}
+                >
+                  <Text variant="body">{getLiftLabel(lift)}</Text>
+                  <View style={styles.tmValue}>
+                    <Text style={styles.tmNumber}>
+                      {instance ? String(instance.state.trainingMaxes[lift]) : "—"} {settings.unit}
+                    </Text>
+                    <Text style={styles.chevron}>›</Text>
+                  </View>
+                </Pressable>
+                {!isLast ? <View style={styles.cardSeparator} /> : null}
+              </View>
+            );
+          })}
         </View>
       </Section>
 
@@ -343,7 +338,7 @@ export default function SettingsScreen() {
               thumbColor={settings.includeDeload ? colors.accentForeground : colors.surfaceElevated}
             />
           </View>
-          <View style={styles.policyDivider} />
+          <View style={styles.cardSeparator} />
           <View style={styles.policyEditor}>
             <Text variant="body">{t("schedule.section.title")}</Text>
             <SchedulePolicyEditor
@@ -448,8 +443,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
+  },
+  cardSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.border,
   },
   tmValue: {
     flexDirection: "row",
@@ -465,24 +463,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: colors.textTertiary,
   },
-  unitRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: spacing.lg,
-  },
-  unitLabel: {
-    flex: 1,
-    gap: 2,
-  },
   incRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
   },
   incLabel: {
     flex: 1,
@@ -497,10 +483,6 @@ const styles = StyleSheet.create({
   switchLabel: {
     flex: 1,
     gap: 2,
-  },
-  policyDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
   },
   policyEditor: {
     gap: spacing.md,

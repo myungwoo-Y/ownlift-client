@@ -98,7 +98,9 @@ function LiftSummaryCards({
                   numberOfLines={1}
                   style={styles.summaryLiftValue}
                 >
-                  {formatMeasurement(summary.latestPoint?.value ?? 0, unit)}
+                  {summary.latestPoint
+                    ? formatMeasurement(summary.latestPoint.value, unit)
+                    : t("history.noRecord")}
                 </Text>
 
                 <Text

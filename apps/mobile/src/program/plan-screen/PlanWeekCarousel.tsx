@@ -96,7 +96,6 @@ export function PlanWeekCarousel({
                   styles.weekCarouselCard,
                   styles.weekGridCard,
                   palette.card,
-                  isToday ? styles.weekCarouselCardToday : null,
                   isCompleted ? styles.weekCarouselCardCompleted : null,
                   pressed ? styles.weekCarouselCardPressed : null,
                 ]}

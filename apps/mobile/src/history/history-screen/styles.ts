@@ -192,7 +192,6 @@ export const styles = StyleSheet.create({
   },
   summaryCardSelected: {
     backgroundColor: "rgba(214, 255, 96, 0.08)",
-    borderColor: "rgba(214, 255, 96, 0.28)",
   },
   summaryLiftLabel: {
     flex: 1,
@@ -490,19 +489,15 @@ export const styles = StyleSheet.create({
   },
   liftSurfaceSquat: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(146, 180, 245, 0.12)",
   },
   liftSurfaceBench: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(228, 134, 116, 0.12)",
   },
   liftSurfaceDeadlift: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(117, 180, 194, 0.12)",
   },
   liftSurfacePress: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(157, 207, 100, 0.12)",
   },
 });
 

@@ -216,6 +216,7 @@ export const styles = StyleSheet.create({
     borderRadius: 28,
     borderCurve: "continuous",
     borderWidth: 1,
+    borderColor: colors.border,
     padding: spacing.lg,
     boxShadow: "0px 22px 44px rgba(0, 0, 0, 0.18)",
   },
@@ -223,27 +224,20 @@ export const styles = StyleSheet.create({
     opacity: 0.95,
     transform: [{ scale: 0.985 }],
   },
-  weekCarouselCardToday: {
-    borderColor: "rgba(214, 255, 96, 0.28)",
-  },
   weekCarouselCardCompleted: {
     opacity: 0.76,
   },
   weekCarouselCardSquat: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(146, 180, 245, 0.12)",
   },
   weekCarouselCardBench: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(228, 134, 116, 0.12)",
   },
   weekCarouselCardDeadlift: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(117, 180, 194, 0.12)",
   },
   weekCarouselCardPress: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: "rgba(157, 207, 100, 0.12)",
   },
   weekCarouselTopRow: {
     flexDirection: "row",

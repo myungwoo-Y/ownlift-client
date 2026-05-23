@@ -7,11 +7,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  BackButton,
   Badge,
   Card,
   colors,
   Divider,
+  FLOATING_NAV_CONTENT_TOP_OFFSET,
+  FloatingBackNav,
   Section,
   spacing,
   Text,
@@ -122,14 +123,11 @@ export default function SessionDetailScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <BackButton
+      <FloatingBackNav
         onPress={goBack}
         accessibilityLabel={t("common.back")}
       />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.topActions}>
-      
-        </View>
         <View style={styles.header}>
           <Text variant="title">
             {getLiftLabel(displayStub.mainLiftKey)}
@@ -213,15 +211,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   container: {
-    padding: spacing["2xl"],
+    paddingHorizontal: spacing["2xl"],
+    paddingTop: FLOATING_NAV_CONTENT_TOP_OFFSET,
+    paddingBottom: spacing["3xl"],
     gap: spacing["2xl"],
   },
   header: {
     gap: spacing.sm,
-  },
-  topActions: {
-    flexDirection: "row",
-    justifyContent: "flex-start",
   },
   badgeRow: {
     flexDirection: "row",
