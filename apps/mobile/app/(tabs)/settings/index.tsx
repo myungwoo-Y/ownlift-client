@@ -3,6 +3,7 @@ import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
 import { exportBackupFile, importBackupFile, pickBackupFile } from "../../../src/data/backup-files";
 import {
   Button,
@@ -23,6 +24,7 @@ import { useSettingsStore } from "../../../src/stores/settings-store";
 
 const LIFTS: readonly MainLift[] = ["squat", "bench", "deadlift", "press"];
 const REST_TIMER_STEP_SECONDS = 30;
+const SUPPORT_BASE_URL = "https://ownlift.vercel.app";
 
 function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -333,6 +335,30 @@ export default function SettingsScreen() {
               />
             </View>
           </View>
+        </View>
+      </Section>
+
+      <Section title={t("settings.section.info")}>
+        <View style={styles.card}>
+          <Pressable
+            style={styles.tmRow}
+            onPress={() => {
+              void WebBrowser.openBrowserAsync(`${SUPPORT_BASE_URL}/privacy`);
+            }}
+          >
+            <Text variant="body">{t("settings.privacyPolicy")}</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <View style={styles.cardSeparator} />
+          <Pressable
+            style={styles.tmRow}
+            onPress={() => {
+              void WebBrowser.openBrowserAsync(`${SUPPORT_BASE_URL}/support`);
+            }}
+          >
+            <Text variant="body">{t("settings.support")}</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </View>
       </Section>
     </ScrollView>
