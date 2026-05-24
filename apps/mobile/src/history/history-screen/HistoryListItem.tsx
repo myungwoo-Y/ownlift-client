@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Pressable, View } from "react-native";
 import { Card, Text } from "../../design";
-import { getLiftLabel, getSessionLabel, getWeekLabel, t } from "../../i18n";
+import { getLiftLabel, t } from "../../i18n";
 import { getLiftSurfaceStyle, styles } from "./styles";
 import type { HistoryItem } from "./types";
 import {
@@ -24,8 +24,9 @@ function HistoryListItemComponent({
   onPressSession,
 }: HistoryListItemProps) {
   const dateLabel = formatHistoryDateLabel(getHistoryItemDate(item));
-  const weekLabel = getWeekLabel(item.weekIndex);
-  const sessionLabel = getSessionLabel(item.dayIndex);
+  const estimatedOneRepMax = item.estimatedOneRepMax != null
+    ? formatMeasurement(item.estimatedOneRepMax, unitLabel)
+    : null;
   const lastWorkSet = item.lastWorkSet
     ? formatLastWorkSetMetric(item.lastWorkSet, unitLabel)
     : null;
@@ -44,41 +45,46 @@ function HistoryListItemComponent({
         <View style={styles.historyItem}>
           <View style={styles.detailColumn}>
             <View style={styles.titleRow}>
-              <View style={styles.titleCopy}>
-                <Text
-                  {...WORD_BREAK_TEXT_PROPS}
-                  style={styles.historyLiftName}
-                >
-                  {getLiftLabel(item.mainLiftKey)}
-                </Text>
-                {dateLabel ? (
-                  <Text style={styles.historyDateMeta} variant="caption">
-                    {dateLabel}
+              <Text
+                {...WORD_BREAK_TEXT_PROPS}
+                numberOfLines={1}
+                style={styles.historyLiftName}
+              >
+                {getLiftLabel(item.mainLiftKey)}
+              </Text>
+              {estimatedOneRepMax ? (
+                <View style={[styles.historyMetricChip, styles.historyMetricChipPrimary]}>
+                  <Text
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.86}
+                    numberOfLines={1}
+                    style={styles.historyMetricText}
+                  >
+                    {`${t("history.estimatedMaxLabel")} ${estimatedOneRepMax}`}
                   </Text>
-                ) : null}
-              </View>
+                </View>
+              ) : null}
             </View>
-            <Text style={styles.historySessionMeta} variant="caption">
-              {sessionLabel} / {t("week.title", { week: item.weekIndex + 1 })} / {weekLabel}
-            </Text>
-            {lastWorkSet || item.estimatedOneRepMax != null ? (
-              <View style={styles.historyMetricRow}>
-                {item.estimatedOneRepMax != null ? (
-                  <View style={[styles.historyMetricChip, styles.historyMetricChipPrimary]}>
-                    <Text style={styles.historyMetricText}>
-                      {`${t("history.estimatedMaxLabel")} ${formatMeasurement(item.estimatedOneRepMax, unitLabel)}`}
-                    </Text>
-                  </View>
-                ) : null}
-                {lastWorkSet ? (
-                  <View style={styles.historyMetricChip}>
-                    <Text style={styles.historyMetricText}>
-                      {lastWorkSet}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+            {dateLabel ? (
+              <Text style={styles.historyDateMeta} variant="caption">
+                {dateLabel}
+              </Text>
             ) : null}
+            <View style={styles.historyWeekRow}>
+              <Text style={styles.historySessionMeta} variant="caption">
+                {t("week.title", { week: item.weekIndex + 1 })}
+              </Text>
+              {lastWorkSet ? (
+                <>
+                  <Text style={styles.historySessionMeta} variant="caption">
+                    |
+                  </Text>
+                  <Text numberOfLines={1} style={styles.historyTopSetText}>
+                    {lastWorkSet}
+                  </Text>
+                </>
+              ) : null}
+            </View>
           </View>
         </View>
       </Card>

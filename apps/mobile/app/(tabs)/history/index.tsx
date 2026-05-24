@@ -6,8 +6,10 @@ import { SectionList, View } from "react-native";
 import { Text } from "../../../src/design";
 import {
   normalizeHistoryLiftFilter,
+  normalizeHistoryMonthFilter,
   useHistoryFilterStore,
   type HistoryListLiftFilterValue,
+  type HistoryListMonthFilterValue,
 } from "../../../src/history/history-filter-store";
 import { HistoryEmptyState } from "../../../src/history/history-screen/HistoryEmptyState";
 import { HistoryListHeader } from "../../../src/history/history-screen/HistoryListHeader";
@@ -38,9 +40,9 @@ export default function HistoryScreen() {
 
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
-  const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
+  const selectedMonthKeys = useHistoryFilterStore((state) => state.selectedMonthKeys);
   const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
-  const setSelectedMonthKey = useHistoryFilterStore((state) => state.setSelectedMonthKey);
+  const setSelectedMonthKeys = useHistoryFilterStore((state) => state.setSelectedMonthKeys);
   const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
   const setAvailableOptions = useHistoryFilterStore((state) => state.setAvailableOptions);
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -97,9 +99,15 @@ export default function HistoryScreen() {
     setAvailableOptions(monthFilterOptions, liftFilterOptions);
   }, [liftFilterOptions, monthFilterOptions, setAvailableOptions]);
 
-  const activeMonthKey = monthFilterOptions.some((option) => option.key === selectedMonthKey)
-    ? selectedMonthKey
-    : "all";
+  const activeMonthKeys = useMemo<HistoryListMonthFilterValue>(() => {
+    if (selectedMonthKeys === "all") return "all";
+
+    const availableMonthKeys = new Set(monthFilterOptions.map((option) => option.key));
+    const nextMonthKeys = selectedMonthKeys.filter((key) => availableMonthKeys.has(key));
+    const totalOptionsCount = monthFilterOptions.filter(opt => opt.key !== "all").length;
+
+    return normalizeHistoryMonthFilter(nextMonthKeys, totalOptionsCount);
+  }, [monthFilterOptions, selectedMonthKeys]);
   const activeListLifts = useMemo<HistoryListLiftFilterValue>(() => {
     if (selectedListLifts === "all") return "all";
 
@@ -114,45 +122,51 @@ export default function HistoryScreen() {
     () =>
       items.filter((item) => {
         const itemMonthKey = getHistoryMonthKey(getHistoryItemDate(item));
-        const matchesMonth = activeMonthKey === "all" || itemMonthKey === activeMonthKey;
+        const matchesMonth =
+          activeMonthKeys === "all" ||
+          (itemMonthKey !== null && activeMonthKeys.includes(itemMonthKey));
         const matchesLift = activeListLifts === "all" || activeListLifts.includes(item.mainLiftKey);
         return matchesMonth && matchesLift;
       }),
-    [activeListLifts, activeMonthKey, items],
+    [activeListLifts, activeMonthKeys, items],
   );
   const historySections = useMemo(
     () => buildHistoryMonthSections(filteredItems),
     [filteredItems],
   );
 
-  const hasActiveFilters = activeMonthKey !== "all" || activeListLifts !== "all";
+  const hasActiveFilters = activeMonthKeys !== "all" || activeListLifts !== "all";
   const activeFilterChips = useMemo<ActiveFilterChip[]>(
     () =>
       [
-        activeMonthKey !== "all"
-          ? {
-            key: "month",
-            label: getFilterOptionLabel(monthFilterOptions, activeMonthKey) ?? activeMonthKey,
-            onRemove: () => setSelectedMonthKey("all"),
-          }
-          : null,
+        ...(activeMonthKeys === "all"
+          ? []
+          : activeMonthKeys.map((monthKey) => ({
+              key: `month-${monthKey}`,
+              label: getFilterOptionLabel(monthFilterOptions, monthKey) ?? monthKey,
+              onRemove: () => {
+                setSelectedMonthKeys(
+                  activeMonthKeys.filter((selectedKey) => selectedKey !== monthKey),
+                );
+              },
+            }))),
         ...(activeListLifts === "all"
           ? []
           : activeListLifts.map((lift) => ({
-            key: `lift-${lift}`,
-            label: getFilterOptionLabel(liftFilterOptions, lift) ?? lift,
-            onRemove: () => {
-              setSelectedListLifts(activeListLifts.filter((selectedLift) => selectedLift !== lift));
-            },
-          }))),
+              key: `lift-${lift}`,
+              label: getFilterOptionLabel(liftFilterOptions, lift) ?? lift,
+              onRemove: () => {
+                setSelectedListLifts(activeListLifts.filter((selectedLift) => selectedLift !== lift));
+              },
+            }))),
       ].filter((chip): chip is ActiveFilterChip => Boolean(chip)),
     [
       activeListLifts,
-      activeMonthKey,
+      activeMonthKeys,
       liftFilterOptions,
       monthFilterOptions,
       setSelectedListLifts,
-      setSelectedMonthKey,
+      setSelectedMonthKeys,
     ],
   );
   const activeFilterCount = activeFilterChips.length;

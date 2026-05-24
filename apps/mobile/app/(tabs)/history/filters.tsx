@@ -20,9 +20,11 @@ import {
 } from "../../../src/design";
 import {
   normalizeHistoryLiftFilter,
+  normalizeHistoryMonthFilter,
   useHistoryFilterStore,
   type HistoryFilterOption,
   type HistoryListLiftFilterValue,
+  type HistoryListMonthFilterValue,
 } from "../../../src/history/history-filter-store";
 import { t, useLocale } from "../../../src/i18n";
 
@@ -44,6 +46,23 @@ function normalizeLiftFilterForOptions(
 
   const availableLiftKeys = new Set(options.map((option) => option.key));
   return normalizeHistoryLiftFilter(value.filter((lift) => availableLiftKeys.has(lift)));
+}
+
+function getMonthFilterSelectedKeys(value: HistoryListMonthFilterValue): string[] {
+  return value === "all" ? ["all"] : value;
+}
+
+function normalizeMonthFilterForOptions(
+  value: HistoryListMonthFilterValue,
+  options: HistoryFilterOption[],
+): HistoryListMonthFilterValue {
+  if (value === "all") return "all";
+
+  const availableMonthKeys = new Set(options.map((option) => option.key));
+  const filtered = value.filter((key) => availableMonthKeys.has(key));
+  const totalOptionsCount = options.filter(opt => opt.key !== "all").length;
+
+  return normalizeHistoryMonthFilter(filtered, totalOptionsCount);
 }
 
 function FilterOptionSection({
@@ -125,9 +144,9 @@ export default function HistoryFilterScreen() {
   const isClosingRouteRef = useRef(false);
   const monthOptions = useHistoryFilterStore((state) => state.monthOptions);
   const liftOptions = useHistoryFilterStore((state) => state.liftOptions);
-  const selectedMonthKey = useHistoryFilterStore((state) => state.selectedMonthKey);
+  const selectedMonthKeys = useHistoryFilterStore((state) => state.selectedMonthKeys);
   const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
-  const setSelectedMonthKey = useHistoryFilterStore((state) => state.setSelectedMonthKey);
+  const setSelectedMonthKeys = useHistoryFilterStore((state) => state.setSelectedMonthKeys);
   const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
 
   const resolvedMonthOptions = monthOptions.length > 0
@@ -136,14 +155,16 @@ export default function HistoryFilterScreen() {
   const resolvedLiftOptions = liftOptions.length > 0
     ? liftOptions
     : [{ key: "all", label: t("history.filter.all") }];
-  const initialMonthKey = resolvedMonthOptions.some((option) => option.key === selectedMonthKey)
-    ? selectedMonthKey
-    : "all";
+  const initialMonthKeys = normalizeMonthFilterForOptions(selectedMonthKeys, resolvedMonthOptions);
   const initialListLifts = normalizeLiftFilterForOptions(selectedListLifts, resolvedLiftOptions);
   const maxSheetHeight = useMemo(() => Math.round(height * 0.84), [height]);
 
-  const [draftMonthKey, setDraftMonthKey] = useState(initialMonthKey);
+  const [draftMonthKeys, setDraftMonthKeys] = useState<HistoryListMonthFilterValue>(initialMonthKeys);
   const [draftListLifts, setDraftListLifts] = useState<HistoryListLiftFilterValue>(initialListLifts);
+  const draftMonthSelectedKeys = useMemo(
+    () => getMonthFilterSelectedKeys(draftMonthKeys),
+    [draftMonthKeys],
+  );
   const draftListLiftSelectedKeys = useMemo(
     () => getLiftFilterSelectedKeys(draftListLifts),
     [draftListLifts],
@@ -172,14 +193,34 @@ export default function HistoryFilterScreen() {
   ), []);
 
   function handleReset(): void {
-    setDraftMonthKey("all");
+    setDraftMonthKeys("all");
     setDraftListLifts("all");
   }
 
   function handleApply(): void {
-    setSelectedMonthKey(draftMonthKey);
+    setSelectedMonthKeys(draftMonthKeys);
     setSelectedListLifts(draftListLifts);
     handleClose();
+  }
+
+  function handleSelectMonthKey(key: string): void {
+    if (key === "all") {
+      setDraftMonthKeys("all");
+      return;
+    }
+
+    setDraftMonthKeys((current) => {
+      if (current === "all") {
+        return [key];
+      }
+
+      const nextMonthKeys = current.includes(key)
+        ? current.filter((monthKey) => monthKey !== key)
+        : [...current, key];
+
+      const totalOptionsCount = resolvedMonthOptions.filter((opt) => opt.key !== "all").length;
+      return normalizeHistoryMonthFilter(nextMonthKeys, totalOptionsCount);
+    });
   }
 
   function handleSelectListLift(key: string): void {
@@ -250,8 +291,8 @@ export default function HistoryFilterScreen() {
           <FilterOptionSection
             title={t("history.filter.period")}
             options={resolvedMonthOptions}
-            selectedKeys={[draftMonthKey]}
-            onSelect={setDraftMonthKey}
+            selectedKeys={draftMonthSelectedKeys}
+            onSelect={handleSelectMonthKey}
           />
 
           <FilterOptionSection

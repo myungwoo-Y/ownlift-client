@@ -5,6 +5,7 @@ import { Badge, colors, Text } from "../../design";
 import {
   getLiftLabel,
   getSessionLabel,
+  getWeekTitleLabel,
   t,
   useLocale,
 } from "../../i18n";
@@ -106,7 +107,10 @@ export function PlanWeekCarousel({
                       <Image
                         source={thumbnailSource}
                         contentFit="contain"
-                        style={styles.thumbnailImage}
+                        style={[
+                          styles.thumbnailImage,
+                          stub.mainLiftKey === "press" ? styles.pressThumbnailImage : null,
+                        ]}
                         tintColor={thumbnailTintColor}
                       />
                     </View>
@@ -126,7 +130,7 @@ export function PlanWeekCarousel({
 
                 <View style={styles.weekCarouselBody}>
                   <Text numberOfLines={1} style={palette.meta}>
-                    {sessionLabel}
+                    {getWeekTitleLabel(stub.weekIndex)}
                   </Text>
                   <Text numberOfLines={2} style={palette.title}>
                     {getLiftLabel(stub.mainLiftKey)}

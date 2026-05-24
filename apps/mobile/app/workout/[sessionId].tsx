@@ -650,7 +650,7 @@ export default function WorkoutScreen() {
                   </Pressable>
                 ) : null}
               </View>
-              <SetTableHeader />
+              <SetTableHeader showStatus={isWorkoutActive} />
               {warmupSets.map((setData, index) => (
                 <SetCard
                   key={setData.id}
@@ -681,7 +681,7 @@ export default function WorkoutScreen() {
                 </Text>
               </View>
             ) : null}
-            <SetTableHeader />
+            <SetTableHeader showStatus={isWorkoutActive} />
             {workSets.map((setData, index) => (
               <SetCard
                 key={setData.id}
@@ -892,7 +892,7 @@ function TimerSheetAction({
   );
 }
 
-function SetTableHeader() {
+function SetTableHeader({ showStatus }: { showStatus: boolean }) {
   return (
     <View style={styles.setTableHeader}>
       <View style={styles.setNumberColumn}>
@@ -904,7 +904,7 @@ function SetTableHeader() {
       <View style={styles.repsColumn}>
         <Text style={styles.setTableHeaderText}>{t("workout.table.reps")}</Text>
       </View>
-      <View style={styles.statusColumn} />
+      {showStatus ? <View style={styles.statusColumn} /> : null}
     </View>
   );
 }
@@ -1048,7 +1048,7 @@ function SetCard({
           <SetMetricInput
             value={data.actualReps}
             onChangeText={onChangeReps}
-            unit={t("unit.reps")}
+            unit={`${t("unit.reps")}${!editable && data.isAmrap ? "+" : ""}`}
             editable={editable}
             muted={isMuted}
             metric="reps"
@@ -1059,22 +1059,24 @@ function SetCard({
             highlighted={data.isAmrap && data.actualReps.trim().length > 0}
           />
         </View>
-        <View style={styles.statusColumn}>
-          <Pressable
-            style={[
-              styles.checkButton,
-              data.isCompleted && styles.checkButtonActive,
-              isCurrentSet && !data.isCompleted ? styles.checkButtonCurrent : null,
-              !canToggle && styles.checkButtonDisabled,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={t("workout.setLabel", { set: displaySetNumber })}
-            onPress={onToggle}
-            disabled={!canToggle}
-          >
-            <Check size={28} strokeWidth={2.6} color={checkColor} />
-          </Pressable>
-        </View>
+        {editable ? (
+          <View style={styles.statusColumn}>
+            <Pressable
+              style={[
+                styles.checkButton,
+                data.isCompleted && styles.checkButtonActive,
+                isCurrentSet && !data.isCompleted ? styles.checkButtonCurrent : null,
+                !canToggle && styles.checkButtonDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel={t("workout.setLabel", { set: displaySetNumber })}
+              onPress={onToggle}
+              disabled={!canToggle}
+            >
+              <Check size={28} strokeWidth={2.6} color={checkColor} />
+            </Pressable>
+          </View>
+        ) : null}
       </View>
     </Card>
   );

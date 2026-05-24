@@ -180,7 +180,17 @@ export default function PlanScreen() {
       </Section>
 
       <Section title={t("plan.section.activity")} titleStyle={styles.sectionTitle}>
-        <PlanActivitySummaryCards summary={activitySummary} />
+        <PlanActivitySummaryCards
+          summary={activitySummary}
+          onPressSession={(pressedSession) => {
+            if (pressedSession.status === "completed") {
+              router.push(`/session/${pressedSession.sessionId}`);
+              return;
+            }
+
+            router.push(`/workout/${pressedSession.sessionId}`);
+          }}
+        />
       </Section>
 
       {nextUpcomingStub ? (

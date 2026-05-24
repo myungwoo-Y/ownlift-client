@@ -92,7 +92,7 @@ export const styles = StyleSheet.create({
   },
   logHeaderRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
   },
@@ -212,6 +212,11 @@ export const styles = StyleSheet.create({
   summaryLiftChange: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
+  },
+  summaryLiftChangeLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.normal,
+    color: colors.textTertiary,
   },
   summaryChangePositive: {
     color: colors.accent,
@@ -423,18 +428,17 @@ export const styles = StyleSheet.create({
   detailColumn: {
     flex: 1,
     gap: spacing.xs,
+    minWidth: 0,
   },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     gap: spacing.sm,
   },
-  titleCopy: {
-    flex: 1,
-    gap: 2,
-  },
   historyLiftName: {
+    flex: 1,
+    minWidth: 0,
     fontSize: 20,
     lineHeight: 24,
     fontWeight: "800",
@@ -447,16 +451,24 @@ export const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 18,
   },
-  historyMetricRow: {
+  historyWeekRow: {
     flexDirection: "row",
+    alignItems: "center",
     flexWrap: "wrap",
     gap: spacing.sm,
-    paddingTop: spacing.xs,
+  },
+  historyTopSetText: {
+    maxWidth: "100%",
+    color: colors.text,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    lineHeight: 18,
   },
   historyMetricChip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
+    maxWidth: "100%",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   historyMetricChipPrimary: {

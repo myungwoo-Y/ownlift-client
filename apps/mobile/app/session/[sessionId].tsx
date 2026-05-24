@@ -7,17 +7,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  Badge,
   Card,
   colors,
-  Divider,
   FLOATING_NAV_CONTENT_TOP_OFFSET,
   FloatingBackNav,
-  Section,
+  fontSize,
+  fontWeight,
   spacing,
   Text,
 } from "../../src/design";
-import { formatDate, formatNumber, getLiftLabel, getSessionLabel, t, useLocale } from "../../src/i18n";
+import { formatDate, formatNumber, getLiftLabel, t, useLocale } from "../../src/i18n";
 import {
   buildMockHistoryItems,
   buildMockHistorySessionDetail,
@@ -105,9 +104,7 @@ export default function SessionDetailScreen() {
     );
   }
 
-  const sessionLabel = getSessionLabel(displayStub.dayIndex);
   const unit = instance.params.unit;
-  const isCompleted = displayStub.status === "completed";
 
   const workSets = prescription?.sets.filter((s) => !s.isWarmup) ?? [];
 
@@ -129,74 +126,99 @@ export default function SessionDetailScreen() {
       />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text variant="title">
+          <Text style={styles.workoutTitle} adjustsFontSizeToFit numberOfLines={1}>
             {getLiftLabel(displayStub.mainLiftKey)}
           </Text>
-          <Text variant="subtitle">
-            {t("session.weekAndSession", { week: displayStub.weekIndex + 1, session: sessionLabel })}
+          <Text style={styles.workoutWeek}>
+            {t("week.title", { week: displayStub.weekIndex + 1 })}
           </Text>
 
-          <View style={styles.badgeRow}>
-            {isCompleted && <Badge variant="completed" label={t("status.completed")} />}
-            {workSets.some((s) => s.isAmrap) && <Badge variant="amrap" label={t("badge.amrap")} />}
-          </View>
-
           {dateStr && (
-            <Text variant="caption">{dateStr}</Text>
+            <Text style={styles.headerMetaText}>{dateStr}</Text>
           )}
           {result?.summary?.totalVolume ? (
-            <Text variant="caption">
+            <Text style={styles.headerMetaText}>
               {t("session.volume", { volume: formatNumber(result.summary.totalVolume), unit })}
             </Text>
           ) : null}
         </View>
 
-        <Divider />
-
-        {/* Work Sets */}
-        <Section title={t("session.section.workSets")}>
-          {workSets.map((set) => {
+        <View style={styles.setGroup}>
+          <SetTableHeader />
+          {workSets.map((set, index) => {
             const log = setLogs.find((l) => l.setOrder === set.setOrder);
+            const isSetCompleted = log?.isCompleted === true;
             return (
-              <Card key={set.setOrder}>
-                <View style={styles.setHeader}>
-                  <View style={styles.setLabelRow}>
-                    <Text style={styles.setLabel}>
-                      {t("workout.setLabel", { set: set.setOrder + 1 })}
-                    </Text>
-                    {set.isAmrap && <Badge variant="amrap" label={t("badge.amrap")} />}
-                  </View>
-                  <Text variant="caption">
-                    {String(set.targetWeight)}{unit} × {String(set.targetReps)}
-                  </Text>
-                </View>
-
-                <View style={styles.setValues}>
-                  <View style={styles.valueBox}>
-                    <Text style={styles.valueNumber}>
-                      {log ? String(log.actualWeight ?? "—") : "—"}
-                    </Text>
-                    <Text variant="caption">{unit}</Text>
-                  </View>
-                  <Text style={styles.times}>×</Text>
-                  <View style={styles.valueBox}>
-                    <Text style={styles.valueNumber}>
-                      {log ? String(log.actualReps ?? "—") : "—"}
-                    </Text>
-                    <Text variant="caption">{t("unit.reps")}</Text>
-                  </View>
-                  <View style={[styles.checkCircle, log?.isCompleted && styles.checkCircleActive]}>
-                    <Text style={[styles.checkMark, log?.isCompleted && styles.checkMarkActive]}>
-                      ✓
-                    </Text>
-                  </View>
-                </View>
-              </Card>
+              <ReadonlySetRow
+                key={set.setOrder}
+                setNumber={index + 1}
+                weight={log?.actualWeight ?? set.targetWeight}
+                reps={isSetCompleted ? log?.actualReps ?? set.targetReps : 0}
+                unit={unit}
+                isCompleted={isSetCompleted}
+                isAmrap={set.isAmrap}
+              />
             );
           })}
-        </Section>
+        </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function SetTableHeader() {
+  return (
+    <View style={styles.setTableHeader}>
+      <View style={styles.setNumberColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.set")}</Text>
+      </View>
+      <View style={styles.weightColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.weight")}</Text>
+      </View>
+      <View style={styles.repsColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.reps")}</Text>
+      </View>
+    </View>
+  );
+}
+
+function ReadonlySetRow({
+  setNumber,
+  weight,
+  reps,
+  unit,
+  isCompleted,
+  isAmrap,
+}: {
+  setNumber: number;
+  weight: number;
+  reps: number;
+  unit: string;
+  isCompleted: boolean;
+  isAmrap: boolean;
+}) {
+  return (
+    <Card style={styles.setRowCard}>
+      <View style={styles.setRowContent}>
+        <View style={styles.setNumberColumn}>
+          <Text style={[styles.setNumber, isCompleted ? styles.setNumberActive : styles.setNumberMuted]}>
+            {String(setNumber)}
+          </Text>
+        </View>
+        <View style={styles.weightColumn}>
+          <View style={styles.metricGroup}>
+            <Text style={styles.metricNumber}>{formatNumber(weight)}</Text>
+            <Text style={styles.metricUnit}>{unit}</Text>
+          </View>
+        </View>
+        <View style={styles.repsColumn}>
+          <View style={styles.metricGroup}>
+            <Text style={styles.metricNumber}>{formatNumber(reps)}</Text>
+            <Text style={styles.metricUnit}>{t("unit.reps")}</Text>
+          </View>
+        </View>
+      </View>
+    </Card>
   );
 }
 
@@ -217,71 +239,87 @@ const styles = StyleSheet.create({
     gap: spacing["2xl"],
   },
   header: {
-    gap: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing["2xl"],
   },
-  badgeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  setHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  setLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  setLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  setValues: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  valueBox: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: 10,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    alignItems: "center",
-    minWidth: 72,
-  },
-  valueNumber: {
-    fontSize: 20,
-    fontWeight: "700",
+  workoutTitle: {
+    fontSize: fontSize["4xl"],
+    fontWeight: fontWeight.extrabold,
     color: colors.text,
   },
-  times: {
-    fontSize: 17,
+  workoutWeek: {
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.medium,
     color: colors.textSecondary,
   },
-  checkCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: "auto",
-  },
-  checkCircleActive: {
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  checkMark: {
-    fontSize: 20,
-    fontWeight: "700",
+  headerMetaText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.normal,
     color: colors.textTertiary,
   },
-  checkMarkActive: {
-    color: colors.accent,
+  setGroup: {
+    gap: spacing.md,
+  },
+  setTableHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  setTableHeaderText: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.medium,
+    color: colors.textTertiary,
+    textAlign: "center",
+  },
+  setNumberColumn: {
+    width: 40,
+    alignItems: "center",
+  },
+  weightColumn: {
+    flex: 1.05,
+    alignItems: "center",
+  },
+  repsColumn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  setRowCard: {
+    minHeight: 104,
+    padding: 0,
+    justifyContent: "center",
+  },
+  setRowContent: {
+    minHeight: 104,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing["2xl"],
+  },
+  setNumber: {
+    fontSize: fontSize["3xl"],
+    fontWeight: fontWeight.bold,
+  },
+  setNumberActive: {
+    color: colors.primary,
+  },
+  setNumberMuted: {
+    color: colors.textSecondary,
+  },
+  metricGroup: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: spacing.xs,
+  },
+  metricNumber: {
+    fontSize: fontSize["3xl"],
+    fontWeight: fontWeight.medium,
+    color: colors.text,
+  },
+  metricUnit: {
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
   },
 });

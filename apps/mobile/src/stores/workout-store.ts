@@ -137,6 +137,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       ),
     }));
 
+    const actualWeight = newCompleted ? parseFloat(setData.actualWeight) : Number.NaN;
+    const actualReps = newCompleted ? parseInt(setData.actualReps, 10) : Number.NaN;
+
     // Persist to DB
     await upsertSetLog({
       id: setData.id,
@@ -149,8 +152,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         targetReps: setData.prescribed.targetReps,
         percentage: setData.prescribed.percentage,
       },
-      actualWeight: parseFloat(setData.actualWeight) || null,
-      actualReps: parseInt(setData.actualReps, 10) || null,
+      actualWeight: Number.isFinite(actualWeight) ? actualWeight : null,
+      actualReps: Number.isFinite(actualReps) ? actualReps : null,
       rpe: null,
       isCompleted: newCompleted,
     });
@@ -169,6 +172,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     // Save all sets
     for (const setData of sets) {
+      const actualWeight = setData.isCompleted ? parseFloat(setData.actualWeight) : Number.NaN;
+      const actualReps = setData.isCompleted ? parseInt(setData.actualReps, 10) : Number.NaN;
+
       await upsertSetLog({
         id: setData.id,
         sessionId,
@@ -180,8 +186,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
           targetReps: setData.prescribed.targetReps,
           percentage: setData.prescribed.percentage,
         },
-        actualWeight: parseFloat(setData.actualWeight) || null,
-        actualReps: parseInt(setData.actualReps, 10) || null,
+        actualWeight: Number.isFinite(actualWeight) ? actualWeight : null,
+        actualReps: Number.isFinite(actualReps) ? actualReps : null,
         rpe: null,
         isCompleted: setData.isCompleted,
       });
@@ -189,6 +195,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
     // Compute volume
     const totalVolume = sets.reduce((sum, s) => {
+      if (!s.isCompleted) return sum;
+
       const w = parseFloat(s.actualWeight) || 0;
       const r = parseInt(s.actualReps, 10) || 0;
       return sum + w * r;

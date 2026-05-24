@@ -104,9 +104,23 @@ function LiftSummaryCards({
                 </Text>
 
                 <Text
-                  style={styles.summaryLiftChange}
+                  style={[
+                    styles.summaryLiftChange,
+                    summary.change == null
+                      ? null
+                      : summary.change > 0
+                        ? styles.summaryChangePositive
+                        : summary.change < 0
+                          ? styles.summaryChangeNegative
+                          : styles.summaryChangeNeutral,
+                  ]}
                 >
-                  {summary.change == null ? " " : formatChange(summary.change)}
+                  {summary.change == null ? " " : `${formatChange(summary.change)}${unit}`}
+                  {summary.change != null ? (
+                    <Text style={styles.summaryLiftChangeLabel}>
+                      {t("history.lift.change.suffix")}
+                    </Text>
+                  ) : null}
                 </Text>
               </View>
             </Card>
@@ -118,9 +132,9 @@ function LiftSummaryCards({
 }
 
 const TREND_RANGE_OPTIONS = [
-  { key: "month", label: "M", dayWindow: 30 },
-  { key: "year", label: "Y", dayWindow: 365 },
-  { key: "all", label: "A", dayWindow: null },
+  { key: "month", labelKey: "history.trend.range.month", dayWindow: 30 },
+  { key: "year", labelKey: "history.trend.range.year", dayWindow: 365 },
+  { key: "all", labelKey: "history.trend.range.all", dayWindow: null },
 ] as const;
 const TREND_RANGE_TABS_INSET = spacing["2xs"];
 
@@ -268,7 +282,7 @@ function TrendRangeTabs({
                 isSelected ? styles.trendRangeTabTextSelected : null,
               ]}
             >
-              {option.label}
+              {t(option.labelKey)}
             </Text>
           </Pressable>
         );

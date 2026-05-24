@@ -17,6 +17,11 @@ export interface PlanActivitySummary {
   currentWeekTotal: number;
   currentCycleCompleted: number;
   currentCycleTotal: number;
+  currentCycleSessions: {
+    sessionId: string;
+    mainLiftKey: SessionStubRecord["mainLiftKey"];
+    status: SessionStubRecord["status"];
+  }[];
   recentWorkoutCount: number;
 }
 
@@ -25,6 +30,7 @@ const EMPTY_SUMMARY: PlanActivitySummary = {
   currentWeekTotal: 0,
   currentCycleCompleted: 0,
   currentCycleTotal: 0,
+  currentCycleSessions: [],
   recentWorkoutCount: 0,
 };
 
@@ -112,6 +118,11 @@ export function usePlanActivitySummary({
       currentWeekTotal: currentWeekStubs.length,
       currentCycleCompleted,
       currentCycleTotal: currentCycleStubs.length,
+      currentCycleSessions: currentCycleStubs.map((stub) => ({
+        sessionId: stub.sessionId,
+        mainLiftKey: stub.mainLiftKey,
+        status: stub.status,
+      })),
       recentWorkoutCount,
     };
   }, [currentWeekStubs, instance, stubs, workoutResults]);

@@ -2,6 +2,8 @@ import { StyleSheet } from "react-native";
 import { borderRadius, colors, fontSize, fontWeight, spacing } from "../../design";
 import { TAB_BAR_CLEARANCE } from "./constants";
 
+const PRESS_THUMBNAIL_SCALE = 0.8;
+
 export const styles = StyleSheet.create({
   safe: {
     flex: 1,
@@ -361,6 +363,9 @@ export const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
+  pressThumbnailImage: {
+    transform: [{ scale: PRESS_THUMBNAIL_SCALE }],
+  },
   dragHandle: {
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
@@ -389,7 +394,9 @@ export const styles = StyleSheet.create({
     color: colors.text,
   },
   activitySummaryCard: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing["2xl"],
   },
   activitySummarySurface: {
     flexDirection: "row",
@@ -403,42 +410,74 @@ export const styles = StyleSheet.create({
   activitySummaryItem: {
     flex: 1,
     minWidth: 0,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.lg,
-    gap: spacing.xs,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm,
+    gap: spacing.md,
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
   },
   activitySummaryItemDivider: {
     borderRightWidth: 1,
     borderRightColor: "rgba(255, 255, 255, 0.08)",
-    height: 62,
+    height: 74,
   },
   activitySummaryMetaRow: {
-    display: 'flex',
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: 'center',
+    justifyContent: "center",
     gap: spacing.xs,
   },
   activitySummaryLabel: {
     flexShrink: 1,
-    fontSize: fontSize.sm,
-    lineHeight: 18,
+    fontSize: fontSize.xs,
+    lineHeight: 16,
     fontWeight: "700",
     color: colors.text,
   },
   activitySummaryValueRow: {
-    minHeight: 36,
+    minHeight: 32,
     justifyContent: "flex-end",
   },
   activitySummaryValue: {
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: fontWeight.bold,
+    fontSize: fontSize["2xl"],
+    lineHeight: 30,
+    fontWeight: fontWeight.extrabold,
     color: colors.text,
+  },
+  activityCycleGrid: {
+    gap: spacing.md,
+  },
+  activityCycleGridRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  activityCycleGridCell: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: borderRadius.md,
+    borderCurve: "continuous",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  activityCycleGridCellCompleted: {
+    backgroundColor: colors.primary,
+  },
+  activityCycleGridCellPending: {
+    backgroundColor: colors.surfaceMuted,
+  },
+  activityCycleGridCellPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.97 }],
+  },
+  activityCycleGridIcon: {
+    width: spacing["3xl"],
+    height: spacing["3xl"],
+    opacity: 0.9,
+  },
+  activityCycleGridSpacer: {
+    flex: 1,
+    aspectRatio: 1,
   },
   upcomingRow: {
     flexDirection: "row",
