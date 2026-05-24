@@ -1,3 +1,4 @@
+import * as Haptics from "expo-haptics";
 import { Pressable, StyleSheet, View } from "react-native";
 import { borderRadius, colors, fontSize, fontWeight, motion, spacing } from "../tokens";
 import { Text } from "./Text";
@@ -14,7 +15,8 @@ interface StepperProps {
 
 const STEP_BUTTON_SIZE = spacing["4xl"] + spacing.xs;
 const STEP_VALUE_WIDTH = spacing["5xl"] + spacing["2xl"];
-const STEP_CONTROL_WIDTH = STEP_BUTTON_SIZE * 2 + STEP_VALUE_WIDTH + spacing.md * 2;
+const STEP_CONTROL_GAP = spacing.sm;
+const STEP_CONTROL_WIDTH = STEP_BUTTON_SIZE * 2 + STEP_VALUE_WIDTH + STEP_CONTROL_GAP * 2;
 
 export function Stepper({
   value,
@@ -26,6 +28,14 @@ export function Stepper({
   valueSize = "default",
 }: StepperProps) {
   const canDecrement = value > min;
+  const handleDecrementPress = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onDecrement();
+  };
+  const handleIncrementPress = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onIncrement();
+  };
 
   return (
     <View style={styles.container}>
@@ -35,7 +45,7 @@ export function Stepper({
           pressed && canDecrement && styles.buttonPressed,
           !canDecrement && styles.buttonDisabled,
         ]}
-        onPress={onDecrement}
+        onPress={handleDecrementPress}
         disabled={!canDecrement}
       >
         <Text style={styles.buttonText}>−</Text>
@@ -56,7 +66,7 @@ export function Stepper({
           styles.button,
           pressed && styles.buttonPressed,
         ]}
-        onPress={onIncrement}
+        onPress={handleIncrementPress}
       >
         <Text style={styles.buttonText}>+</Text>
       </Pressable>
@@ -69,7 +79,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     flexShrink: 0,
-    justifyContent: "space-between",
+    gap: STEP_CONTROL_GAP,
+    justifyContent: "center",
     width: STEP_CONTROL_WIDTH,
   },
   button: {

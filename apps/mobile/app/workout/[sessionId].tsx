@@ -75,7 +75,7 @@ export default function WorkoutScreen() {
   const sessionId = Array.isArray(params.sessionId) ? params.sessionId[0] : params.sessionId;
   const autostart = Array.isArray(params.autostart) ? params.autostart[0] : params.autostart;
   const router = useRouter();
-  const { instance, stubs, nextStub, todayStub, completeSession, loadProgram } = useProgramStore();
+  const { instance, stubs, todayStub, completeSession, loadProgram } = useProgramStore();
   const isWorkoutLoading = useWorkoutStore((state) => state.isLoading);
   const activePrescription = useWorkoutStore((state) => state.prescription);
   const sets = useWorkoutStore((state) => state.sets);
@@ -108,11 +108,6 @@ export default function WorkoutScreen() {
   const canStartTodayWorkout = Boolean(stub && stub.status !== "completed" && isTodaySession);
   const isWorkoutActive = mode === "active";
   const prescription = isWorkoutActive ? activePrescription : previewPrescription;
-  const showScheduledDayMessage = Boolean(
-    instance?.params.scheduleMode === "scheduled" &&
-    nextStub?.sessionId === sessionId &&
-    !canStartTodayWorkout,
-  );
 
   useEffect(() => {
     setMode("loading");
@@ -533,6 +528,7 @@ export default function WorkoutScreen() {
           onPress={confirmExit}
           disabled={isSubmitting || isStarting}
           accessibilityLabel={t("common.back")}
+          includeTopInset={false}
         >
           {shouldShowRestTimer ? (
             <RestTimerBar
@@ -599,9 +595,7 @@ export default function WorkoutScreen() {
                 <Text style={styles.previewNoticeTitle}>
                   {canStartTodayWorkout
                     ? t("workout.readyToStart")
-                    : (showScheduledDayMessage
-                      ? t("workout.onlyScheduledDayCanStart")
-                      : t("workout.onlyTodayCanStart"))}
+                    : t("workout.onlyTodayCanStart")}
                 </Text>
               </View>
             </Card>

@@ -1,8 +1,7 @@
 import { updateInstanceState, type OwnLiftDataBackup } from "@ownlift/db";
-import type { MainLift, ProgramScheduleMode, ProgramWeekday } from "@ownlift/schemas";
-import { DEFAULT_SETTINGS, REQUIRED_SCHEDULED_DAYS } from "@ownlift/schemas";
+import type { MainLift } from "@ownlift/schemas";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from "react-native";
 import { exportBackupFile, importBackupFile, pickBackupFile } from "../../../src/data/backup-files";
 import {
@@ -18,9 +17,7 @@ import {
   spacing,
 } from "../../../src/design";
 import { formatDate, getLiftLabel, t, useLocale } from "../../../src/i18n";
-import { SchedulePolicyEditor } from "../../../src/program/SchedulePolicyEditor";
 import { syncLiftPrescriptions } from "../../../src/program/prescription-sync";
-import { hasRequiredScheduledDays, normalizeScheduledDays } from "../../../src/program/schedule-policy";
 import { useProgramStore } from "../../../src/stores/program-store";
 import { useSettingsStore } from "../../../src/stores/settings-store";
 
@@ -36,33 +33,17 @@ function formatDuration(seconds: number): string {
 export default function SettingsScreen() {
   useLocale();
 
-  const { instance, stubs, loadProgram, updateSchedulePolicy } = useProgramStore();
+  const { instance, stubs, loadProgram } = useProgramStore();
   const loadSettings = useSettingsStore((state) => state.loadSettings);
   const settings = useSettingsStore();
-  const scheduleMode = instance?.params.scheduleMode ?? DEFAULT_SETTINGS.scheduleMode;
-  const scheduledDays = instance?.params.scheduledDays ?? DEFAULT_SETTINGS.scheduledDays;
-  const [draftScheduleMode, setDraftScheduleMode] = useState<ProgramScheduleMode>(scheduleMode);
-  const [draftScheduledDays, setDraftScheduledDays] = useState<ProgramWeekday[]>([...scheduledDays]);
-  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
   const [isExportingBackup, setIsExportingBackup] = useState(false);
   const [isImportingBackup, setIsImportingBackup] = useState(false);
-  const normalizedSavedDays = normalizeScheduledDays(scheduledDays);
-  const normalizedDraftDays = normalizeScheduledDays(draftScheduledDays);
-  const isScheduledDraftValid = draftScheduleMode !== "scheduled" || hasRequiredScheduledDays(normalizedDraftDays);
-  const isScheduleDirty = draftScheduleMode !== scheduleMode
-    || normalizedDraftDays.join(",") !== normalizedSavedDays.join(",");
 
   useFocusEffect(
     useCallback(() => {
       void loadSettings();
     }, [loadSettings]),
   );
-
-  useEffect(() => {
-    setDraftScheduleMode(scheduleMode);
-    setDraftScheduledDays([...scheduledDays]);
-    setIsSavingSchedule(false);
-  }, [scheduleMode, scheduledDays]);
 
   const handleTmEdit = (lift: MainLift) => {
     if (!instance) return;
@@ -92,6 +73,10 @@ export default function SettingsScreen() {
 
   const handleUnitChange = async (index: number) => {
     const newUnit = index === 0 ? "kg" : "lb";
+    if (newUnit === settings.unit) {
+      return;
+    }
+
     await settings.updateSetting("unit", newUnit);
   };
 
@@ -119,24 +104,6 @@ export default function SettingsScreen() {
   const handleRestTimerChange = async (delta: number) => {
     const newValue = Math.max(REST_TIMER_STEP_SECONDS, settings.restTimerSeconds + delta);
     await settings.updateSetting("restTimerSeconds", String(newValue));
-  };
-
-  const handleScheduleSave = async () => {
-    if (!instance || !isScheduleDirty) return;
-    if (!isScheduledDraftValid) {
-      Alert.alert(
-        t("schedule.saveBlockedTitle"),
-        t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS }),
-      );
-      return;
-    }
-
-    try {
-      setIsSavingSchedule(true);
-      await updateSchedulePolicy(draftScheduleMode, normalizedDraftDays);
-    } finally {
-      setIsSavingSchedule(false);
-    }
   };
 
   const handleBackupError = (titleKey: Parameters<typeof t>[0], error: unknown) => {
@@ -338,42 +305,6 @@ export default function SettingsScreen() {
               thumbColor={settings.includeDeload ? colors.accentForeground : colors.surfaceElevated}
             />
           </View>
-          <View style={styles.cardSeparator} />
-          <View style={styles.policyEditor}>
-            <Text variant="body">{t("schedule.section.title")}</Text>
-            <SchedulePolicyEditor
-              mode={draftScheduleMode}
-              scheduledDays={draftScheduledDays}
-              disabled={!instance || isSavingSchedule}
-              onModeChange={setDraftScheduleMode}
-              onScheduledDaysChange={setDraftScheduledDays}
-            />
-            {draftScheduleMode === "scheduled" ? (
-              <>
-                <Text variant="caption" style={styles.scheduleCount}>
-                  {t("schedule.days.selectedCount", {
-                    count: normalizedDraftDays.length,
-                    total: REQUIRED_SCHEDULED_DAYS,
-                  })}
-                </Text>
-                <Text
-                  variant="caption"
-                  style={isScheduledDraftValid ? styles.scheduleHint : styles.scheduleError}
-                >
-                  {isScheduledDraftValid
-                    ? t("schedule.days.saveHint")
-                    : t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS })}
-                </Text>
-              </>
-            ) : null}
-            <Button
-              title={isSavingSchedule ? t("schedule.saving") : t("schedule.save")}
-              disabled={!instance || isSavingSchedule || !isScheduleDirty}
-              onPress={() => {
-                void handleScheduleSave();
-              }}
-            />
-          </View>
         </View>
       </Section>
 
@@ -483,19 +414,6 @@ const styles = StyleSheet.create({
   switchLabel: {
     flex: 1,
     gap: 2,
-  },
-  policyEditor: {
-    gap: spacing.md,
-    padding: spacing.lg,
-  },
-  scheduleCount: {
-    color: colors.textSecondary,
-  },
-  scheduleHint: {
-    color: colors.textSecondary,
-  },
-  scheduleError: {
-    color: colors.destructive,
   },
   dataBlock: {
     gap: spacing.lg,

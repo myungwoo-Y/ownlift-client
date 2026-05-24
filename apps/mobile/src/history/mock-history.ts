@@ -9,7 +9,6 @@ import type {
   MainLift,
   PrescriptionData,
   PrescriptionSet,
-  ProgramWeekday,
 } from "@ownlift/schemas";
 import type { HistoryLastWorkSetMetric } from "./history-screen/types";
 
@@ -21,8 +20,10 @@ export interface MockHistoryItem extends SessionStubRecord {
   isMock: true;
 }
 
-const DEFAULT_TRAINING_DAYS: readonly ProgramWeekday[] = ["mon", "tue", "thu", "fri"];
-const WEEKDAY_TO_OFFSET: Record<ProgramWeekday, number> = {
+type MockWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+const DEFAULT_TRAINING_DAYS: readonly MockWeekday[] = ["mon", "tue", "thu", "fri"];
+const WEEKDAY_TO_OFFSET: Record<MockWeekday, number> = {
   mon: 0,
   tue: 1,
   wed: 2,
@@ -174,12 +175,8 @@ export function buildMockHistorySessionDetail(
   };
 }
 
-function getTrainingDayOffsets(instance: ProgramInstanceRecord): number[] {
-  const sourceDays = instance.params.scheduledDays.length === 4
-    ? instance.params.scheduledDays
-    : DEFAULT_TRAINING_DAYS;
-
-  return sourceDays
+function getTrainingDayOffsets(): number[] {
+  return DEFAULT_TRAINING_DAYS
     .map((day) => WEEKDAY_TO_OFFSET[day])
     .sort((a, b) => a - b);
 }
@@ -194,7 +191,7 @@ export function buildMockHistoryItems(
   totalWeeks = 8,
 ): MockHistoryItem[] {
   const weeksPerCycle = instance.params.includeDeload ? 4 : 3;
-  const trainingDayOffsets = getTrainingDayOffsets(instance);
+  const trainingDayOffsets = getTrainingDayOffsets();
   const currentWeekStart = getWeekStart(new Date());
   const oldestWeekStart = addDays(currentWeekStart, -(totalWeeks - 1) * 7);
   const lastWeekIndex = Math.max(totalWeeks - 1, 1);

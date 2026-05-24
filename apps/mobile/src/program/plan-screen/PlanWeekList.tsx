@@ -25,7 +25,6 @@ interface PlanWeekListProps {
   dragItemHeight: number;
   dragTranslateY: SharedValue<number>;
   reorderableSessionIds: ReadonlySet<string>;
-  getScheduledDayLabel: (index: number) => string | null;
   onPressStub?: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
   onDragMove: (dy: number) => void;
@@ -46,7 +45,6 @@ interface DraggableWeekRowProps {
   isReorderable: boolean;
   isDragging: boolean;
   isAnyDragging: boolean;
-  scheduledDayLabel?: string | null;
   dragStartTop: number;
   onPress?: (stub: SessionStubRecord) => void;
   onDragBegin: (index: number, sessionId: string) => void;
@@ -64,7 +62,6 @@ function DraggableWeekRow({
   isReorderable,
   isDragging,
   isAnyDragging,
-  scheduledDayLabel,
   dragStartTop,
   onPress,
   onDragBegin,
@@ -112,7 +109,6 @@ function DraggableWeekRow({
         isCompleted={isCompleted}
         isDragging={isDragging}
         isAnyDragging={isAnyDragging}
-        scheduledDayLabel={scheduledDayLabel}
         summaryText={summaryText}
         gesture={handleGesture}
         showDragHandle={isReorderable}
@@ -129,7 +125,6 @@ interface FloatingDraggedCardProps {
   isCompleted: boolean;
   dragStartTop: number;
   dragTranslateY: SharedValue<number>;
-  scheduledDayLabel?: string | null;
 }
 
 function FloatingDraggedCard({
@@ -139,7 +134,6 @@ function FloatingDraggedCard({
   isCompleted,
   dragStartTop,
   dragTranslateY,
-  scheduledDayLabel,
 }: FloatingDraggedCardProps) {
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: dragTranslateY.value }],
@@ -160,7 +154,6 @@ function FloatingDraggedCard({
         isCompleted={isCompleted}
         isDragging
         isAnyDragging
-        scheduledDayLabel={scheduledDayLabel}
         summaryText={summaryText}
         showDragHandle
       />
@@ -179,7 +172,6 @@ export function PlanWeekList({
   dragItemHeight,
   dragTranslateY,
   reorderableSessionIds,
-  getScheduledDayLabel,
   onPressStub,
   onDragBegin,
   onDragMove,
@@ -209,7 +201,6 @@ export function PlanWeekList({
           const isCompleted = stub.status === "completed";
           const isReorderable = reorderableSessionIds.has(stub.sessionId);
           const isDragging = draggingSessionId === stub.sessionId;
-          const scheduledDayLabel = getScheduledDayLabel(index);
           const summaryText = sessionSummaryBySessionId[stub.sessionId] ?? null;
 
           return (
@@ -230,7 +221,6 @@ export function PlanWeekList({
                 isReorderable={isReorderable}
                 isDragging={isDragging}
                 isAnyDragging={draggingSessionId !== null}
-                scheduledDayLabel={scheduledDayLabel}
                 summaryText={summaryText}
                 dragStartTop={dragStartTop}
                 onPress={onPressStub}
@@ -256,7 +246,6 @@ export function PlanWeekList({
             isToday={draggingStubIsToday}
             isCompleted={draggingStubIsCompleted}
             summaryText={sessionSummaryBySessionId[draggingStub.sessionId] ?? null}
-            scheduledDayLabel={getScheduledDayLabel(dragStartIndex)}
             dragStartTop={dragStartTop}
             dragTranslateY={dragTranslateY}
           />

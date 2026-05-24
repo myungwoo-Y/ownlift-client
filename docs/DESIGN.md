@@ -511,7 +511,6 @@ Use for two or three mode choices:
 
 - units,
 - language,
-- schedule mode,
 - trend range.
 
 Settings segmented controls should stay neutral. Use green selection only when the selected mode directly controls the primary content, like History trend range.
@@ -706,7 +705,6 @@ grouped rows
 segmented controls
 steppers
 switches
-schedule editor
 data backup actions
 ```
 

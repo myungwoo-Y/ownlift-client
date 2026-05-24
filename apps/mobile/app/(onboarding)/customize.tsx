@@ -2,20 +2,16 @@ import { setSetting } from "@ownlift/db";
 import type {
   MainLift,
   ProgramParams,
-  ProgramScheduleMode,
-  ProgramWeekday,
   RoundingMode,
   WeightUnit,
 } from "@ownlift/schemas";
-import { DEFAULT_SCHEDULED_DAYS, DEFAULT_SETTINGS, REQUIRED_SCHEDULED_DAYS } from "@ownlift/schemas";
+import { DEFAULT_SETTINGS } from "@ownlift/schemas";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button, colors, Divider, Section, spacing, Text } from "../../src/design";
 import { getLiftLabel, t, useLocale } from "../../src/i18n";
-import { SchedulePolicyEditor } from "../../src/program/SchedulePolicyEditor";
-import { hasRequiredScheduledDays, normalizeScheduledDays } from "../../src/program/schedule-policy";
 import { useProgramStore } from "../../src/stores/program-store";
 
 export default function OnboardingStep3() {
@@ -35,8 +31,6 @@ export default function OnboardingStep3() {
 
   const [includeDeload, setIncludeDeload] = useState(true);
   const [warmUpEnabled, setWarmUpEnabled] = useState(true);
-  const [scheduleMode, setScheduleMode] = useState<ProgramScheduleMode>(DEFAULT_SETTINGS.scheduleMode);
-  const [scheduledDays, setScheduledDays] = useState<ProgramWeekday[]>([...DEFAULT_SCHEDULED_DAYS]);
   const [isCreating, setIsCreating] = useState(false);
 
   const unit = params.unit ?? "kg";
@@ -44,18 +38,8 @@ export default function OnboardingStep3() {
   const roundingIncrement = unit === "kg"
     ? DEFAULT_SETTINGS.roundingIncrement.kg
     : DEFAULT_SETTINGS.roundingIncrement.lb;
-  const normalizedScheduledDays = normalizeScheduledDays(scheduledDays);
-  const isScheduledSelectionValid = scheduleMode !== "scheduled" || hasRequiredScheduledDays(normalizedScheduledDays);
 
   const handleFinish = async () => {
-    if (!isScheduledSelectionValid) {
-      Alert.alert(
-        t("schedule.saveBlockedTitle"),
-        t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS }),
-      );
-      return;
-    }
-
     setIsCreating(true);
 
     try {
@@ -74,8 +58,6 @@ export default function OnboardingStep3() {
         liftOrder: ["squat", "bench", "deadlift", "press"] as MainLift[],
         warmUpEnabled,
         includeDeload,
-        scheduleMode,
-        scheduledDays: normalizedScheduledDays,
       };
 
       await useProgramStore.getState().initProgram(programParams);
@@ -121,35 +103,6 @@ export default function OnboardingStep3() {
               trackColor={{ true: colors.primary, false: colors.border }}
               thumbColor={warmUpEnabled ? colors.accentForeground : colors.surfaceElevated}
             />
-          </View>
-
-          <View style={styles.policyContainer}>
-            <Text variant="body">{t("schedule.section.title")}</Text>
-            <SchedulePolicyEditor
-              mode={scheduleMode}
-              scheduledDays={scheduledDays}
-              disabled={isCreating}
-              onModeChange={setScheduleMode}
-              onScheduledDaysChange={setScheduledDays}
-            />
-            {scheduleMode === "scheduled" ? (
-              <>
-                <Text variant="caption" style={styles.scheduleCount}>
-                  {t("schedule.days.selectedCount", {
-                    count: normalizedScheduledDays.length,
-                    total: REQUIRED_SCHEDULED_DAYS,
-                  })}
-                </Text>
-                <Text
-                  variant="caption"
-                  style={isScheduledSelectionValid ? styles.scheduleHint : styles.scheduleError}
-                >
-                  {isScheduledSelectionValid
-                    ? t("schedule.days.saveHint")
-                    : t("schedule.days.requiredHint", { total: REQUIRED_SCHEDULED_DAYS })}
-                </Text>
-              </>
-            ) : null}
           </View>
         </Section>
 
@@ -213,19 +166,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.md,
     paddingVertical: spacing.sm,
-  },
-  policyContainer: {
-    gap: spacing.md,
-    paddingTop: spacing.md,
-  },
-  scheduleCount: {
-    color: colors.textSecondary,
-  },
-  scheduleHint: {
-    color: colors.textSecondary,
-  },
-  scheduleError: {
-    color: colors.destructive,
   },
   liftOrderIndex: {
     width: 24,

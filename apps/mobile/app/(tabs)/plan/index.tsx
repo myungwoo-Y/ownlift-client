@@ -4,7 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Card, Section, Text, colors } from "../../../src/design";
-import { getSessionLabel, getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
+import { getSessionLabel, t, useLocale } from "../../../src/i18n";
 import { TAB_BAR_SCROLL_INDICATOR_INSETS } from "../../../src/program/plan-screen/constants";
 import { PlanActivitySummaryCards } from "../../../src/program/plan-screen/PlanActivitySummaryCards";
 import { PlanWeekCarousel } from "../../../src/program/plan-screen/PlanWeekCarousel";
@@ -14,7 +14,6 @@ import { PlanUpcomingWeekCard } from "../../../src/program/plan-screen/UpcomingW
 import { usePlanActivitySummary } from "../../../src/program/plan-screen/usePlanActivitySummary";
 import { useWeekPrescriptionSummaries } from "../../../src/program/plan-screen/useWeekPrescriptionSummaries";
 import { loadSyncedPrescriptionForSession } from "../../../src/program/prescription-sync";
-import { getScheduledDayForIndex } from "../../../src/program/schedule-policy";
 import { useProgramStore } from "../../../src/stores/program-store";
 
 export default function PlanScreen() {
@@ -96,14 +95,6 @@ export default function PlanScreen() {
   }
 
   const { state } = instance;
-  const getScheduledDayLabel = (index: number): string | null => {
-    if (instance.params.scheduleMode !== "scheduled") {
-      return null;
-    }
-
-    const scheduledDay = getScheduledDayForIndex(index, instance.params.scheduledDays);
-    return scheduledDay ? getWeekdayShortLabel(scheduledDay) : null;
-  };
   const todayPreviewSessionLabel = todayStub
     ? t("session.weekAndSession", {
         week: todayStub.weekIndex + 1,
@@ -172,7 +163,6 @@ export default function PlanScreen() {
           weekStubs={currentWeekStubs}
           sessionSummaryBySessionId={weekSummaryBySessionId}
           todaySessionId={todayStub?.sessionId}
-          getScheduledDayLabel={getScheduledDayLabel}
           onPressStub={(pressedStub) => {
             if (pressedStub.status === "completed") {
               router.push(`/session/${pressedStub.sessionId}`);

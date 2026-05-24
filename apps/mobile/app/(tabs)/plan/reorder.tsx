@@ -2,7 +2,7 @@ import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { ScrollView, View } from "react-native";
 import { Card, Section, Text } from "../../../src/design";
-import { getWeekdayShortLabel, t, useLocale } from "../../../src/i18n";
+import { t, useLocale } from "../../../src/i18n";
 import {
   TAB_BAR_SCROLL_INDICATOR_INSETS,
 } from "../../../src/program/plan-screen/constants";
@@ -10,7 +10,6 @@ import { PlanWeekList } from "../../../src/program/plan-screen/PlanWeekList";
 import { styles } from "../../../src/program/plan-screen/styles";
 import { useWeekPrescriptionSummaries } from "../../../src/program/plan-screen/useWeekPrescriptionSummaries";
 import { useWeekReorderController } from "../../../src/program/plan-screen/useWeekReorderController";
-import { getScheduledDayForIndex } from "../../../src/program/schedule-policy";
 import { useProgramStore } from "../../../src/stores/program-store";
 
 export default function PlanReorderScreen() {
@@ -78,15 +77,6 @@ export default function PlanReorderScreen() {
     );
   }
 
-  const getScheduledDayLabel = (index: number): string | null => {
-    if (instance.params.scheduleMode !== "scheduled") {
-      return null;
-    }
-
-    const scheduledDay = getScheduledDayForIndex(index, instance.params.scheduledDays);
-    return scheduledDay ? getWeekdayShortLabel(scheduledDay) : null;
-  };
-
   return (
     <ScrollView
       contentInsetAdjustmentBehavior="automatic"
@@ -115,7 +105,6 @@ export default function PlanReorderScreen() {
           dragItemHeight={dragItemHeight}
           dragTranslateY={dragTranslateY}
           reorderableSessionIds={reorderableSessionIds}
-          getScheduledDayLabel={getScheduledDayLabel}
           onDragBegin={onDragBegin}
           onDragMove={onDragMove}
           onDragEnd={onDragEnd}

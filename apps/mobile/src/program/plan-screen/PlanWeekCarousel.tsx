@@ -15,7 +15,6 @@ interface PlanWeekCarouselProps {
   weekStubs: readonly SessionStubRecord[];
   sessionSummaryBySessionId: Readonly<Record<string, string | null>>;
   todaySessionId?: string | null;
-  getScheduledDayLabel: (index: number) => string | null;
   onPressStub: (stub: SessionStubRecord) => void;
 }
 
@@ -61,7 +60,6 @@ export function PlanWeekCarousel({
   weekStubs,
   sessionSummaryBySessionId,
   todaySessionId,
-  getScheduledDayLabel,
   onPressStub,
 }: PlanWeekCarouselProps) {
   useLocale();
@@ -75,13 +73,10 @@ export function PlanWeekCarousel({
     <View style={styles.weekGrid}>
       {rows.map((row, rowIndex) => (
         <View key={`week-grid-row-${rowIndex}`} style={styles.weekGridRow}>
-          {row.map((stub, columnIndex) => {
-            const index = rowIndex * WEEK_GRID_COLUMNS + columnIndex;
+          {row.map((stub) => {
             const isToday = todaySessionId === stub.sessionId;
             const isCompleted = stub.status === "completed";
-            const scheduledDayLabel = getScheduledDayLabel(index);
             const sessionLabel = getSessionLabel(stub.dayIndex);
-            const metaLabel = scheduledDayLabel ? `${scheduledDayLabel} · ${sessionLabel}` : sessionLabel;
             const summaryText = sessionSummaryBySessionId[stub.sessionId];
             const thumbnailSource = getLiftThumbnailSource(stub.mainLiftKey);
             const palette = getPalette(stub.mainLiftKey);
@@ -131,7 +126,7 @@ export function PlanWeekCarousel({
 
                 <View style={styles.weekCarouselBody}>
                   <Text numberOfLines={1} style={palette.meta}>
-                    {metaLabel}
+                    {sessionLabel}
                   </Text>
                   <Text numberOfLines={2} style={palette.title}>
                     {getLiftLabel(stub.mainLiftKey)}

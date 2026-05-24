@@ -12,6 +12,7 @@ interface FloatingBackNavProps {
   accessibilityLabel?: string;
   children?: ReactNode;
   disabled?: boolean;
+  includeTopInset?: boolean;
   onPress: PressableProps["onPress"];
   style?: StyleProp<ViewStyle>;
 }
@@ -20,16 +21,18 @@ export function FloatingBackNav({
   accessibilityLabel = "Back",
   children,
   disabled,
+  includeTopInset = true,
   onPress,
   style,
 }: FloatingBackNavProps) {
   const insets = useSafeAreaInsets();
+  const topInset = includeTopInset ? insets.top : 0;
 
   return (
     <View style={[styles.navBar, style]} pointerEvents="box-none">
       <View
         pointerEvents="none"
-        style={[styles.navBackdrop, { height: insets.top + FLOATING_NAV_FADE_HEIGHT }]}
+        style={[styles.navBackdrop, { height: topInset + FLOATING_NAV_FADE_HEIGHT }]}
       >
         <Svg
           width="100%"
@@ -47,7 +50,7 @@ export function FloatingBackNav({
           <Rect width="100%" height="100%" fill="url(#floatingNavFade)" />
         </Svg>
       </View>
-      <View style={[styles.navContent, { paddingTop: insets.top + spacing.sm }]}>
+      <View style={[styles.navContent, { paddingTop: topInset + spacing.sm }]}>
         <BackButton
           onPress={onPress}
           disabled={disabled}

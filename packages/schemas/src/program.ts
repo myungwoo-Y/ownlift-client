@@ -8,16 +8,6 @@ export type MainLift = z.infer<typeof MainLiftSchema>;
 export const ProgramStatusSchema = z.enum(["active", "paused", "archived"]);
 export type ProgramStatus = z.infer<typeof ProgramStatusSchema>;
 
-export const PROGRAM_WEEKDAY_OPTIONS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-export const ProgramWeekdaySchema = z.enum(PROGRAM_WEEKDAY_OPTIONS);
-export type ProgramWeekday = z.infer<typeof ProgramWeekdaySchema>;
-
-export const ProgramScheduleModeSchema = z.enum(["flexible", "scheduled"]);
-export type ProgramScheduleMode = z.infer<typeof ProgramScheduleModeSchema>;
-
-export const REQUIRED_SCHEDULED_DAYS = 4;
-export const DEFAULT_SCHEDULED_DAYS = ["mon", "tue", "thu", "fri"] as const satisfies readonly ProgramWeekday[];
-
 // ─── Training Max values ────────────────────────────────
 export const TrainingMaxesSchema = z.object({
   squat: z.number().positive(),
@@ -39,8 +29,6 @@ export const ProgramParamsSchema = z.object({
   liftOrder: z.array(MainLiftSchema).length(4),
   warmUpEnabled: z.boolean(),
   includeDeload: z.boolean().default(true),
-  scheduleMode: ProgramScheduleModeSchema.default("flexible"),
-  scheduledDays: z.array(ProgramWeekdaySchema).default([...DEFAULT_SCHEDULED_DAYS]),
 });
 
 export type ProgramParams = z.infer<typeof ProgramParamsSchema>;

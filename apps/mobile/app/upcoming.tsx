@@ -5,10 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BackButton, Card, colors, fontWeight, Section, spacing, Text } from "../src/design";
-import { formatNumber, getWeekdayShortLabel, t, useLocale } from "../src/i18n";
+import { formatNumber, t, useLocale } from "../src/i18n";
 import { WeekRowCard } from "../src/program/plan-screen/WeekRowCard";
 import { loadSyncedPrescriptionForSession } from "../src/program/prescription-sync";
-import { getScheduledDayForIndex } from "../src/program/schedule-policy";
 import { useProgramStore } from "../src/stores/program-store";
 
 function getTopSetSummary(
@@ -139,15 +138,6 @@ export default function UpcomingScreen() {
     return groups;
   }, []);
 
-  const getScheduledDayLabel = (dayIndex: number): string | null => {
-    if (instance.params.scheduleMode !== "scheduled") {
-      return null;
-    }
-
-    const scheduledDay = getScheduledDayForIndex(dayIndex, instance.params.scheduledDays);
-    return scheduledDay ? getWeekdayShortLabel(scheduledDay) : null;
-  };
-
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -176,7 +166,6 @@ export default function UpcomingScreen() {
                       isCompleted={stub.status === "completed"}
                       isDragging={false}
                       isAnyDragging={false}
-                      scheduledDayLabel={getScheduledDayLabel(stub.dayIndex)}
                       summaryText={getTopSetSummary(upcomingPrescriptions[stub.sessionId], unit)}
                       showDragHandle={false}
                       onPress={(pressedStub) => {

@@ -15,7 +15,6 @@ interface WeekRowCardProps {
   isCompleted: boolean;
   isDragging: boolean;
   isAnyDragging: boolean;
-  scheduledDayLabel?: string | null;
   summaryText?: string | null;
   gesture?: PanGesture;
   showDragHandle?: boolean;
@@ -28,7 +27,6 @@ export function WeekRowCard({
   isCompleted,
   isDragging,
   isAnyDragging,
-  scheduledDayLabel,
   summaryText,
   gesture,
   showDragHandle = true,
@@ -56,20 +54,15 @@ export function WeekRowCard({
             <Text style={styles.liftName}>
               {getLiftLabel(stub.mainLiftKey)}
             </Text>
-            {(summaryText || scheduledDayLabel) ? (
+            {summaryText ? (
               <View style={styles.metaRow}>
-                {summaryText ? (
-                  <Text
-                    variant="caption"
-                    numberOfLines={1}
-                    style={styles.cardMetaText}
-                  >
-                    {summaryText}
-                  </Text>
-                ) : null}
-                {scheduledDayLabel ? (
-                  <Badge variant="planned" label={scheduledDayLabel} />
-                ) : null}
+                <Text
+                  variant="caption"
+                  numberOfLines={1}
+                  style={styles.cardMetaText}
+                >
+                  {summaryText}
+                </Text>
               </View>
             ) : null}
           </View>
