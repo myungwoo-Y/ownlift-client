@@ -325,10 +325,13 @@ export const styles = StyleSheet.create({
   },
   trendGraphCanvas: {
     flex: 1,
+    position: "relative",
     overflow: "hidden",
   },
-  trendLineGraph: {
+  trendGraphCanvasDrawing: {
     flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1,
   },
   trendGraphGridline: {
     position: "absolute",

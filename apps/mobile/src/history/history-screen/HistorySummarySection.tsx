@@ -1,10 +1,21 @@
 import type { MainLift } from "@ownlift/schemas";
+import {
+  Canvas,
+  Circle,
+  DashPathEffect,
+  Group,
+  Line,
+  Path,
+  Skia,
+  vec,
+  type SkPath,
+} from "@shopify/react-native-skia";
 import { Image } from "expo-image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { Pressable, View } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { LineGraph, type GraphPoint } from "react-native-graph";
 import { Card, Text, colors, motion, spacing } from "../../design";
 import { formatDate, formatNumber, getLiftLabel, t } from "../../i18n";
 import { getLiftThumbnailSource } from "../../program/plan-screen/utils";
@@ -137,8 +148,29 @@ const TREND_RANGE_OPTIONS = [
   { key: "all", labelKey: "history.trend.range.all", dayWindow: null },
 ] as const;
 const TREND_RANGE_TABS_INSET = spacing["2xs"];
+const TREND_GRAPH_HORIZONTAL_PADDING = spacing.md;
+const TREND_GRAPH_VERTICAL_PADDING = spacing.xs;
+const TREND_POINT_DOT_RADIUS = 3;
+const TREND_POINT_DOT_OUTER_RADIUS = TREND_POINT_DOT_RADIUS + 2;
+const TREND_SELECTED_DOT_RADIUS = 5;
+const TREND_SELECTED_DOT_OUTER_RADIUS = TREND_SELECTED_DOT_RADIUS + 2;
 
 type TrendRangeKey = (typeof TREND_RANGE_OPTIONS)[number]["key"];
+
+interface TrendGraphPoint {
+  value: number;
+  date: Date;
+}
+
+interface TrendGraphSize {
+  width: number;
+  height: number;
+}
+
+interface TrendPixelPoint {
+  x: number;
+  y: number;
+}
 
 function formatTrendAxisValue(label: number | string): string {
   const value = Number(label);
@@ -150,8 +182,12 @@ function formatTrendAxisValue(label: number | string): string {
   });
 }
 
-function formatTrendPointSummary(point: TrendPoint, unit: string): string {
-  return `${formatDate(point.completedAt, { month: "long", day: "numeric" })} / ${formatMeasurement(point.value, unit)}`;
+function formatTrendPointSummary(point: TrendPoint, unit: string, selectedRange?: TrendRangeKey): string {
+  const includeYear = selectedRange === "all" || selectedRange === "year";
+  const dateOptions: Intl.DateTimeFormatOptions = includeYear
+    ? { year: "numeric", month: "long", day: "numeric" }
+    : { month: "long", day: "numeric" };
+  return `${formatDate(point.completedAt, dateOptions)} / ${formatMeasurement(point.value, unit)}`;
 }
 
 function filterTrendPointsByRange(points: TrendPoint[], range: TrendRangeKey): TrendPoint[] {
@@ -177,7 +213,7 @@ function formatTrendXAxisLabel(completedAt: string): string {
   return formatDate(completedAt, { month: "numeric", day: "numeric" });
 }
 
-function buildTrendGraphPoints(points: TrendPoint[]): GraphPoint[] {
+function buildTrendGraphPoints(points: TrendPoint[]): TrendGraphPoint[] {
   return points.map((point) => ({
     date: new Date(point.completedAt),
     value: point.value,
@@ -199,13 +235,181 @@ function buildTrendXAxisLabels(points: TrendPoint[]): string[] {
     .filter(Boolean);
 }
 
-function findTrendPointIndex(points: TrendPoint[], graphPoint: GraphPoint): number {
-  const selectedTime = graphPoint.date.getTime();
+function buildTrendPixelPoints({
+  points,
+  graphSize,
+  chartMin,
+  chartMax,
+}: {
+  points: TrendGraphPoint[];
+  graphSize: TrendGraphSize;
+  chartMin: number;
+  chartMax: number;
+}): TrendPixelPoint[] {
+  const firstPoint = points[0];
+  const lastPoint = points[points.length - 1];
+  const drawingWidth = graphSize.width - TREND_GRAPH_HORIZONTAL_PADDING * 2;
+  const drawingHeight = graphSize.height - TREND_GRAPH_VERTICAL_PADDING * 2;
+  const xSpan = firstPoint && lastPoint
+    ? lastPoint.date.getTime() - firstPoint.date.getTime()
+    : 0;
+  const ySpan = chartMax - chartMin;
 
-  return points.findIndex((point) => {
-    const pointTime = new Date(point.completedAt).getTime();
-    return pointTime === selectedTime && point.value === graphPoint.value;
-  });
+  if (
+    !firstPoint
+    || !lastPoint
+    || drawingWidth <= 0
+    || drawingHeight <= 0
+    || xSpan <= 0
+    || ySpan <= 0
+  ) {
+    return [];
+  }
+
+  return points
+    .map((point) => {
+      const xPosition = (point.date.getTime() - firstPoint.date.getTime()) / xSpan;
+      const yPosition = (point.value - chartMin) / ySpan;
+      const x = Math.floor(drawingWidth * xPosition) + TREND_GRAPH_HORIZONTAL_PADDING;
+      const y = drawingHeight - Math.floor(drawingHeight * yPosition) + TREND_GRAPH_VERTICAL_PADDING;
+
+      return { x, y };
+    })
+    .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+}
+
+function buildTrendLinePath(points: TrendPixelPoint[]): SkPath | null {
+  const firstPoint = points[0];
+
+  if (!firstPoint) return null;
+
+  const path = Skia.Path.Make();
+  path.moveTo(firstPoint.x, firstPoint.y);
+
+  if (points.length === 1) return path;
+
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const previousPoint = points[index - 1] ?? points[index];
+    const currentPoint = points[index];
+    const nextPoint = points[index + 1];
+    const nextNextPoint = points[index + 2] ?? nextPoint;
+
+    if (!previousPoint || !currentPoint || !nextPoint || !nextNextPoint) continue;
+
+    const controlPointOne = {
+      x: currentPoint.x + (nextPoint.x - previousPoint.x) / 6,
+      y: currentPoint.y + (nextPoint.y - previousPoint.y) / 6,
+    };
+    const controlPointTwo = {
+      x: nextPoint.x - (nextNextPoint.x - currentPoint.x) / 6,
+      y: nextPoint.y - (nextNextPoint.y - currentPoint.y) / 6,
+    };
+
+    path.cubicTo(
+      controlPointOne.x,
+      controlPointOne.y,
+      controlPointTwo.x,
+      controlPointTwo.y,
+      nextPoint.x,
+      nextPoint.y,
+    );
+  }
+
+  return path;
+}
+
+function findNearestTrendPointIndex(points: TrendPixelPoint[], x: number): number {
+  if (points.length === 0) return -1;
+
+  return points.reduce((nearestIndex, point, index) => {
+    const nearestPoint = points[nearestIndex];
+    if (!nearestPoint) return index;
+
+    return Math.abs(point.x - x) < Math.abs(nearestPoint.x - x)
+      ? index
+      : nearestIndex;
+  }, 0);
+}
+
+function TrendGraphDrawing({
+  linePath,
+  pixelPoints,
+  selectedIndex,
+  graphSize,
+  showPointDots,
+}: {
+  linePath: SkPath | null;
+  pixelPoints: TrendPixelPoint[];
+  selectedIndex: number;
+  graphSize: TrendGraphSize;
+  showPointDots: boolean;
+}) {
+  const selectedPoint = pixelPoints[selectedIndex] ?? pixelPoints[pixelPoints.length - 1];
+
+  if (!linePath) return null;
+
+  return (
+    <Canvas pointerEvents="none" style={styles.trendGraphCanvasDrawing}>
+      {selectedPoint ? (
+        <Line
+          p1={vec(selectedPoint.x, TREND_GRAPH_VERTICAL_PADDING)}
+          p2={vec(selectedPoint.x, graphSize.height - TREND_GRAPH_VERTICAL_PADDING)}
+          color={colors.primarySoft}
+          strokeWidth={1.5}
+        >
+          <DashPathEffect intervals={[4, 6]} />
+        </Line>
+      ) : null}
+
+      <Path
+        path={linePath}
+        color={colors.accent}
+        style="stroke"
+        strokeWidth={3}
+        strokeCap="round"
+        strokeJoin="round"
+      />
+
+      {showPointDots
+        ? pixelPoints.map((point, index) => {
+          const isSelected = index === selectedIndex;
+
+          return (
+            <Group key={`${point.x}-${point.y}-${index}`}>
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={isSelected ? TREND_SELECTED_DOT_OUTER_RADIUS : TREND_POINT_DOT_OUTER_RADIUS}
+                color={colors.surfaceElevated}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={isSelected ? TREND_SELECTED_DOT_RADIUS : TREND_POINT_DOT_RADIUS}
+                color={colors.accent}
+              />
+            </Group>
+          );
+        })
+        : null}
+      {!showPointDots && selectedPoint ? (
+        <Group>
+          <Circle
+            cx={selectedPoint.x}
+            cy={selectedPoint.y}
+            r={TREND_SELECTED_DOT_OUTER_RADIUS}
+            color={colors.surfaceElevated}
+          />
+          <Circle
+            cx={selectedPoint.x}
+            cy={selectedPoint.y}
+            r={TREND_SELECTED_DOT_RADIUS}
+            color={colors.accent}
+          />
+        </Group>
+      ) : null}
+    </Canvas>
+  );
 }
 
 function TrendRangeTabs({
@@ -294,10 +498,15 @@ function TrendRangeTabs({
 function LiftTrendChart({
   points,
   onSelectIndex,
+  selectedIndex,
+  showPointDots,
 }: {
   points: TrendPoint[];
   onSelectIndex: (index: number) => void;
+  selectedIndex: number;
+  showPointDots: boolean;
 }) {
+  const [graphSize, setGraphSize] = useState<TrendGraphSize>({ width: 0, height: 0 });
   const graphPoints = useMemo(() => buildTrendGraphPoints(points), [points]);
   const axisLabels = useMemo(() => buildTrendXAxisLabels(points), [points]);
   const values = graphPoints.map((point) => point.value);
@@ -308,6 +517,45 @@ function LiftTrendChart({
   const chartMin = Math.max(0, minValue - padding);
   const chartMax = maxValue + padding;
   const chartMid = (chartMin + chartMax) / 2;
+  const pixelPoints = useMemo(
+    () => buildTrendPixelPoints({
+      points: graphPoints,
+      graphSize,
+      chartMin,
+      chartMax,
+    }),
+    [chartMax, chartMin, graphPoints, graphSize],
+  );
+  const linePath = useMemo(() => buildTrendLinePath(pixelPoints), [pixelPoints]);
+  const handleSelectNearestPoint = useCallback(
+    (x: number) => {
+      const nextIndex = findNearestTrendPointIndex(pixelPoints, x);
+
+      if (nextIndex >= 0) {
+        onSelectIndex(nextIndex);
+      }
+    },
+    [onSelectIndex, pixelPoints],
+  );
+  const chartGesture = useMemo(
+    () => Gesture.Simultaneous(
+      Gesture.Tap()
+        .runOnJS(true)
+        .onEnd((event) => {
+          handleSelectNearestPoint(event.x);
+        }),
+      Gesture.Pan()
+        .minDistance(1)
+        .runOnJS(true)
+        .onBegin((event) => {
+          handleSelectNearestPoint(event.x);
+        })
+        .onUpdate((event) => {
+          handleSelectNearestPoint(event.x);
+        }),
+    ),
+    [handleSelectNearestPoint],
+  );
 
   return (
     <View style={styles.trendChart}>
@@ -324,34 +572,31 @@ function LiftTrendChart({
               {formatTrendAxisValue(chartMin)}
             </Text>
           </View>
-          <View style={styles.trendGraphCanvas}>
-            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineTop]} />
-            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineMiddle]} />
-            <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineBottom]} />
-            <LineGraph
-              animated
-              color={colors.accent}
-              enablePanGesture
-              horizontalPadding={spacing.md}
-              lineThickness={3}
-              onPointSelected={(graphPoint) => {
-                const nextIndex = findTrendPointIndex(points, graphPoint);
-                if (nextIndex >= 0) {
-                  onSelectIndex(nextIndex);
-                }
+          <GestureDetector gesture={chartGesture}>
+            <View
+              onLayout={(event: LayoutChangeEvent) => {
+                const { width, height } = event.nativeEvent.layout;
+
+                setGraphSize((currentSize) => (
+                  currentSize.width === width && currentSize.height === height
+                    ? currentSize
+                    : { width, height }
+                ));
               }}
-              panGestureDelay={0}
-              points={graphPoints}
-              range={{
-                y: {
-                  min: chartMin,
-                  max: chartMax,
-                },
-              }}
-              style={styles.trendLineGraph}
-              verticalPadding={spacing.xs}
-            />
-          </View>
+              style={styles.trendGraphCanvas}
+            >
+              <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineTop]} />
+              <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineMiddle]} />
+              <View pointerEvents="none" style={[styles.trendGraphGridline, styles.trendGraphGridlineBottom]} />
+              <TrendGraphDrawing
+                graphSize={graphSize}
+                linePath={linePath}
+                pixelPoints={pixelPoints}
+                selectedIndex={selectedIndex}
+                showPointDots={showPointDots}
+              />
+            </View>
+          </GestureDetector>
         </View>
         <View style={styles.trendAxisLabels}>
           {axisLabels.map((label, index) => (
@@ -372,11 +617,15 @@ function LiftTrendChart({
 function LiftTrendCard({
   points,
   selectedLift,
+  showPointDots,
   unit,
+  selectedRange,
 }: {
   points: TrendPoint[];
   selectedLift: MainLift;
+  showPointDots: boolean;
   unit: string;
+  selectedRange: TrendRangeKey;
 }) {
   const [selectedTrendIndex, setSelectedTrendIndex] = useState(Math.max(points.length - 1, 0));
   const latestPoint = points[points.length - 1];
@@ -419,7 +668,7 @@ function LiftTrendCard({
             numberOfLines={1}
             style={styles.chartSelectionSummary}
           >
-            {formatTrendPointSummary(selectedPoint, unit)}
+            {formatTrendPointSummary(selectedPoint, unit, selectedRange)}
           </Text>
         ) : null}
       </View>
@@ -433,6 +682,8 @@ function LiftTrendCard({
         <LiftTrendChart
           onSelectIndex={setSelectedTrendIndex}
           points={points}
+          selectedIndex={selectedTrendIndex}
+          showPointDots={showPointDots}
         />
       )}
     </Card>
@@ -477,7 +728,9 @@ export function HistorySummarySection({
         <LiftTrendCard
           points={filteredTrendPoints}
           selectedLift={selectedLift}
+          showPointDots={selectedTrendRange === "month"}
           unit={unit}
+          selectedRange={selectedTrendRange}
         />
       </View>
     </>

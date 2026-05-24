@@ -23,6 +23,9 @@ export interface MockHistoryItem extends SessionStubRecord {
 type MockWeekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 
 const DEFAULT_TRAINING_DAYS: readonly MockWeekday[] = ["mon", "tue", "thu", "fri"];
+const MOCK_HISTORY_START_YEAR = 2025;
+const MOCK_HISTORY_START_MONTH_INDEX = 0;
+const RECENT_MOCK_HISTORY_WEEKS = 8;
 const WEEKDAY_TO_OFFSET: Record<MockWeekday, number> = {
   mon: 0,
   tue: 1,
@@ -64,6 +67,11 @@ const SESSION_TIMES = [
   { hour: 19, minute: 30 },
 ] as const;
 
+interface MockHistoryPeriod {
+  key: string;
+  weekStart: Date;
+}
+
 function getWeekStart(date: Date): Date {
   const value = new Date(date);
   value.setHours(0, 0, 0, 0);
@@ -77,6 +85,33 @@ function addDays(date: Date, days: number): Date {
   const value = new Date(date);
   value.setDate(value.getDate() + days);
   return value;
+}
+
+function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+function getMonthStart(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function isSameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+}
+
+function formatDateKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function formatMonthKey(date: Date): string {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+  ].join("-");
 }
 
 function roundToNearest(value: number, increment: number): number {
@@ -186,26 +221,91 @@ function getMockWeekIndex(weekPosition: number, weeksPerCycle: number): number {
   return (weekPosition + offset) % weeksPerCycle;
 }
 
+function getDefaultMockHistoryMonthCount(referenceDate: Date): number {
+  const yearDelta = referenceDate.getFullYear() - MOCK_HISTORY_START_YEAR;
+  const monthDelta = referenceDate.getMonth() - MOCK_HISTORY_START_MONTH_INDEX;
+
+  return Math.max(yearDelta * 12 + monthDelta + 1, 1);
+}
+
+function getMockHistoryMonthStarts(referenceDate: Date, totalMonths: number): Date[] {
+  const endMonthStart = getMonthStart(referenceDate);
+  const oldestMonthStart = addMonths(endMonthStart, -(totalMonths - 1));
+
+  return Array.from({ length: totalMonths }, (_, monthPosition) =>
+    addMonths(oldestMonthStart, monthPosition),
+  );
+}
+
+function getLatestCompleteTrainingWeekStart(referenceDate: Date, trainingDayOffsets: readonly number[]): Date {
+  const currentWeekStart = getWeekStart(referenceDate);
+  const lastTrainingDayOffset = Math.max(...trainingDayOffsets, 0);
+  const lastTrainingDateInCurrentWeek = addDays(currentWeekStart, lastTrainingDayOffset);
+
+  if (lastTrainingDateInCurrentWeek <= referenceDate) {
+    return currentWeekStart;
+  }
+
+  return addDays(currentWeekStart, -7);
+}
+
+function getMockMonthWeekStart(
+  monthStart: Date,
+  referenceDate: Date,
+  trainingDayOffsets: readonly number[],
+): Date {
+  if (isSameMonth(monthStart, referenceDate)) {
+    return getLatestCompleteTrainingWeekStart(referenceDate, trainingDayOffsets);
+  }
+
+  return getWeekStart(new Date(monthStart.getFullYear(), monthStart.getMonth(), 15));
+}
+
+function getRecentMockWeekStarts(latestWeekStart: Date, totalWeeks: number): Date[] {
+  const oldestWeekStart = addDays(latestWeekStart, -(totalWeeks - 1) * 7);
+
+  return Array.from({ length: totalWeeks }, (_, weekPosition) =>
+    addDays(oldestWeekStart, weekPosition * 7),
+  );
+}
+
 export function buildMockHistoryItems(
   instance: ProgramInstanceRecord,
-  totalWeeks = 8,
+  totalMonths = getDefaultMockHistoryMonthCount(new Date()),
 ): MockHistoryItem[] {
   const weeksPerCycle = instance.params.includeDeload ? 4 : 3;
   const trainingDayOffsets = getTrainingDayOffsets();
-  const currentWeekStart = getWeekStart(new Date());
-  const oldestWeekStart = addDays(currentWeekStart, -(totalWeeks - 1) * 7);
-  const lastWeekIndex = Math.max(totalWeeks - 1, 1);
+  const referenceDate = new Date();
+  const monthStarts = getMockHistoryMonthStarts(referenceDate, totalMonths);
+  const latestCompleteWeekStart = getLatestCompleteTrainingWeekStart(referenceDate, trainingDayOffsets);
+  const oldestRecentWeekStart = addDays(latestCompleteWeekStart, -(RECENT_MOCK_HISTORY_WEEKS - 1) * 7);
+  const oldestRecentMonthStart = getMonthStart(oldestRecentWeekStart);
+  const monthlyPeriods: MockHistoryPeriod[] = monthStarts
+    .filter((monthStart) => monthStart < oldestRecentMonthStart)
+    .map((monthStart) => ({
+      key: `month-${formatMonthKey(monthStart)}`,
+      weekStart: getMockMonthWeekStart(monthStart, referenceDate, trainingDayOffsets),
+    }));
+  const recentPeriods: MockHistoryPeriod[] = getRecentMockWeekStarts(
+    latestCompleteWeekStart,
+    RECENT_MOCK_HISTORY_WEEKS,
+  ).map((weekStart) => ({
+    key: `recent-${formatDateKey(weekStart)}`,
+    weekStart,
+  }));
+  const periods = [...monthlyPeriods, ...recentPeriods]
+    .sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime());
+  const lastPeriodIndex = Math.max(periods.length - 1, 1);
 
-  return Array.from({ length: totalWeeks }, (_, weekPosition) => {
-    const weekStart = addDays(oldestWeekStart, weekPosition * 7);
-    const progressRatio = weekPosition / lastWeekIndex;
-    const cycleIndex = -Math.ceil((totalWeeks - weekPosition) / weeksPerCycle);
-    const weekIndex = getMockWeekIndex(weekPosition, weeksPerCycle);
+  return periods.map((period, periodPosition) => {
+    const progressRatio = periodPosition / lastPeriodIndex;
+    const cycleIndex = -Math.ceil((periods.length - periodPosition) / weeksPerCycle);
+    const weekIndex = getMockWeekIndex(periodPosition, weeksPerCycle);
 
     return instance.params.liftOrder.map((lift, dayIndex) => {
       const tm = instance.state.trainingMaxes[lift];
       const dayOffset = trainingDayOffsets[dayIndex] ?? dayIndex;
-      const date = addDays(weekStart, dayOffset);
+      const date = addDays(period.weekStart, dayOffset);
       const sessionTime = SESSION_TIMES[dayIndex] ?? SESSION_TIMES[0];
       date.setHours(sessionTime.hour, sessionTime.minute, 0, 0);
 
@@ -226,7 +326,7 @@ export function buildMockHistoryItems(
       );
 
       return {
-        sessionId: `mock-history-${weekPosition}-${dayIndex}-${lift}`,
+        sessionId: `mock-history-${period.key}-${dayIndex}-${lift}`,
         instanceId: instance.instanceId,
         scheduledDate: date.toISOString(),
         cycleIndex,

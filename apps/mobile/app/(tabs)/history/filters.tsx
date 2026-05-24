@@ -5,9 +5,11 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import type { MainLift } from "@ownlift/schemas";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useRef, useState, type ComponentRef } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Card,
   Section,
@@ -21,10 +23,12 @@ import {
 import {
   normalizeHistoryLiftFilter,
   normalizeHistoryMonthFilter,
+  normalizeHistoryYearFilter,
   useHistoryFilterStore,
   type HistoryFilterOption,
   type HistoryListLiftFilterValue,
   type HistoryListMonthFilterValue,
+  type HistoryListYearFilterValue,
 } from "../../../src/history/history-filter-store";
 import { t, useLocale } from "../../../src/i18n";
 
@@ -52,6 +56,10 @@ function getMonthFilterSelectedKeys(value: HistoryListMonthFilterValue): string[
   return value === "all" ? ["all"] : value;
 }
 
+function getYearFilterSelectedKeys(value: HistoryListYearFilterValue): string[] {
+  return value === "all" ? ["all"] : value;
+}
+
 function normalizeMonthFilterForOptions(
   value: HistoryListMonthFilterValue,
   options: HistoryFilterOption[],
@@ -63,6 +71,19 @@ function normalizeMonthFilterForOptions(
   const totalOptionsCount = options.filter(opt => opt.key !== "all").length;
 
   return normalizeHistoryMonthFilter(filtered, totalOptionsCount);
+}
+
+function normalizeYearFilterForOptions(
+  value: HistoryListYearFilterValue,
+  options: HistoryFilterOption[],
+): HistoryListYearFilterValue {
+  if (value === "all") return "all";
+
+  const availableYearKeys = new Set(options.map((option) => option.key));
+  const filtered = value.filter((key) => availableYearKeys.has(key));
+  const totalOptionsCount = options.filter(opt => opt.key !== "all").length;
+
+  return normalizeHistoryYearFilter(filtered, totalOptionsCount);
 }
 
 function FilterOptionSection({
@@ -138,29 +159,42 @@ function FilterSheetAction({
 export default function HistoryFilterScreen() {
   useLocale();
 
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { height } = useWindowDimensions();
   const filterSheetRef = useRef<ComponentRef<typeof BottomSheet>>(null);
   const isClosingRouteRef = useRef(false);
+  const yearOptions = useHistoryFilterStore((state) => state.yearOptions);
   const monthOptions = useHistoryFilterStore((state) => state.monthOptions);
   const liftOptions = useHistoryFilterStore((state) => state.liftOptions);
+  const selectedYearKeys = useHistoryFilterStore((state) => state.selectedYearKeys);
   const selectedMonthKeys = useHistoryFilterStore((state) => state.selectedMonthKeys);
   const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
+  const setSelectedYearKeys = useHistoryFilterStore((state) => state.setSelectedYearKeys);
   const setSelectedMonthKeys = useHistoryFilterStore((state) => state.setSelectedMonthKeys);
   const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
 
+  const resolvedYearOptions = yearOptions.length > 0
+    ? yearOptions
+    : [{ key: "all", label: t("history.filter.all") }];
   const resolvedMonthOptions = monthOptions.length > 0
     ? monthOptions
     : [{ key: "all", label: t("history.filter.all") }];
   const resolvedLiftOptions = liftOptions.length > 0
     ? liftOptions
     : [{ key: "all", label: t("history.filter.all") }];
+  const initialYearKeys = normalizeYearFilterForOptions(selectedYearKeys, resolvedYearOptions);
   const initialMonthKeys = normalizeMonthFilterForOptions(selectedMonthKeys, resolvedMonthOptions);
   const initialListLifts = normalizeLiftFilterForOptions(selectedListLifts, resolvedLiftOptions);
   const maxSheetHeight = useMemo(() => Math.round(height * 0.84), [height]);
 
+  const [draftYearKeys, setDraftYearKeys] = useState<HistoryListYearFilterValue>(initialYearKeys);
   const [draftMonthKeys, setDraftMonthKeys] = useState<HistoryListMonthFilterValue>(initialMonthKeys);
   const [draftListLifts, setDraftListLifts] = useState<HistoryListLiftFilterValue>(initialListLifts);
+  const draftYearSelectedKeys = useMemo(
+    () => getYearFilterSelectedKeys(draftYearKeys),
+    [draftYearKeys],
+  );
   const draftMonthSelectedKeys = useMemo(
     () => getMonthFilterSelectedKeys(draftMonthKeys),
     [draftMonthKeys],
@@ -193,14 +227,36 @@ export default function HistoryFilterScreen() {
   ), []);
 
   function handleReset(): void {
+    setDraftYearKeys("all");
     setDraftMonthKeys("all");
     setDraftListLifts("all");
   }
 
   function handleApply(): void {
+    setSelectedYearKeys(draftYearKeys);
     setSelectedMonthKeys(draftMonthKeys);
     setSelectedListLifts(draftListLifts);
     handleClose();
+  }
+
+  function handleSelectYearKey(key: string): void {
+    if (key === "all") {
+      setDraftYearKeys("all");
+      return;
+    }
+
+    setDraftYearKeys((current) => {
+      if (current === "all") {
+        return [key];
+      }
+
+      const nextYearKeys = current.includes(key)
+        ? current.filter((yearKey) => yearKey !== key)
+        : [...current, key];
+
+      const totalOptionsCount = resolvedYearOptions.filter((opt) => opt.key !== "all").length;
+      return normalizeHistoryYearFilter(nextYearKeys, totalOptionsCount);
+    });
   }
 
   function handleSelectMonthKey(key: string): void {
@@ -289,7 +345,14 @@ export default function HistoryFilterScreen() {
           </View>
 
           <FilterOptionSection
-            title={t("history.filter.period")}
+            title={t("history.filter.year")}
+            options={resolvedYearOptions}
+            selectedKeys={draftYearSelectedKeys}
+            onSelect={handleSelectYearKey}
+          />
+
+          <FilterOptionSection
+            title={t("history.filter.month")}
             options={resolvedMonthOptions}
             selectedKeys={draftMonthSelectedKeys}
             onSelect={handleSelectMonthKey}
@@ -301,19 +364,19 @@ export default function HistoryFilterScreen() {
             selectedKeys={draftListLiftSelectedKeys}
             onSelect={handleSelectListLift}
           />
-
-          <View style={styles.actions}>
-            <FilterSheetAction
-              title={t("history.filter.reset")}
-              onPress={handleReset}
-            />
-            <FilterSheetAction
-              title={t("history.filter.apply")}
-              variant="primary"
-              onPress={handleApply}
-            />
-          </View>
         </BottomSheetScrollView>
+
+        <View style={[styles.actions, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <FilterSheetAction
+            title={t("history.filter.reset")}
+            onPress={handleReset}
+          />
+          <FilterSheetAction
+            title={t("history.filter.apply")}
+            variant="primary"
+            onPress={handleApply}
+          />
+        </View>
       </BottomSheet>
     </View>
   );
@@ -370,7 +433,7 @@ const styles = StyleSheet.create({
   sheetContent: {
     paddingHorizontal: spacing["2xl"],
     paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingBottom: spacing.xl,
     gap: spacing["2xl"],
   },
   sectionTitle: {
@@ -420,6 +483,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
     paddingTop: spacing.md,
+    paddingHorizontal: spacing["2xl"],
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: "rgba(255, 255, 255, 0.05)",
   },

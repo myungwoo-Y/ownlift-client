@@ -8,6 +8,7 @@ export interface HistoryFilterOption {
 
 export type HistoryListLiftFilterValue = MainLift[] | "all";
 export type HistoryListMonthFilterValue = string[] | "all";
+export type HistoryListYearFilterValue = string[] | "all";
 
 const MAIN_LIFT_COUNT = 4;
 
@@ -38,22 +39,49 @@ export function normalizeHistoryMonthFilter(
   return uniqueValues;
 }
 
+export function normalizeHistoryYearFilter(
+  value: HistoryListYearFilterValue,
+  totalOptionsCount: number,
+): HistoryListYearFilterValue {
+  if (value === "all") return "all";
+
+  const uniqueValues = Array.from(new Set(value));
+  if (uniqueValues.length === 0 || uniqueValues.length >= totalOptionsCount) {
+    return "all";
+  }
+
+  return uniqueValues;
+}
+
 interface HistoryFilterStore {
+  selectedYearKeys: HistoryListYearFilterValue;
   selectedMonthKeys: HistoryListMonthFilterValue;
   selectedListLifts: HistoryListLiftFilterValue;
+  yearOptions: HistoryFilterOption[];
   monthOptions: HistoryFilterOption[];
   liftOptions: HistoryFilterOption[];
+  setSelectedYearKeys: (value: HistoryListYearFilterValue) => void;
   setSelectedMonthKeys: (value: HistoryListMonthFilterValue) => void;
   setSelectedListLifts: (value: HistoryListLiftFilterValue) => void;
-  setAvailableOptions: (monthOptions: HistoryFilterOption[], liftOptions: HistoryFilterOption[]) => void;
+  setAvailableOptions: (
+    yearOptions: HistoryFilterOption[],
+    monthOptions: HistoryFilterOption[],
+    liftOptions: HistoryFilterOption[],
+  ) => void;
   resetFilters: () => void;
 }
 
 export const useHistoryFilterStore = create<HistoryFilterStore>((set) => ({
+  selectedYearKeys: [String(new Date().getFullYear())],
   selectedMonthKeys: "all",
   selectedListLifts: "all",
+  yearOptions: [],
   monthOptions: [],
   liftOptions: [],
+
+  setSelectedYearKeys: (value) => {
+    set({ selectedYearKeys: value });
+  },
 
   setSelectedMonthKeys: (value) => {
     set({ selectedMonthKeys: value });
@@ -63,12 +91,13 @@ export const useHistoryFilterStore = create<HistoryFilterStore>((set) => ({
     set({ selectedListLifts: normalizeHistoryLiftFilter(value) });
   },
 
-  setAvailableOptions: (monthOptions, liftOptions) => {
-    set({ monthOptions, liftOptions });
+  setAvailableOptions: (yearOptions, monthOptions, liftOptions) => {
+    set({ yearOptions, monthOptions, liftOptions });
   },
 
   resetFilters: () => {
     set({
+      selectedYearKeys: [String(new Date().getFullYear())],
       selectedMonthKeys: "all",
       selectedListLifts: "all",
     });

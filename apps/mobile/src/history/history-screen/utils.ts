@@ -33,7 +33,25 @@ export function getHistoryMonthKey(dateStr: string | null): string | null {
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return null;
 
+  return String(date.getMonth() + 1).padStart(2, "0");
+}
+
+export function getHistoryMonthSectionKey(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function getHistoryYearKey(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return String(date.getFullYear());
 }
 
 function formatHistoryMonthLabel(dateStr: string, includeYear: boolean): string {
@@ -49,7 +67,7 @@ export function buildHistoryMonthSections(items: HistoryItem[]): HistoryMonthSec
 
   for (const item of items) {
     const dateValue = getHistoryItemDate(item);
-    const monthKey = getHistoryMonthKey(dateValue) ?? "unknown";
+    const monthKey = getHistoryMonthSectionKey(dateValue) ?? "unknown";
     let section = sectionByKey.get(monthKey);
 
     if (!section) {
@@ -71,27 +89,29 @@ export function buildHistoryMonthSections(items: HistoryItem[]): HistoryMonthSec
   return sections;
 }
 
-export function buildMonthFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
+export function buildYearFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
   const options: HistoryFilterOption[] = [{ key: "all", label: t("history.filter.all") }];
-  const seenMonthKeys = new Set<string>();
-  const availableYears = new Set(
-    items
-      .map((item) => getHistoryItemDate(item))
-      .filter((value): value is string => Boolean(value))
-      .map((value) => new Date(value).getFullYear()),
-  );
-  const includeYear = availableYears.size > 1;
+  const seenYearKeys = new Set<string>();
 
   for (const item of items) {
-    const dateValue = getHistoryItemDate(item);
-    const monthKey = getHistoryMonthKey(dateValue);
-    if (!dateValue || !monthKey || seenMonthKeys.has(monthKey)) continue;
+    const yearKey = getHistoryYearKey(getHistoryItemDate(item));
+    if (!yearKey || seenYearKeys.has(yearKey)) continue;
 
-    seenMonthKeys.add(monthKey);
-    options.push({
-      key: monthKey,
-      label: formatHistoryMonthLabel(dateValue, includeYear),
-    });
+    seenYearKeys.add(yearKey);
+    options.push({ key: yearKey, label: yearKey });
+  }
+
+  return options;
+}
+
+export function buildMonthFilterOptions(items: HistoryItem[]): HistoryFilterOption[] {
+  const options: HistoryFilterOption[] = [{ key: "all", label: t("history.filter.all") }];
+
+  for (let month = 1; month <= 12; month++) {
+    const key = String(month).padStart(2, "0");
+    const date = new Date(2020, month - 1, 1);
+    const label = formatLocaleDate(date, { month: "long" });
+    options.push({ key, label });
   }
 
   return options;

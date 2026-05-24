@@ -7,9 +7,11 @@ import { Text } from "../../../src/design";
 import {
   normalizeHistoryLiftFilter,
   normalizeHistoryMonthFilter,
+  normalizeHistoryYearFilter,
   useHistoryFilterStore,
   type HistoryListLiftFilterValue,
   type HistoryListMonthFilterValue,
+  type HistoryListYearFilterValue,
 } from "../../../src/history/history-filter-store";
 import { HistoryEmptyState } from "../../../src/history/history-screen/HistoryEmptyState";
 import { HistoryListHeader } from "../../../src/history/history-screen/HistoryListHeader";
@@ -25,9 +27,11 @@ import {
   buildHistoryMonthSections,
   buildLiftFilterOptions,
   buildMonthFilterOptions,
+  buildYearFilterOptions,
   getFilterOptionLabel,
   getHistoryItemDate,
   getHistoryMonthKey,
+  getHistoryYearKey,
   getSessionEstimatedOneRepMax,
   getSessionLastWorkSetMetric,
 } from "../../../src/history/history-screen/utils";
@@ -40,8 +44,10 @@ export default function HistoryScreen() {
 
   const router = useRouter();
   const { stubs, instance } = useProgramStore();
+  const selectedYearKeys = useHistoryFilterStore((state) => state.selectedYearKeys);
   const selectedMonthKeys = useHistoryFilterStore((state) => state.selectedMonthKeys);
   const selectedListLifts = useHistoryFilterStore((state) => state.selectedListLifts);
+  const setSelectedYearKeys = useHistoryFilterStore((state) => state.setSelectedYearKeys);
   const setSelectedMonthKeys = useHistoryFilterStore((state) => state.setSelectedMonthKeys);
   const setSelectedListLifts = useHistoryFilterStore((state) => state.setSelectedListLifts);
   const setAvailableOptions = useHistoryFilterStore((state) => state.setAvailableOptions);
@@ -92,13 +98,23 @@ export default function HistoryScreen() {
     }, [instance, stubs]),
   );
 
+  const yearFilterOptions = useMemo(() => buildYearFilterOptions(items), [items]);
   const monthFilterOptions = useMemo(() => buildMonthFilterOptions(items), [items]);
   const liftFilterOptions = useMemo(() => buildLiftFilterOptions(items), [items]);
 
   useEffect(() => {
-    setAvailableOptions(monthFilterOptions, liftFilterOptions);
-  }, [liftFilterOptions, monthFilterOptions, setAvailableOptions]);
+    setAvailableOptions(yearFilterOptions, monthFilterOptions, liftFilterOptions);
+  }, [liftFilterOptions, monthFilterOptions, setAvailableOptions, yearFilterOptions]);
 
+  const activeYearKeys = useMemo<HistoryListYearFilterValue>(() => {
+    if (selectedYearKeys === "all") return "all";
+
+    const availableYearKeys = new Set(yearFilterOptions.map((option) => option.key));
+    const nextYearKeys = selectedYearKeys.filter((key) => availableYearKeys.has(key));
+    const totalOptionsCount = yearFilterOptions.filter(opt => opt.key !== "all").length;
+
+    return normalizeHistoryYearFilter(nextYearKeys, totalOptionsCount);
+  }, [selectedYearKeys, yearFilterOptions]);
   const activeMonthKeys = useMemo<HistoryListMonthFilterValue>(() => {
     if (selectedMonthKeys === "all") return "all";
 
@@ -121,24 +137,40 @@ export default function HistoryScreen() {
   const filteredItems = useMemo(
     () =>
       items.filter((item) => {
-        const itemMonthKey = getHistoryMonthKey(getHistoryItemDate(item));
+        const itemDate = getHistoryItemDate(item);
+        const itemYearKey = getHistoryYearKey(itemDate);
+        const itemMonthKey = getHistoryMonthKey(itemDate);
+        const matchesYear =
+          activeYearKeys === "all" ||
+          (itemYearKey !== null && activeYearKeys.includes(itemYearKey));
         const matchesMonth =
           activeMonthKeys === "all" ||
           (itemMonthKey !== null && activeMonthKeys.includes(itemMonthKey));
         const matchesLift = activeListLifts === "all" || activeListLifts.includes(item.mainLiftKey);
-        return matchesMonth && matchesLift;
+        return matchesYear && matchesMonth && matchesLift;
       }),
-    [activeListLifts, activeMonthKeys, items],
+    [activeListLifts, activeMonthKeys, activeYearKeys, items],
   );
   const historySections = useMemo(
     () => buildHistoryMonthSections(filteredItems),
     [filteredItems],
   );
 
-  const hasActiveFilters = activeMonthKeys !== "all" || activeListLifts !== "all";
+  const hasActiveFilters = activeYearKeys !== "all" || activeMonthKeys !== "all" || activeListLifts !== "all";
   const activeFilterChips = useMemo<ActiveFilterChip[]>(
     () =>
       [
+        ...(activeYearKeys === "all"
+          ? []
+          : activeYearKeys.map((yearKey) => ({
+              key: `year-${yearKey}`,
+              label: getFilterOptionLabel(yearFilterOptions, yearKey) ?? yearKey,
+              onRemove: () => {
+                setSelectedYearKeys(
+                  activeYearKeys.filter((selectedKey) => selectedKey !== yearKey),
+                );
+              },
+            }))),
         ...(activeMonthKeys === "all"
           ? []
           : activeMonthKeys.map((monthKey) => ({
@@ -163,10 +195,13 @@ export default function HistoryScreen() {
     [
       activeListLifts,
       activeMonthKeys,
+      activeYearKeys,
       liftFilterOptions,
       monthFilterOptions,
       setSelectedListLifts,
       setSelectedMonthKeys,
+      setSelectedYearKeys,
+      yearFilterOptions,
     ],
   );
   const activeFilterCount = activeFilterChips.length;
