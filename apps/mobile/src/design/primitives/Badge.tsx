@@ -49,10 +49,10 @@ const textSizeStyles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
   default: { backgroundColor: colors.surface },
-  completed: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
+  completed: { backgroundColor: colors.surfaceElevated },
   today: { backgroundColor: colors.primary },
-  planned: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  amrap: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border },
+  planned: { backgroundColor: colors.surface },
+  amrap: { backgroundColor: colors.surfaceElevated },
   pr: { backgroundColor: colors.accent },
 });
 

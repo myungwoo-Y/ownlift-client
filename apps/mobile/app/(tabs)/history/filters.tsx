@@ -358,11 +358,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   optionChipSelected: {
+    borderWidth: 1,
     borderColor: "rgba(214, 255, 96, 0.28)",
     backgroundColor: "rgba(214, 255, 96, 0.12)",
   },

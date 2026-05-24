@@ -40,7 +40,7 @@ export {
 export type { PrescriptionRecord } from "./repos/prescription-repo";
 
 export {
-    getSetLogsBySession, upsertSetLog
+    clearSetLogsForSession, getSetLogsBySession, upsertSetLog
 } from "./repos/set-log-repo";
 export type { SetLogRecord } from "./repos/set-log-repo";
 

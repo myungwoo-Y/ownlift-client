@@ -48,8 +48,6 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     padding: spacing["2xs"],
     borderRadius: borderRadius.full,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     overflow: "hidden",
   },
@@ -107,8 +105,6 @@ export const styles = StyleSheet.create({
     minHeight: 38,
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
     backgroundColor: "rgba(20, 20, 22, 0.92)",
   },
   filterTriggerPressed: {
@@ -461,12 +457,9 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   historyMetricChipPrimary: {
-    borderColor: "rgba(214, 255, 96, 0.2)",
     backgroundColor: "rgba(214, 255, 96, 0.12)",
   },
   historyMetricText: {

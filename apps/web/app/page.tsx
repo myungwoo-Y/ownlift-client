@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 const productPoints = [
   'Plan your next prescribed lift',
   'Log sets with low friction',
@@ -26,10 +28,24 @@ export default function Home() {
               <li key={point}>{point}</li>
             ))}
           </ul>
+          <div className="actionRow" aria-label="Launch links">
+            <p className="storeBadge">Coming soon on the App Store</p>
+            <Link className="textLink" href="/support">
+              Support
+            </Link>
+            <Link className="textLink" href="/privacy">
+              Privacy
+            </Link>
+          </div>
         </div>
         <aside className="programPanel" aria-label="Example OwnLift session">
-          <p className="panelLabel">Today</p>
-          <h2>5/3/1 Week</h2>
+          <div className="panelHeader">
+            <div>
+              <p className="panelLabel">Today</p>
+              <h2>5/3/1 Week</h2>
+            </div>
+            <span className="liftIcon" aria-hidden="true" />
+          </div>
           <dl className="sessionList">
             {sessionRows.map((row) => (
               <div key={row.label} className="sessionRow">

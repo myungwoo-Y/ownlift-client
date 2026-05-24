@@ -247,8 +247,6 @@ const styles = StyleSheet.create({
   },
   valueBox: {
     backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: 10,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -269,14 +267,13 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 10,
     backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: "auto",
   },
   checkCircleActive: {
     backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
     borderColor: colors.accent,
   },
   checkMark: {

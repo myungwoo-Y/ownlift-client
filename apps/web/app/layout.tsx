@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -17,6 +18,10 @@ export const metadata: Metadata = {
   description:
     "OwnLift is an offline-first 5/3/1 strength training program runner.",
   applicationName: "OwnLift",
+  icons: {
+    icon: "/assets/ownlift-icon.png",
+    apple: "/assets/ownlift-icon.png",
+  },
   openGraph: {
     title: "OwnLift",
     description:
@@ -43,7 +48,15 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <body>
         <header className="siteHeader">
           <Link className="brandLink" href="/" aria-label="OwnLift home">
-            OwnLift
+            <Image
+              src="/assets/ownlift-icon.png"
+              alt=""
+              width={36}
+              height={36}
+              priority
+              className="brandMark"
+            />
+            <span>OwnLift</span>
           </Link>
           <nav className="siteNav" aria-label="Primary navigation">
             {navigationLinks.map((link) => (

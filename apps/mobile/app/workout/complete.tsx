@@ -710,8 +710,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing["2xl"],
     paddingVertical: spacing.lg,
     backgroundColor: colors.surfaceGlassStrong,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   card: {
     position: "relative",
@@ -722,15 +720,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing["2xl"],
     paddingVertical: spacing.lg,
     backgroundColor: colors.surfaceGlassStrong,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   cardReward: {
+    borderWidth: 1,
     borderColor: colors.primary,
   },
   cardFeatured: {
     minHeight: 124,
-    borderColor: colors.text,
   },
   cardRewardGlow: {
     ...StyleSheet.absoluteFillObject,

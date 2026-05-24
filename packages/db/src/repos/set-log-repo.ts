@@ -137,3 +137,16 @@ export async function getSetLogsBySession(sessionId: string): Promise<SetLogReco
 
   return rows.map(rowToRecord);
 }
+
+/** Clear (soft-delete) all set logs for a session */
+export async function clearSetLogsForSession(sessionId: string): Promise<void> {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE set_logs
+     SET deleted_at = ?, dirty = 1, revision = revision + 1
+     WHERE session_id = ? AND deleted_at IS NULL`,
+    now,
+    sessionId,
+  );
+}

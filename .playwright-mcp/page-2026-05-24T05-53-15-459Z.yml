@@ -1,0 +1,51 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - link "OwnLift home" [ref=e3] [cursor=pointer]:
+      - /url: /
+      - generic [ref=e4]: OwnLift
+    - navigation "Primary navigation" [ref=e5]:
+      - link "Support" [ref=e6] [cursor=pointer]:
+        - /url: /support
+      - link "Privacy" [ref=e7] [cursor=pointer]:
+        - /url: /privacy
+  - main [ref=e8]:
+    - region "OwnLift" [ref=e9]:
+      - generic [ref=e10]:
+        - paragraph [ref=e11]: Offline-first strength training
+        - heading "OwnLift" [level=1] [ref=e12]
+        - paragraph [ref=e13]: An offline-first 5/3/1 strength training program runner.
+        - list "OwnLift features" [ref=e14]:
+          - listitem [ref=e15]: Plan your next prescribed lift
+          - listitem [ref=e16]: Log sets with low friction
+          - listitem [ref=e17]: Track training maxes and workout history locally
+          - listitem [ref=e18]: No account required
+        - generic "Launch links" [ref=e19]:
+          - paragraph [ref=e20]: Coming soon on the App Store
+          - link "Support" [ref=e21] [cursor=pointer]:
+            - /url: /support
+          - link "Privacy" [ref=e22] [cursor=pointer]:
+            - /url: /privacy
+      - complementary "Example OwnLift session" [ref=e23]:
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: Today
+          - heading "5/3/1 Week" [level=2] [ref=e27]
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - term [ref=e30]: Main lift
+            - definition [ref=e31]: Squat
+          - generic [ref=e32]:
+            - term [ref=e33]: Top set
+            - definition [ref=e34]: 295 x 5+
+          - generic [ref=e35]:
+            - term [ref=e36]: Training max
+            - definition [ref=e37]: 345 lb
+        - paragraph [ref=e38]: Next prescribed action
+        - paragraph [ref=e39]: 315 x 1+
+  - contentinfo [ref=e40]:
+    - paragraph [ref=e41]: OwnLift stores training data on device and requires no account.
+    - navigation "Footer navigation" [ref=e42]:
+      - link "Support" [ref=e43] [cursor=pointer]:
+        - /url: /support
+      - link "Privacy" [ref=e44] [cursor=pointer]:
+        - /url: /privacy
+  - alert [ref=e45]

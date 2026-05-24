@@ -7,7 +7,7 @@ import {
   type ReturnKeyTypeOptions,
   type TextInputSubmitEditingEventData,
 } from "react-native";
-import { borderRadius, colors, fontSize, fontWeight, spacing } from "../tokens";
+import { borderRadius, colors, fontSize, spacing } from "../tokens";
 import { Text } from "./Text";
 
 interface NumericInputProps {
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.lg,
-    fontWeight: fontWeight.medium,
+    fontFamily: "Inter_500Medium",
     color: colors.text,
     minWidth: 72,
     textAlign: "center",

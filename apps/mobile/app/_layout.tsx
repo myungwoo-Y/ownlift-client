@@ -2,6 +2,7 @@ import { getSetting, runMigrations, setDatabase } from "@ownlift/db";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { DarkTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack, useRouter, useSegments } from "expo-router";
+import * as Font from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import * as SystemUI from "expo-system-ui";
@@ -10,6 +11,13 @@ import { useEffect, useState } from "react";
 import { Appearance, StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
+} from "@expo-google-fonts/inter";
 import { colors } from "../src/design/tokens";
 import { setLocale, useLocale } from "../src/i18n";
 import { useProgramStore } from "../src/stores/program-store";
@@ -55,6 +63,15 @@ export default function RootLayout() {
         // 2. Load stores
         await useSettingsStore.getState().loadSettings();
         await useProgramStore.getState().loadProgram();
+
+        // 3. Load Fonts
+        await Font.loadAsync({
+          Inter_400Regular,
+          Inter_500Medium,
+          Inter_600SemiBold,
+          Inter_700Bold,
+          Inter_800ExtraBold,
+        });
 
         setIsReady(true);
       } catch (error) {

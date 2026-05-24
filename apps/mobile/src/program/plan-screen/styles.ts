@@ -62,8 +62,6 @@ export const styles = StyleSheet.create({
     borderCurve: "continuous",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.05)",
     backgroundColor: "rgba(20, 20, 22, 0.92)",
   },
   sectionIconButtonPressed: {
@@ -80,8 +78,6 @@ export const styles = StyleSheet.create({
     paddingRight: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
-    borderWidth: 1,
-    borderColor: "rgba(6, 16, 24, 0.05)",
     backgroundColor: "#CAE95A",
     boxShadow: "0px 12px 24px rgba(6, 16, 24, 0.1)",
   },
@@ -215,8 +211,6 @@ export const styles = StyleSheet.create({
     gap: spacing["2xl"],
     borderRadius: 28,
     borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: colors.border,
     padding: spacing.lg,
     boxShadow: "0px 22px 44px rgba(0, 0, 0, 0.18)",
   },
@@ -368,8 +362,6 @@ export const styles = StyleSheet.create({
     height: "100%",
   },
   dragHandle: {
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
     borderRadius: borderRadius.lg,
     borderCurve: "continuous",
     backgroundColor: colors.surfaceGlass,
@@ -383,7 +375,6 @@ export const styles = StyleSheet.create({
     marginLeft: spacing.xs,
   },
   dragHandleActive: {
-    borderColor: "rgba(255, 255, 255, 0.14)",
     backgroundColor: colors.surfaceGlassStrong,
   },
   dragHandleText: {

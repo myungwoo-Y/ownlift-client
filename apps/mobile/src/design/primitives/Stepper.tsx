@@ -90,12 +90,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   buttonPressed: {
     backgroundColor: colors.surfaceMuted,
-    borderColor: colors.borderStrong,
     opacity: 0.9,
     transform: [{ scale: motion.scale.press }],
   },

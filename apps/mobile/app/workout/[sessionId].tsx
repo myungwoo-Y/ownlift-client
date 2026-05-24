@@ -1,4 +1,4 @@
-import { updateStubStatus } from "@ownlift/db";
+import { clearSetLogsForSession, updateStubStatus } from "@ownlift/db";
 import type { PrescriptionData } from "@ownlift/schemas";
 import {
   BottomSheetBackdrop,
@@ -9,6 +9,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Check } from "lucide-react-native";
 import { useCallback, useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   Alert,
@@ -18,29 +19,28 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput as RNTextInput,
   View,
   findNodeHandle,
-  type DimensionValue,
   type TextInput,
 } from "react-native";
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  Badge,
   borderRadius,
   Button,
   Card,
   colors,
-  Divider,
   FLOATING_NAV_CONTENT_TOP_OFFSET,
   FloatingBackNav,
-  NumericInput,
-  Section,
+  fontSize,
+  fontWeight,
   spacing,
   Text,
+  Badge,
 } from "../../src/design";
-import { getLiftLabel, getWeekLabel, t, useLocale } from "../../src/i18n";
+import { getLiftLabel, t, useLocale } from "../../src/i18n";
 import { loadSyncedPrescriptionForSession } from "../../src/program/prescription-sync";
 import { useProgramStore } from "../../src/stores/program-store";
 import { useSettingsStore } from "../../src/stores/settings-store";
@@ -66,6 +66,16 @@ function formatDuration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(remaining).padStart(2, "0")}`;
+}
+
+function sanitizeReps(value: string): string {
+  return value.replace(/[^0-9]/g, "");
+}
+
+function sanitizeWeight(value: string): string {
+  const clean = value.replace(/[^0-9.]/g, "");
+  const parts = clean.split(".");
+  return parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : clean;
 }
 
 export default function WorkoutScreen() {
@@ -220,11 +230,20 @@ export default function WorkoutScreen() {
     ? sets.find((item) => !item.isCompleted) ?? null
     : null;
   const currentSetId = currentSet?.id ?? null;
+  const lastSetId = isWorkoutActive && sets.length > 0
+    ? sets[sets.length - 1]?.id ?? null
+    : null;
   const shouldAutoFocusCurrentSet = isWorkoutActive && currentSet?.isAmrap === true;
   const scrollContentBottomPadding = Math.max(
     spacing["3xl"],
     ctaHeight + spacing["4xl"],
   );
+
+  const scrollToWorkoutBottom = useCallback((delayMs = 80) => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+    }, delayMs);
+  }, []);
 
   useEffect(() => {
     if (restSecondsRemaining <= 0 || isRestTimerPaused) {
@@ -283,12 +302,18 @@ export default function WorkoutScreen() {
     const frameSubscription = Platform.OS === "ios"
       ? Keyboard.addListener("keyboardDidChangeFrame", scrollFocusedRepsInputIntoView)
       : null;
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      if (focusedRepsSetIdRef.current === lastSetId) {
+        scrollToWorkoutBottom(0);
+      }
+    });
 
     return () => {
       showSubscription.remove();
       frameSubscription?.remove();
+      hideSubscription.remove();
     };
-  }, [scrollFocusedRepsInputIntoView]);
+  }, [lastSetId, scrollFocusedRepsInputIntoView, scrollToWorkoutBottom]);
 
   useEffect(() => {
     if (!shouldAutoFocusCurrentSet || !currentSetId) return;
@@ -315,6 +340,14 @@ export default function WorkoutScreen() {
     focusedRepsSetIdRef.current = setId;
     scrollInputIntoView(repsInputRefs.current.get(setId) ?? null);
   }, [scrollInputIntoView]);
+
+  const handleRepsSubmitEditing = useCallback((setId: string) => {
+    focusedRepsSetIdRef.current = setId;
+
+    if (setId === lastSetId) {
+      scrollToWorkoutBottom();
+    }
+  }, [lastSetId, scrollToWorkoutBottom]);
 
   const presentRestTimerSheet = useCallback(() => {
     restTimerSheetRef.current?.present();
@@ -357,14 +390,10 @@ export default function WorkoutScreen() {
     );
   }
 
-  const weekLabel = getWeekLabel(stub.weekIndex);
   const visibleSets = isWorkoutActive
     ? sets
     : prescription.sets
         .map(toPreviewSetState);
-  const workoutCompletedCount = visibleSets.filter((item) => item.isCompleted).length;
-  const workoutTotalCount = visibleSets.length;
-  const workoutProgressPercentage = Math.round((workoutCompletedCount / Math.max(workoutTotalCount, 1)) * 100);
   const allSetsCompleted = sets.every((item) => item.isCompleted);
   const warmupSets = visibleSets.filter((setData) => setData.prescribed.isWarmup);
   const workSets = visibleSets.filter((setData) => !setData.prescribed.isWarmup);
@@ -454,6 +483,11 @@ export default function WorkoutScreen() {
       }
     }
 
+    if (nextCompleted && !willHaveRemainingSets) {
+      Keyboard.dismiss();
+      scrollToWorkoutBottom(120);
+    }
+
     return true;
   };
 
@@ -494,6 +528,20 @@ export default function WorkoutScreen() {
     }
   };
 
+  const handleExitWorkout = async () => {
+    try {
+      if (sessionId) {
+        await clearSetLogsForSession(sessionId);
+        await updateStubStatus({ sessionId, status: "planned" });
+        void loadProgram();
+      }
+    } catch (error) {
+      console.error("Failed to discard workout on exit:", error);
+    } finally {
+      goBack();
+    }
+  };
+
   const confirmExit = () => {
     if (isSubmitting) return;
     if (!isWorkoutActive) {
@@ -506,7 +554,7 @@ export default function WorkoutScreen() {
       t("workout.exitMessage"),
       [
         { text: t("workout.stay"), style: "cancel" },
-        { text: t("workout.exit"), style: "destructive", onPress: goBack },
+        { text: t("workout.exit"), style: "destructive", onPress: () => void handleExitWorkout() },
       ],
     );
   };
@@ -551,43 +599,13 @@ export default function WorkoutScreen() {
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
         >
           <View style={styles.header}>
-            <View style={styles.headerRow}>
-              <Text variant="title">
-                {getLiftLabel(stub.mainLiftKey)}
-              </Text>
-              <Text variant="subtitle">
-                {t("workout.subtitle", { week: stub.weekIndex + 1, label: weekLabel })}
-              </Text>
-            </View>
-            <View style={styles.badgeRow}>
-              {isTodaySession ? (
-                <Badge variant="today" label={t("status.today")} />
-              ) : (
-                <Badge
-                  variant={stub.status === "completed" ? "completed" : "planned"}
-                  label={stub.status === "completed" ? t("status.completed") : t("status.planned")}
-                />
-              )}
-              {workSets.some((setData) => setData.isAmrap) ? (
-                <Badge variant="amrap" label={t("badge.amrap")} />
-              ) : null}
-            </View>
-            <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>{t("workout.progress.current")}</Text>
-              <Text style={styles.progressValue}>
-                {String(workoutCompletedCount)}/{String(workoutTotalCount)}
-              </Text>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View
-                style={[
-                  styles.progressBarFill,
-                  { width: `${workoutProgressPercentage}%` as DimensionValue },
-                ]}
-              />
-            </View>
+            <Text style={styles.workoutTitle} adjustsFontSizeToFit numberOfLines={1}>
+              {getLiftLabel(stub.mainLiftKey)}
+            </Text>
+            <Text style={styles.workoutWeek}>
+              {t("week.title", { week: stub.weekIndex + 1 })}
+            </Text>
           </View>
-          <Divider />
 
           {!isWorkoutActive ? (
             <Card>
@@ -602,39 +620,42 @@ export default function WorkoutScreen() {
           ) : null}
 
           {warmupSets.length > 0 ? (
-            <Section
-              title={t("workout.section.warmupSets")}
-              headerAccessory={isWorkoutActive ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={t("workout.warmupCompleteAll")}
-                  disabled={!canCompleteWarmups}
-                  onPress={() => void handleCompleteWarmups()}
-                  style={({ pressed }) => [
-                    styles.warmupShortcutButton,
-                    pressed && canCompleteWarmups ? styles.warmupShortcutButtonPressed : null,
-                    !canCompleteWarmups ? styles.warmupShortcutButtonDisabled : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.warmupShortcutText,
-                      !canCompleteWarmups ? styles.warmupShortcutTextDisabled : null,
+            <View style={styles.setGroup}>
+              <View style={styles.setGroupHeader}>
+                <Text style={styles.setGroupTitle}>{t("workout.section.warmupSets")}</Text>
+                {isWorkoutActive ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("workout.warmupCompleteAll")}
+                    disabled={!canCompleteWarmups}
+                    onPress={() => void handleCompleteWarmups()}
+                    style={({ pressed }) => [
+                      styles.warmupShortcutButton,
+                      pressed && canCompleteWarmups ? styles.warmupShortcutButtonPressed : null,
+                      !canCompleteWarmups ? styles.warmupShortcutButtonDisabled : null,
                     ]}
                   >
-                    {isCompletingWarmups
-                      ? t("workout.warmupCompleting")
-                      : incompleteWarmupSets.length > 0
-                        ? t("workout.warmupCompleteAll")
-                        : t("workout.warmupCompleteAllDone")}
-                  </Text>
-                </Pressable>
-              ) : null}
-            >
-              {warmupSets.map((setData) => (
+                    <Text
+                      style={[
+                        styles.warmupShortcutText,
+                        !canCompleteWarmups ? styles.warmupShortcutTextDisabled : null,
+                      ]}
+                    >
+                      {isCompletingWarmups
+                        ? t("workout.warmupCompleting")
+                        : incompleteWarmupSets.length > 0
+                          ? t("workout.warmupCompleteAll")
+                          : t("workout.warmupCompleteAllDone")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              <SetTableHeader />
+              {warmupSets.map((setData, index) => (
                 <SetCard
                   key={setData.id}
                   data={setData}
+                  displaySetNumber={index + 1}
                   unit={instance.params.unit}
                   editable={isWorkoutActive}
                   canToggle={isWorkoutActive && (setData.isCompleted || currentSetId === setData.id)}
@@ -643,19 +664,29 @@ export default function WorkoutScreen() {
                     repsInputRefs.current.set(setData.id, node);
                   }}
                   onRepsFocus={() => handleRepsInputFocus(setData.id)}
-                  onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
-                  onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
+                  onRepsSubmitEditing={() => handleRepsSubmitEditing(setData.id)}
+                  onChangeWeight={(value) => updateSet(setData.id, "actualWeight", sanitizeWeight(value))}
+                  onChangeReps={(value) => updateSet(setData.id, "actualReps", sanitizeReps(value))}
                   onToggle={() => void handleToggleSet(setData)}
                 />
               ))}
-            </Section>
+            </View>
           ) : null}
 
-          <Section title={t("workout.section.workSets")}>
-            {workSets.map((setData) => (
+          <View style={styles.setGroup}>
+            {warmupSets.length > 0 ? (
+              <View style={styles.setGroupHeader}>
+                <Text style={[styles.setGroupTitle, styles.workSetsTitle]}>
+                  {t("workout.section.workSets")}
+                </Text>
+              </View>
+            ) : null}
+            <SetTableHeader />
+            {workSets.map((setData, index) => (
               <SetCard
                 key={setData.id}
                 data={setData}
+                displaySetNumber={index + 1}
                 unit={instance.params.unit}
                 editable={isWorkoutActive}
                 canToggle={isWorkoutActive && (setData.isCompleted || currentSetId === setData.id)}
@@ -664,12 +695,13 @@ export default function WorkoutScreen() {
                   repsInputRefs.current.set(setData.id, node);
                 }}
                 onRepsFocus={() => handleRepsInputFocus(setData.id)}
-                onChangeWeight={(value) => updateSet(setData.id, "actualWeight", value)}
-                onChangeReps={(value) => updateSet(setData.id, "actualReps", value)}
+                onRepsSubmitEditing={() => handleRepsSubmitEditing(setData.id)}
+                onChangeWeight={(value) => updateSet(setData.id, "actualWeight", sanitizeWeight(value))}
+                onChangeReps={(value) => updateSet(setData.id, "actualReps", sanitizeReps(value))}
                 onToggle={() => void handleToggleSet(setData)}
               />
             ))}
-          </Section>
+          </View>
 
         </ScrollView>
 
@@ -860,8 +892,84 @@ function TimerSheetAction({
   );
 }
 
+function SetTableHeader() {
+  return (
+    <View style={styles.setTableHeader}>
+      <View style={styles.setNumberColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.set")}</Text>
+      </View>
+      <View style={styles.weightColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.weight")}</Text>
+      </View>
+      <View style={styles.repsColumn}>
+        <Text style={styles.setTableHeaderText}>{t("workout.table.reps")}</Text>
+      </View>
+      <View style={styles.statusColumn} />
+    </View>
+  );
+}
+
+function SetMetricInput({
+  value,
+  unit,
+  onChangeText,
+  editable,
+  muted,
+  metric,
+  inputRef,
+  onFocus,
+  onSubmitEditing,
+  onBlur,
+  highlighted,
+}: {
+  value: string;
+  unit: string;
+  onChangeText: (v: string) => void;
+  editable: boolean;
+  muted: boolean;
+  metric: "weight" | "reps";
+  inputRef?: (node: TextInput | null) => void;
+  onFocus?: () => void;
+  onSubmitEditing?: () => void;
+  onBlur?: () => void;
+  highlighted?: boolean;
+}) {
+  return (
+    <View style={styles.metricGroup}>
+      <RNTextInput
+        ref={inputRef}
+        style={[
+          styles.metricInput,
+          metric === "weight" ? styles.metricInputWeight : styles.metricInputReps,
+          muted ? styles.metricInputMuted : null,
+          highlighted ? styles.metricInputHighlighted : null,
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={onFocus}
+        onSubmitEditing={onSubmitEditing}
+        onBlur={onBlur}
+        keyboardType="numeric"
+        selectionColor={colors.primary}
+        editable={editable}
+        selectTextOnFocus
+      />
+      <Text
+        style={[
+          styles.metricUnit,
+          muted ? styles.metricUnitMuted : null,
+          highlighted ? styles.metricUnitHighlighted : null,
+        ]}
+      >
+        {unit}
+      </Text>
+    </View>
+  );
+}
+
 function SetCard({
   data,
+  displaySetNumber,
   unit,
   onChangeWeight,
   onChangeReps,
@@ -870,9 +978,11 @@ function SetCard({
   canToggle,
   repsInputRef,
   onRepsFocus,
+  onRepsSubmitEditing,
   editable = true,
 }: {
   data: WorkoutSetType;
+  displaySetNumber: number;
   unit: string;
   onChangeWeight: (v: string) => void;
   onChangeReps: (v: string) => void;
@@ -881,73 +991,90 @@ function SetCard({
   canToggle: boolean;
   repsInputRef?: (node: TextInput | null) => void;
   onRepsFocus?: () => void;
+  onRepsSubmitEditing?: () => void;
   editable?: boolean;
 }) {
   const isCurrentSet = editable && isCurrent;
+  const isMuted = !data.isCompleted && !isCurrentSet;
+  const checkColor = data.isCompleted
+    ? colors.primaryForeground
+    : isCurrentSet
+      ? colors.primary
+      : colors.textTertiary;
+
+  const handleRepsBlur = () => {
+    const reps = parseInt(data.actualReps, 10);
+    if (!data.isCompleted && Number.isFinite(reps) && reps > 0) {
+      onToggle();
+    }
+  };
 
   return (
     <Card
       highlighted={isCurrentSet}
       style={[
+        styles.setRowCard,
         data.isCompleted && styles.completedSetCard,
         isCurrentSet && styles.currentSetCard,
       ]}
     >
-      <View style={styles.setHeader}>
-        <View style={styles.setLabelRow}>
-          <Text style={styles.setLabel}>{t("workout.setLabel", { set: data.setOrder + 1 })}</Text>
-          {editable ? (
-            <View
-              style={!isCurrentSet && styles.hiddenCurrentSetBadge}
-              pointerEvents="none"
-              accessibilityElementsHidden={!isCurrentSet}
-              importantForAccessibility={isCurrentSet ? "auto" : "no-hide-descendants"}
-            >
-              <Badge variant="today" label={t("workout.currentSet")} />
-            </View>
-          ) : null}
-          {data.isAmrap ? <Badge variant="amrap" label={t("badge.amrap")} /> : null}
+      {data.isAmrap && (
+        <View style={styles.cardTopBadgeContainer}>
+          <Badge variant="amrap" label={t("badge.amrap")} size="compact" />
         </View>
-        <Text variant="caption">
-          {String(data.prescribed.targetWeight)}{unit} × {String(data.prescribed.targetReps)}
-        </Text>
-      </View>
-
-      <View style={styles.setInputRow}>
-        <View style={styles.setInputGroup}>
-          <NumericInput
+      )}
+      <View style={styles.setRowContent}>
+        <View style={styles.setNumberColumn}>
+          <Text
+            style={[
+              styles.setNumber,
+              (data.isCompleted || isCurrentSet) ? styles.setNumberActive : styles.setNumberMuted,
+            ]}
+          >
+            {String(displaySetNumber)}
+          </Text>
+        </View>
+        <View style={styles.weightColumn}>
+          <SetMetricInput
             value={data.actualWeight}
             onChangeText={onChangeWeight}
-            unit={`${unit} ×`}
+            unit={unit}
             editable={editable}
+            muted={isMuted}
+            metric="weight"
           />
-          <NumericInput
+        </View>
+        <View style={styles.repsColumn}>
+          <SetMetricInput
             value={data.actualReps}
             onChangeText={onChangeReps}
             unit={t("unit.reps")}
             editable={editable}
-            ref={repsInputRef}
+            muted={isMuted}
+            metric="reps"
+            inputRef={repsInputRef}
             onFocus={onRepsFocus}
+            onSubmitEditing={onRepsSubmitEditing}
+            onBlur={handleRepsBlur}
+            highlighted={data.isAmrap && data.actualReps.trim().length > 0}
           />
         </View>
-        <Pressable
-          style={[
-            styles.checkButton,
-            data.isCompleted && styles.checkButtonActive,
-            !canToggle && styles.checkButtonDisabled,
-          ]}
-          onPress={onToggle}
-          disabled={!canToggle}
-        >
-          <Text
+        <View style={styles.statusColumn}>
+          <Pressable
             style={[
-              styles.checkMark,
-              data.isCompleted && styles.checkMarkActive,
+              styles.checkButton,
+              data.isCompleted && styles.checkButtonActive,
+              isCurrentSet && !data.isCompleted ? styles.checkButtonCurrent : null,
+              !canToggle && styles.checkButtonDisabled,
             ]}
+            accessibilityRole="button"
+            accessibilityLabel={t("workout.setLabel", { set: displaySetNumber })}
+            onPress={onToggle}
+            disabled={!canToggle}
           >
-            ✓
-          </Text>
-        </Pressable>
+            <Check size={28} strokeWidth={2.6} color={checkColor} />
+          </Pressable>
+        </View>
       </View>
     </Card>
   );
@@ -977,45 +1104,17 @@ const styles = StyleSheet.create({
     gap: spacing["2xl"],
   },
   header: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "baseline",
-  },
-  badgeRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  progressHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
-    marginTop: spacing.xs,
-  },
-  progressTitle: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textSecondary,
-  },
-  progressValue: {
-    fontSize: 13,
-    fontWeight: "700",
+  workoutTitle: {
+    fontSize: fontSize["4xl"],
+    fontWeight: fontWeight.extrabold,
     color: colors.text,
   },
-  progressBarContainer: {
-    height: 6,
-    backgroundColor: colors.surface,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  progressBarFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
-    borderRadius: 3,
+  workoutWeek: {
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
   },
   previewNotice: {
     gap: spacing.xs,
@@ -1051,69 +1150,143 @@ const styles = StyleSheet.create({
   warmupShortcutTextDisabled: {
     color: colors.textTertiary,
   },
+  setGroup: {
+    gap: spacing.md,
+  },
+  setGroupHeader: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  setGroupTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  workSetsTitle: {
+    color: colors.primary,
+  },
+  setTableHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
+  setTableHeaderText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.medium,
+    color: colors.textTertiary,
+    textAlign: "center",
+  },
+  setNumberColumn: {
+    width: 40,
+    alignItems: "center",
+  },
+  weightColumn: {
+    flex: 1.05,
+    alignItems: "center",
+  },
+  repsColumn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statusColumn: {
+    width: 56,
+    alignItems: "center",
+  },
+  setRowCard: {
+    minHeight: 88,
+    padding: 0,
+    justifyContent: "center",
+  },
   currentSetCard: {
     borderWidth: 1,
     borderColor: colors.primary,
   },
   completedSetCard: {
-    borderWidth: 1,
-    borderColor: "rgba(214, 255, 96, 0.28)",
-    backgroundColor: "rgba(214, 255, 96, 0.05)",
   },
-  setHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  setLabelRow: {
+  setRowContent: {
+    minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
   },
-  setLabel: {
-    fontSize: 13,
-    fontWeight: "600",
+  setNumber: {
+    fontSize: fontSize["2xl"],
+    fontWeight: fontWeight.bold,
+  },
+  setNumberActive: {
+    color: colors.primary,
+  },
+  setNumberMuted: {
     color: colors.textSecondary,
   },
-  hiddenCurrentSetBadge: {
-    opacity: 0,
-  },
-  setInputRow: {
+  metricGroup: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: spacing.md,
+    alignItems: "baseline",
+    gap: spacing.xs,
   },
-  setInputGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
+  metricInput: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    fontSize: fontSize["2xl"],
+    fontFamily: "Inter_500Medium",
+    color: colors.text,
+    textAlign: "right",
+  },
+  metricInputWeight: {
+    width: 52,
+  },
+  metricInputReps: {
+    width: 32,
+  },
+  metricInputMuted: {
+    color: colors.textSecondary,
+  },
+  metricInputHighlighted: {
+    color: colors.primary,
+  },
+  cardTopBadgeContainer: {
+    position: "absolute",
+    top: -9,
+    left: 20,
+    zIndex: 10,
+  },
+  metricUnit: {
+    fontSize: fontSize.xl,
+    fontWeight: fontWeight.medium,
+    color: colors.textSecondary,
+  },
+  metricUnitMuted: {
+    color: colors.textTertiary,
+  },
+  metricUnitHighlighted: {
+    color: colors.primary,
   },
   checkButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.md,
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.lg,
     backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   checkButtonActive: {
-    backgroundColor: colors.primarySoft,
-    borderColor: "rgba(214, 255, 96, 0.38)",
+    backgroundColor: colors.primary,
+  },
+  checkButtonCurrent: {
+    backgroundColor: colors.transparent,
+    borderWidth: 1,
+    borderColor: colors.primary,
   },
   checkButtonDisabled: {
-    opacity: 0.45,
-  },
-  checkMark: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.textSecondary,
-  },
-  checkMarkActive: {
-    color: colors.accent,
+    backgroundColor: colors.transparent,
+    borderWidth: 1,
+    borderColor: colors.textTertiary,
   },
   ctaContainer: {
     position: "absolute",
@@ -1135,8 +1308,6 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden",
     borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
     backgroundColor: colors.surface,
   },
   restBarPressed: {

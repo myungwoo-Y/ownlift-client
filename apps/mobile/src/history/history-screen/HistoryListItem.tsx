@@ -66,7 +66,7 @@ function HistoryListItemComponent({
                 {item.estimatedOneRepMax != null ? (
                   <View style={[styles.historyMetricChip, styles.historyMetricChipPrimary]}>
                     <Text style={styles.historyMetricText}>
-                      {`e1RM ${formatMeasurement(item.estimatedOneRepMax, unitLabel)}`}
+                      {`${t("history.estimatedMaxLabel")} ${formatMeasurement(item.estimatedOneRepMax, unitLabel)}`}
                     </Text>
                   </View>
                 ) : null}
