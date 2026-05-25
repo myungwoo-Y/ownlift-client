@@ -24,7 +24,7 @@ import {
   findNodeHandle,
   type TextInput,
 } from "react-native";
-import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming, withSpring } from "react-native-reanimated";
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from "react-native-svg";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -108,6 +108,7 @@ export default function WorkoutScreen() {
   const repsInputRefs = useRef(new Map<string, TextInput | null>());
   const focusedRepsSetIdRef = useRef<string | null>(null);
   const scrollViewRef = useRef<ScrollView | null>(null);
+  const workSetsYRef = useRef(0);
   const [ctaHeight, setCtaHeight] = useState(0);
 
   const stub = stubs.find((item) => item.sessionId === sessionId);
@@ -304,7 +305,7 @@ export default function WorkoutScreen() {
       : null;
     const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
       if (focusedRepsSetIdRef.current === lastSetId) {
-        scrollToWorkoutBottom(0);
+        scrollToWorkoutBottom(350);
       }
     });
 
@@ -484,8 +485,11 @@ export default function WorkoutScreen() {
     }
 
     if (nextCompleted && !willHaveRemainingSets) {
+      const wasKeyboardFocused = focusedRepsSetIdRef.current === lastSetId;
       Keyboard.dismiss();
-      scrollToWorkoutBottom(120);
+      if (!wasKeyboardFocused) {
+        scrollToWorkoutBottom(100);
+      }
     }
 
     return true;
@@ -502,6 +506,14 @@ export default function WorkoutScreen() {
       for (const setData of incompleteWarmupSets) {
         await toggleSetComplete(setData.id);
       }
+
+      setTimeout(() => {
+        const scrollToY = Math.max(
+          0,
+          workSetsYRef.current - FLOATING_NAV_CONTENT_TOP_OFFSET - spacing.md,
+        );
+        scrollViewRef.current?.scrollTo({ y: scrollToY, animated: true });
+      }, 150);
     } catch (error) {
       console.error("Failed to complete warm-up sets:", error);
       Alert.alert(
@@ -668,12 +680,18 @@ export default function WorkoutScreen() {
                   onChangeWeight={(value) => updateSet(setData.id, "actualWeight", sanitizeWeight(value))}
                   onChangeReps={(value) => updateSet(setData.id, "actualReps", sanitizeReps(value))}
                   onToggle={() => void handleToggleSet(setData)}
+                  canAutoToggleOnBlur={index === warmupSets.length - 1 ? (index > 0 ? warmupSets[index - 1].isCompleted : true) : true}
                 />
               ))}
             </View>
           ) : null}
 
-          <View style={styles.setGroup}>
+          <View
+            style={styles.setGroup}
+            onLayout={(event) => {
+              workSetsYRef.current = event.nativeEvent.layout.y;
+            }}
+          >
             {warmupSets.length > 0 ? (
               <View style={styles.setGroupHeader}>
                 <Text style={[styles.setGroupTitle, styles.workSetsTitle]}>
@@ -699,6 +717,7 @@ export default function WorkoutScreen() {
                 onChangeWeight={(value) => updateSet(setData.id, "actualWeight", sanitizeWeight(value))}
                 onChangeReps={(value) => updateSet(setData.id, "actualReps", sanitizeReps(value))}
                 onToggle={() => void handleToggleSet(setData)}
+                canAutoToggleOnBlur={index === workSets.length - 1 ? (index > 0 ? workSets[index - 1].isCompleted : true) : true}
               />
             ))}
           </View>
@@ -980,6 +999,7 @@ function SetCard({
   onRepsFocus,
   onRepsSubmitEditing,
   editable = true,
+  canAutoToggleOnBlur = true,
 }: {
   data: WorkoutSetType;
   displaySetNumber: number;
@@ -993,6 +1013,7 @@ function SetCard({
   onRepsFocus?: () => void;
   onRepsSubmitEditing?: () => void;
   editable?: boolean;
+  canAutoToggleOnBlur?: boolean;
 }) {
   const isCurrentSet = editable && isCurrent;
   const isMuted = !data.isCompleted && !isCurrentSet;
@@ -1002,9 +1023,24 @@ function SetCard({
       ? colors.primary
       : colors.textTertiary;
 
+  const activeProgress = useSharedValue(isCurrentSet ? 1 : 0);
+
+  useEffect(() => {
+    activeProgress.value = withTiming(isCurrentSet ? 1 : 0, {
+      duration: 250,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [isCurrentSet]);
+
+  const animatedBorderStyle = useAnimatedStyle(() => {
+    return {
+      opacity: activeProgress.value,
+    };
+  });
+
   const handleRepsBlur = () => {
     const reps = parseInt(data.actualReps, 10);
-    if (!data.isCompleted && Number.isFinite(reps) && reps > 0) {
+    if (!data.isCompleted && Number.isFinite(reps) && reps > 0 && canAutoToggleOnBlur) {
       onToggle();
     }
   };
@@ -1015,9 +1051,9 @@ function SetCard({
       style={[
         styles.setRowCard,
         data.isCompleted && styles.completedSetCard,
-        isCurrentSet && styles.currentSetCard,
       ]}
     >
+      <Animated.View style={[styles.animatedBorder, animatedBorderStyle]} pointerEvents="none" />
       {data.isAmrap && (
         <View style={styles.cardTopBadgeContainer}>
           <Badge variant="amrap" label={t("badge.amrap")} size="compact" />
@@ -1206,6 +1242,16 @@ const styles = StyleSheet.create({
   currentSetCard: {
     borderWidth: 1,
     borderColor: colors.primary,
+  },
+  animatedBorder: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
   },
   completedSetCard: {
   },

@@ -52,7 +52,11 @@ const variantStyles = StyleSheet.create({
   completed: { backgroundColor: colors.surfaceElevated },
   today: { backgroundColor: colors.primary },
   planned: { backgroundColor: colors.surface },
-  amrap: { backgroundColor: colors.surfaceElevated },
+  amrap: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
   pr: { backgroundColor: colors.accent },
 });
 

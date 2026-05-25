@@ -335,7 +335,7 @@ const messages = {
     "history.allLiftTrendPlaceholder": "스쿼트, 벤치, 데드, 오버헤드프레스 중 하나를 선택하면 강도 변화를 볼 수 있어요.",
     "history.completedWorkouts": "완료 운동",
     "history.latestWorkout": "최근 운동",
-    "history.lift.change.suffix": " (이전 대비)",
+    "history.lift.change.suffix": " (직전 대비)",
     "history.weeklyWorkoutTitle": "최근 4주 운동 횟수",
     "history.weeklyWorkoutHelper": "최근 4주 동안 얼마나 꾸준히 운동했는지 보여줍니다",
     "history.weeklyWorkoutEmptyTitle": "아직 주간 운동 패턴이 충분하지 않아요",
