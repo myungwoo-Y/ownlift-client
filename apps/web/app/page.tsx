@@ -18,7 +18,7 @@ export default function Home() {
     <main>
       <section className="heroSection" aria-labelledby="home-title">
         <div className="heroCopy">
-          <p className="eyebrow">Offline-first strength training</p>
+          <p className="eyebrow">Available now on the App Store</p>
           <h1 id="home-title">OwnLift</h1>
           <p className="lead">
             An offline-first 5/3/1 strength training program runner.
@@ -28,8 +28,14 @@ export default function Home() {
               <li key={point}>{point}</li>
             ))}
           </ul>
-          <div className="actionRow" aria-label="Launch links">
-            <p className="storeBadge">Coming soon on the App Store</p>
+          <div className="actionRow" aria-label="Download and support links">
+            <a
+              className="storeBadge"
+              href="https://apps.apple.com/app/id6762624258"
+              aria-label="Download OwnLift on the App Store"
+            >
+              Download on the App Store
+            </a>
             <Link className="textLink" href="/support">
               Support
             </Link>

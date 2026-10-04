@@ -10,13 +10,13 @@ const navigationLinks = [
 ] as const;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://ownlift.app"),
+  metadataBase: new URL("https://ownlift.vercel.app"),
   title: {
     default: "OwnLift",
     template: "%s | OwnLift",
   },
   description:
-    "OwnLift is an offline-first 5/3/1 strength training program runner.",
+    "OwnLift is an offline-first 5/3/1 strength training program runner. Available now on the App Store.",
   applicationName: "OwnLift",
   icons: {
     icon: "/assets/ownlift-icon.png",
@@ -25,9 +25,12 @@ export const metadata: Metadata = {
   openGraph: {
     title: "OwnLift",
     description:
-      "An offline-first 5/3/1 strength training program runner.",
+      "An offline-first 5/3/1 strength training program runner. Available now on the App Store.",
     siteName: "OwnLift",
     type: "website",
+  },
+  itunes: {
+    appId: "6762624258",
   },
 };
 
